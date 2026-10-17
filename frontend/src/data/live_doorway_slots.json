@@ -17,62 +17,6 @@
       "Sunday, 11:00 AM - 11:20 AM"
     ],
     "bio": "High-leverage, human-verified 20-min consult protected by Kin anti-AI-slop guarantee.",
-    "updatedAt": "2026-10-17T22:07:34.185Z"
-  },
-  {
-    "id": "doorway-parth",
-    "professionalEmail": "parth.arora@deepmind.com",
-    "professionalName": "Parth Arora",
-    "role": "Staff Infrastructure Architect",
-    "company": "Google DeepMind",
-    "institution": "Google DeepMind (IIITD Class of 2019)",
-    "specialty": "System Design Drill",
-    "exp": "8 yrs exp",
-    "rating": "5.0 ★",
-    "fee": 1000,
-    "isAvailable": true,
-    "availableSlots": [
-      "Saturday, 10:00 AM - 10:20 AM",
-      "Saturday, 11:00 AM - 11:20 AM",
-      "Sunday, 4:00 PM - 4:20 PM"
-    ],
-    "bio": "Deep dive into real distributed system failure modes and cluster scheduling."
-  },
-  {
-    "id": "doorway-sneha",
-    "professionalEmail": "sneha.kapoor@anthropic.com",
-    "professionalName": "Sneha Kapoor",
-    "role": "Member of Technical Staff • Alignment",
-    "company": "Anthropic",
-    "institution": "Anthropic (IIITD Class of 2020)",
-    "specialty": "AI / Healthcare Architecture",
-    "exp": "6 yrs exp",
-    "rating": "4.9 ★",
-    "fee": 1200,
-    "isAvailable": true,
-    "availableSlots": [
-      "Friday, 6:00 PM - 6:20 PM",
-      "Saturday, 2:00 PM - 2:20 PM",
-      "Sunday, 5:00 PM - 5:20 PM"
-    ],
-    "bio": "Mechanistic interpretability, model steering, and scaling evaluation."
-  },
-  {
-    "id": "doorway-vikram",
-    "professionalEmail": "vikram.singh@uber.com",
-    "professionalName": "Vikram Singh",
-    "role": "Senior Engineering Manager",
-    "company": "Uber",
-    "institution": "Uber (IIITD Class of 2018)",
-    "specialty": "Web3 & Smart Contract Audit",
-    "exp": "8 yrs exp",
-    "rating": "4.9 ★",
-    "fee": 900,
-    "isAvailable": true,
-    "availableSlots": [
-      "Saturday, 3:00 PM - 3:20 PM",
-      "Sunday, 11:00 AM - 11:20 AM"
-    ],
-    "bio": "Pragmatic distributed consensus, database sharding, and interview prep."
+    "updatedAt": "2026-10-17T22:15:01.388Z"
   }
 ]

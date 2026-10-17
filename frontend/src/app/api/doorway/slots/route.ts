@@ -53,6 +53,13 @@ export async function GET(req: NextRequest) {
 
     let slots = readSlots();
 
+    // Strictly filter out any mock seeds or student entries - only keep real professional offerings
+    slots = slots.filter((s) => {
+      const isStudent = s.role && s.role.toLowerCase().includes('student');
+      const isMockSeed = s.id === 'doorway-parth' || s.id === 'doorway-sneha' || s.id === 'doorway-vikram';
+      return !isStudent && !isMockSeed;
+    });
+
     if (email) {
       slots = slots.filter((s) => s.professionalEmail.toLowerCase() === email);
     } else if (name) {
@@ -99,11 +106,15 @@ export async function POST(req: NextRequest) {
         s.professionalName.toLowerCase() === nameKey
     );
 
+    const effectiveRole = (!role || role.toLowerCase().includes('student'))
+      ? 'Senior Technical Leader & Mentor'
+      : role;
+
     const slotPayload: DoorwaySlot = {
       id: existingIndex >= 0 ? slots[existingIndex].id : `doorway-${Date.now()}`,
       professionalEmail: professionalEmail || 'professional@kin.network',
       professionalName,
-      role: role || 'Senior Technology Leader',
+      role: effectiveRole,
       company: company || institution || 'Global Tech Core',
       institution: institution || 'IIIT Delhi Alumni Network',
       specialty: specialty || 'System Architecture & Scalability Drill',

@@ -880,8 +880,12 @@ export default function KinGlassDashboard() {
         body: JSON.stringify({
           professionalEmail: user?.email || activeUserEmail || 'professional@kin.network',
           professionalName: activeUserName || 'Verified Leader',
-          role: activeUserRole || 'Senior Systems Architect',
-          company: activeUserInstitution || 'Global Technology Syndicate',
+          role: (user?.headline && !user.headline.toLowerCase().includes('student'))
+            ? user.headline
+            : 'Senior Technical Leader & Mentor',
+          company: (user?.institution && !user.institution.toLowerCase().includes('student'))
+            ? user.institution
+            : 'Global Technology Syndicate',
           specialty: consultSpecialtySetting || 'System Design & Distributed Scalability Drill',
           fee: numericFee,
           isAvailable: consultIsOpenForBookings,
