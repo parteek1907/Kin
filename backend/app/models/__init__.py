@@ -39,6 +39,24 @@ from app.features.kin_reputation.models import (
     VerificationStatus,
     ReputationTier,
 )
+from app.features.ghost_mode.models import (
+    GhostEntitlement,
+    GhostPersona,
+    GhostIdentityMapping,
+    GhostPost,
+    GhostReply,
+    GhostReaction,
+    GhostReport,
+    GhostPersonaMute,
+    GhostAuditLog,
+    EntitlementStatus,
+    EntitlementPlan,
+    GhostPostCategory,
+    ContentStatus,
+    ReportReason,
+    ReportStatus,
+    ReactionType,
+)
 
 __all__ = [
     "Base",
@@ -79,5 +97,22 @@ __all__ = [
     "ContributionEventType",
     "VerificationStatus",
     "ReputationTier",
+    "GhostEntitlement",
+    "GhostPersona",
+    "GhostIdentityMapping",
+    "GhostPost",
+    "GhostReply",
+    "GhostReaction",
+    "GhostReport",
+    "GhostPersonaMute",
+    "GhostAuditLog",
+    "EntitlementStatus",
+    "EntitlementPlan",
+    "GhostPostCategory",
+    "ContentStatus",
+    "ReportReason",
+    "ReportStatus",
+    "ReactionType",
 ]
+
 

@@ -52,6 +52,16 @@ The **Kin Reputation Engine** provides an immutable, auditable, contribution-bas
 - **Hardened Anti-Abuse Controls**: Built-in safeguards against self-awarding, cooldown violations, daily category point caps, rapid point farming, and pairwise reciprocal collusion rings between colluding members.
 - **Zero Information Leakage**: Public reputation cards strictly enforce profile visibility settings (public, network-only, private) and never expose private fraud flags, dispute references, or internal moderation logs.
 
+### Major Feature 7: Kin Ghost Mode (Privacy-Preserving Discussions & Pseudonymous Identities)
+**Kin Ghost Mode** empowers eligible members with an active entitlement to participate in designated community discussions under a pseudonymous persona that is never publicly linked to their real profile or account.
+- **Genuine Privacy Boundary & Identity Separation**: Separates the authenticated account (`users`), the pseudonymous persona (`ghost_personas`), content records (`ghost_posts`, `ghost_replies`), and the restricted mapping table (`ghost_identity_mappings`).
+- **Cryptographic / Opaque Identifiers**: Uses opaque handles (`ghost-usr-xxxx`), procedural alias generators (curated adjectives + professional archetypes), random avatar seeds, and palette themes. Pseudonyms are completely decoupled from names, emails, student IDs, or usernames.
+- **Independent Server-Side Entitlement Verification**: Verifies entitlement status directly in the database (`ghost_entitlements`) on every privileged action. Never trusts client-supplied flags. Supports active entitlements, grace periods, cancelled renewals with remaining paid access, expired/failed payments, and refunds.
+- **Strict Anti-Leak Serialization**: Schemas strictly redact real `user_id`, email, full name, avatar URLs, alumni statuses, and role fields from all public feeds, detail endpoints, and search responses.
+- **Content Governance & IDOR Protection**: Authors retain full rights to edit and soft-delete their own posts/replies while their entitlement is active or expired; users can never mutate or delete posts authored by another persona.
+- **Audited Moderator Review**: When abuse, threats, harassment, or doxxing are reported, platform moderators can inspect content. Identity de-anonymization requires a mandatory, documented business reason and is permanently recorded in `ghost_audit_logs`.
+- **Persona Rotation & Member Controls**: Members can rotate their persona at will to start fresh discussions without connecting prior posts, and can locally mute abusive personas without exposing identities.
+
 
 ---
 
@@ -822,6 +832,7 @@ Migrations are managed with Alembic. The migration history is strictly linear:
 4. `0004_unclaimed_talent_radar`: Opportunities and Talent Radar Feedback.
 5. `0005_skill_bounty_network`: Challenges, Submissions, Reviews, and Outcomes.
 6. `0006_kin_reputation_engine`: Points Policies, Reputation Summaries, Immutable Ledger Entries, and Abuse Audit Logs.
+7. `0007_kin_ghost_mode`: Ghost Entitlements, Personas, Identity Mappings, Posts, Replies, Reactions, Reports, Mutes, and Audit Logs.
 
 Apply all migrations:
 ```bash
@@ -832,11 +843,11 @@ alembic upgrade head
 Verify migration heads:
 ```bash
 alembic heads
-# Expected: 0006_kin_reputation_engine (head)
+# Expected: 0007_kin_ghost_mode (head)
 ```
 
 ### Running Automated Tests
-The backend features 96 automated tests across all 6 core features:
+The backend features 107 automated tests across all 7 core features:
 - `tests/test_auth.py`: Authentication, JWT, and user management (7 tests).
 - `tests/test_career_time_machine.py`: Feature 1 - Career pathways, timelines, skill gaps (11 tests).
 - `tests/test_health.py`: System health checks and routing (3 tests).
@@ -845,18 +856,19 @@ The backend features 96 automated tests across all 6 core features:
 - `tests/test_skill_bounty.py`: Feature 4 - Challenges, submissions, rubrics, outcomes (20 tests).
 - `tests/test_unclaimed_talent_radar.py`: Feature 5 - Cross-industry discovery, transferable skill graph (20 tests).
 - `tests/test_kin_reputation.py`: Feature 6 - Kin Reputation Engine, immutable ledger, anti-abuse, reversals (15 tests).
+- `tests/test_ghost_mode.py`: Feature 7 - Kin Ghost Mode, entitlements, privacy boundaries, pseudonym rotation, IDOR protections, threaded replies, muting, abuse reporting, audited moderator reveals (11 tests).
 
 Run the complete test suite:
 ```bash
 cd backend
 python -m pytest
-# Expected: 96 passed
+# Expected: 107 passed
 ```
 
-Run Kin Reputation tests exclusively:
+Run Kin Ghost Mode tests exclusively:
 ```bash
-python -m pytest tests/test_kin_reputation.py
-# Expected: 15 passed
+python -m pytest tests/test_ghost_mode.py
+# Expected: 11 passed
 ```
 
 ---
@@ -961,4 +973,62 @@ Content-Type: application/json
 - **No Payment Processing**: In accordance with platform design, monetary reward processing is excluded. Rewards are limited to mentorship, portfolio evidence, interviews, and referrals.
 - **No Server-Side Code Execution**: For security reasons, submitted repositories are not executed or downloaded on the backend server. Evaluation is performed by authorized professional creators inspecting the repository links and live demos.
 - **Non-Guaranteed Opportunities**: All recommendations and professional outcomes are deterministic indicators and verifiable awards, not promises or legal guarantees of employment.
+
+---
+
+## 12. Major Feature 7: Kin Ghost Mode API Reference
+
+### 12.1 Entitlement Lifecycle & Billing Rules
+| Entitlement State | Posting & Replying Allowed | Viewing & Reacting Allowed | Existing Content Retained | Description |
+|---|---|---|---|---|
+| `active` | Yes | Yes | Yes | Full premium participation mode with valid expiration date in the future. |
+| `cancelled` (within paid period) | Yes | Yes | Yes | Renewal cancelled, but paid runway remains active until `expires_at`. |
+| `grace_period` | Yes | Yes | Yes | Payment retry in progress (typically 3 days); privileges temporarily preserved. |
+| `expired` | No (`403 Forbidden`) | Yes | Yes | Entitlement period has elapsed. User can read and manage own existing content, but cannot publish new posts. Previously published content is **never deleted**. |
+| `past_due` / `failed` | No (`403 Forbidden`) | Yes | Yes | Payment failed or chargeback occurred. Publishing suspended immediately. |
+| `revoked` | No (`403 Forbidden`) | Limited | Yes | Revoked by moderation due to severe terms-of-service violations. |
+
+> [!IMPORTANT]
+> **Independent Server Verification**: Kin never relies on client-supplied flags (e.g., `is_premium: true`). Every post, reply, and persona rotation validates database records via `GhostEntitlement.is_active_entitlement`.
+
+### 12.2 Identity Separation & Threat Model
+Kin Ghost Mode achieves genuine identity separation by decoupling four distinct backend layers:
+1. **Authenticated Account Layer** (`users`): Real user credentials, emails, and platform roles.
+2. **Pseudonymous Identity Layer** (`ghost_personas`): Opaque public handles (`ghost-usr-xxxx`), procedural pseudonyms (e.g., `"Strategic Visionary"`, `"Resilient Navigator"`), avatar seeds, and palette themes.
+3. **Discussion & Interaction Layer** (`ghost_posts`, `ghost_replies`, `ghost_reactions`): References only `ghost_personas.id`. Never stores foreign keys to `users.id`.
+4. **Restricted Identity Isolation Layer** (`ghost_identity_mappings`): Strictly maps `user_id` to `persona_id`. Never joined or exposed during normal public API reads.
+
+### 12.3 What Kin Ghost Mode Does and Does NOT Keep Anonymous
+- **What IS Kept Anonymous**:
+  - Public readers, participants, and alumni can never see your real account name, email, user ID, profile URL, alumni graduation year, or institution in Ghost Mode discussions.
+  - Persona rotation allows decoupling future posts from previously published ghost threads.
+  - Public feeds and search endpoints strictly suppress account metadata.
+- **What is NOT Kept Anonymous**:
+  - Kin is not an untraceable darknet; backend database audit tables maintain an isolated identity mapping.
+  - High-severity abuse reports (e.g., threats, doxxing, unlawful harassment) permit platform moderators to resolve identity through a strictly audited workflow (`/api/v1/ghost/moderation/audit-reveal`) which requires a documented legal or safety justification.
+  - Platform network logs (IP addresses and request timestamps) are managed at the web server / infrastructure gateway layer and are not masked by application-level pseudonymization.
+
+### 12.4 Endpoints Reference
+Mounted at `/api/v1/ghost/`:
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/ghost/entitlement` | Authenticated | Retrieve current user's Ghost Mode entitlement status, plan, and expiration |
+| `POST` | `/api/v1/ghost/entitlement/sync` | Authenticated | Webhook or billing synchronizer updating entitlement status |
+| `GET` | `/api/v1/ghost/persona/me` | Entitled | Retrieve or auto-provision the member's current active pseudonymous persona |
+| `POST` | `/api/v1/ghost/persona/rotate` | Entitled | Rotate persona, generating a brand-new pseudonym, avatar seed, and theme |
+| `POST` | `/api/v1/ghost/posts` | Entitled | Publish a new pseudonymous post (sensitive career, salary, workplace, etc.) |
+| `GET` | `/api/v1/ghost/posts` | Authenticated | Paginated feed of ghost discussions, filtering muted personas and flagged content |
+| `GET` | `/api/v1/ghost/posts/{post_id}` | Authenticated | Thread detail with nested comments, reactions, and persona metadata |
+| `PATCH` | `/api/v1/ghost/posts/{post_id}` | Author Only | Update content of an authored post (enforces IDOR ownership protection) |
+| `DELETE` | `/api/v1/ghost/posts/{post_id}` | Author Only | Soft-delete an authored post |
+| `POST` | `/api/v1/ghost/posts/{post_id}/replies` | Entitled | Post a threaded reply under current pseudonymous persona |
+| `PATCH` | `/api/v1/ghost/replies/{reply_id}` | Author Only | Update an authored reply |
+| `DELETE` | `/api/v1/ghost/replies/{reply_id}` | Author Only | Soft-delete an authored reply |
+| `POST` | `/api/v1/ghost/posts/{post_id}/reactions` | Authenticated | Add or update reaction (`helpful`, `insightful`, `supportive`, `relatable`) |
+| `POST` | `/api/v1/ghost/posts/{post_id}/report` | Authenticated | Submit abuse/harassment report for moderator review |
+| `POST` | `/api/v1/ghost/personas/{handle}/mute` | Authenticated | Locally mute a persona from user's personal feed |
+| `DELETE` | `/api/v1/ghost/personas/{handle}/mute` | Authenticated | Unmute a previously muted persona |
+| `POST` | `/api/v1/ghost/moderation/posts/{post_id}/action` | Moderator | Moderate post (`flagged`, `hidden`, `pinned`, `archived`) |
+| `POST` | `/api/v1/ghost/moderation/audit-reveal` | Moderator | **Audited identity reveal**; requires documented business justification |
 
