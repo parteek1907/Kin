@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { MessageCircle, ArrowRight } from 'lucide-react';
 
 interface WavePanelProps {
   onExplore?: () => void;
@@ -174,10 +175,40 @@ export default function WavePanel({ onExplore }: WavePanelProps) {
           <p
             id="hero-subtext"
             style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
-            className="text-[#4A4B53] text-[15px] sm:text-[17px] md:text-[20px] font-normal leading-[1.6] md:leading-[1.7] tracking-[0.025em] max-w-[580px] md:max-w-[640px]"
+            className="text-[#4A4B53] text-[15px] sm:text-[17px] md:text-[20px] font-normal leading-[1.6] md:leading-[1.7] tracking-[0.025em] max-w-[580px] md:max-w-[640px] mb-8"
           >
             A living network that connects proven expertise to real opportunities through trusted campus relationships.
           </p>
+
+          {/* 4. ACTIONS: Primary Explore CTA + Secondary "Chat on WhatsApp" */}
+          <div className="flex flex-wrap items-center gap-4">
+            <button
+              onClick={() => {
+                if (onExplore) {
+                  onExplore();
+                } else {
+                  const el = document.getElementById('how-to-use');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+              style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
+              className="group h-[50px] px-7 rounded-xl bg-[#11131A] text-white font-bold text-[12px] tracking-[0.14em] uppercase transition-all duration-200 hover:bg-black active:scale-[0.98] shadow-lg flex items-center gap-2.5 cursor-pointer"
+            >
+              <span>EXPLORE NETWORK</span>
+              <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+            </button>
+
+            <a
+              href={`https://wa.me/${process.env.NEXT_PUBLIC_WA_BUSINESS_NUMBER || '919811022678'}?text=Hi%20CONDUIT`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
+              className="h-[50px] px-6 rounded-xl bg-white/80 hover:bg-white text-[#11131A] border border-black/10 hover:border-black/20 font-bold text-[12px] tracking-[0.14em] uppercase transition-all duration-200 shadow-sm flex items-center gap-2.5 hover:shadow-md cursor-pointer group"
+            >
+              <MessageCircle className="w-4 h-4 text-[#11131A] group-hover:text-[#6a9117] transition-colors" />
+              <span>CHAT ON WHATSAPP</span>
+            </a>
+          </div>
 
         </div>
       </div>

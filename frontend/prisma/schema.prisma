@@ -1,0 +1,87 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model WhatsappContact {
+  id                String                     @id @default(cuid())
+  userId            String?                    @map("user_id")
+  phoneE164         String                     @unique @map("phone_e164")
+  verifiedAt        DateTime?                  @map("verified_at")
+  optedInAt         DateTime?                  @map("opted_in_at")
+  optedOutAt        DateTime?                  @map("opted_out_at")
+  lastInboundAt     DateTime?                  @map("last_inbound_at")
+  language          String                     @default("en")
+  preferences       String                     @default("{}") // JSON string for cross-database compatibility (SQLite & Postgres)
+  createdAt         DateTime                   @default(now()) @map("created_at")
+  updatedAt         DateTime                   @updatedAt @map("updated_at")
+
+  messages          WhatsappMessage[]
+  otps              WhatsappOtp[]
+  conversationState WhatsappConversationState?
+
+  @@index([phoneE164])
+  @@map("whatsapp_contacts")
+}
+
+model WhatsappMessage {
+  id              String          @id @default(cuid())
+  waMessageId     String          @unique @map("wa_message_id")
+  contactId       String          @map("contact_id")
+  contact         WhatsappContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  direction       String          // "inbound" | "outbound"
+  type            String          // "text" | "interactive" | "template" | "media" | "reaction"
+  body            String?
+  templateName    String?         @map("template_name")
+  status          String          @default("sent") // "sent" | "delivered" | "read" | "failed" | "received"
+  errorCode       String?         @map("error_code")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@index([waMessageId])
+  @@index([contactId])
+  @@map("whatsapp_messages")
+}
+
+model WhatsappOtp {
+  id              String          @id @default(cuid())
+  contactId       String          @map("contact_id")
+  contact         WhatsappContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  codeHash        String          @map("code_hash")
+  expiresAt       DateTime        @map("expires_at")
+  attempts        Int             @default(0)
+  consumedAt      DateTime?       @map("consumed_at")
+  ipAddress       String?         @map("ip_address")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  @@index([contactId])
+  @@map("whatsapp_otps")
+}
+
+model WhatsappConversationState {
+  id              String          @id @default(cuid())
+  contactId       String          @unique @map("contact_id")
+  contact         WhatsappContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  flow            String          // "IDLE" | "POST_INTENT" | "TRUST_REQUEST"
+  step            String          // "INIT", "WAITING_TITLE", "WAITING_CATEGORY", "WAITING_DESC", "CONFIRM"
+  data            String          @default("{}") // JSON string
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@index([contactId])
+  @@map("whatsapp_conversation_state")
+}
+
+model WebhookEvent {
+  id              String          @id @default(cuid())
+  eventId         String?         @map("event_id")
+  payload         String          // RAW JSON string
+  processedAt     DateTime?       @map("processed_at")
+  error           String?
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  @@map("webhook_events")
+}

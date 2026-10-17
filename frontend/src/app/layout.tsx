@@ -4,6 +4,7 @@ import { NetworkProvider } from '@/context/NetworkContext';
 import { AuthProvider } from '@/context/AuthContext';
 import AuthModal from '@/components/AuthModal';
 import SmoothScrollProvider from '@/components/providers/SmoothScrollProvider';
+import FloatingWhatsAppButton from '@/components/whatsapp/FloatingWhatsAppButton';
 
 export const metadata: Metadata = {
   title: 'KIN — Campus Trust Network',
@@ -42,6 +43,7 @@ export default function RootLayout({
             <NetworkProvider>
               {children}
               <AuthModal />
+              <FloatingWhatsAppButton />
             </NetworkProvider>
           </AuthProvider>
         </SmoothScrollProvider>
