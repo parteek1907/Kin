@@ -33,6 +33,16 @@ The **Social Networking & Connection Management System** provides a professional
 - **Safety, Blocking & Disconnection**: Bidirectional user blocking with automatic connection dissolution, request cancellation, exclusion from suggestions, and owner-only unblocking.
 - **In-App Persistent Notifications**: Event-driven notification tracking for connection requests, acceptances, and social updates with unread counts and read-state management.
 
+### Major Feature 4: Skill Bounty Network
+The **Skill Bounty Network** connects students with alumni, startup founders, recruiters, and faculty through real-world challenges.
+- **Demonstrated Ability Over Unverified Claims**: Gives students an authentic platform to demonstrate technical competencies rather than merely claiming skills on a static resume.
+- **Role-Enforced Marketplace**: Alumni, Founders, Recruiters, and Faculty author real problem bounties; Students build and submit verified evidence.
+- **Deterministic Challenge Recommendations**: Ranks bounties via explainable signals (skill overlap, category relevance, difficulty tier alignment, deadline runway) without requiring AI API keys.
+- **Professional Outcomes Tracking**: Verified records of mentorship, interviews, collaboration, portfolio pieces, and technical feedback without fabricated compensation or guaranteed hiring.
+
+### Major Feature 5: Unclaimed Talent Radar
+The **Unclaimed Talent Radar** discovers high-value opportunities that students and alumni might not think to search for themselves. Rather than merely matching declared career aspirations or current narrow job titles, the system identifies **transferable skills** and bridges candidates to adjacent and emerging industries.
+
 ---
 
 ## 2. Technology Stack
@@ -431,13 +441,407 @@ Unblocks User B.
 
 ---
 
-## 9. Current Limitations & Roadmap
+## 8. Major Feature 5: Unclaimed Talent Radar
 
-### Current Version (v1.2.0)
-- **Deterministic Transparency**: Recommendations and qualifications are backed by concrete profile evidence and graph topology, completely free from black-box hallucination.
-- **Safety First**: Bidirectional blocks immediately dissolve established connections and nullify pending interactions.
+### 8.1 Overview & Vision
+The **Unclaimed Talent Radar** discovers high-value opportunities that students and alumni might not think to search for themselves. Rather than merely matching declared career aspirations or current narrow job titles, the system identifies **transferable skills** and bridges candidates to adjacent and emerging industries (e.g., Computer Vision -> Autonomous Vehicles, Medical Image Analysis, or Industrial Quality Inspection).
 
-### Teammate Features Reserved for Future Integration
-The architecture cleanly reserves room for upcoming modules:
-1. **Module 4: Mentorship Matching & Session Booking** (`app/features/mentorship/`)
-2. **Module 5: Mock Technical Interviews & Feedback Loop** (`app/features/mock_interviews/`)
+Recommendations are grounded in authentic platform profile evidence and real stored database records, providing explainable reasoning, eligibility verification, and actionable learning suggestions.
+
+### 8.2 Architecture & Module Structure
+The feature is fully modular and resides in `backend/app/features/unclaimed_talent_radar/`:
+```text
+backend/app/features/unclaimed_talent_radar/
+├── __init__.py           # Package exports (models, service, router)
+├── models.py             # Opportunity and TalentRadarFeedback database models
+├── schemas.py            # Pydantic v2 schemas for discovery, feedback, and skill maps
+├── skill_graph.py        # Deterministic Transferable Skill Graph registry
+├── matching.py           # Cross-industry matching engine with configurable weights
+├── explanations.py       # Grounded explanation synthesizer & learning path generator
+├── feedback.py           # Feedback manager and ranking adjustment signals
+├── repository.py         # Database query layer and modular integration adapters
+├── service.py            # Main business logic orchestrator
+└── router.py             # FastAPI REST endpoints
+```
+
+### 8.3 Data Sources & Reuse
+The feature reuses existing models without duplication:
+- **`User`** (`app.models.user`): Identity, authentication, ownership.
+- **`Profile`** (`app.models.profile`): Declared skills, education history, years of experience, primary industry.
+- **`CareerJourney`** (`app.features.career_time_machine.models`): Historical projects, achievements, skills used, and official verification statuses (`alumni_verified`, `official_verified`).
+- **`Opportunity`** (`app.features.unclaimed_talent_radar.models`): Real database records with deadlines, visibility, experience levels, and eligibility criteria.
+- **`TalentRadarFeedback`** (`app.features.unclaimed_talent_radar.models`): Recommendation feedback records with unique constraint on `(user_id, opportunity_id)`.
+- **Modular Adapters**: `SkillBountyAdapter` interface defined for future integration when the Skill Bounty challenge module is deployed.
+
+### 8.4 Skill Evidence Tiering
+To avoid assuming that merely mentioning a skill proves proficiency, skills are rigorously classified:
+1. **Self-Declared (`self_declared`)**: Skills stated on the user's profile without project or verified history.
+2. **Project-Evidenced (`project_evidenced`)**: Skills demonstrated in documented achievements or projects in historical career stages.
+3. **Verified Evidence (`verified_evidence`)**: Skills supported by alumni-verified or official-verified career records.
+4. **Inferred (`inferred`)**: Directional skill potentials derived through the transferable skill graph. Inferred skills are never presented as proven facts or counted as direct matches.
+
+### 8.5 Transferable Skill Graph
+A deterministic, expandable knowledge graph:
+- **Canonical Skills & Aliases**: Normalizes variations (e.g. `opencv`, `cv2`, `computer-vision` -> `Computer Vision`; `py`, `python3` -> `Python`).
+- **Associated Domains**: Maps skills to target industries (Autonomous Vehicles, Healthcare & Medical Imaging, Aerospace & Geospatial, Fintech, Industrial Automation).
+- **Transferable Edges**: Explicit directional bridges with confidence ratings, transparent reasons, and boundary limits:
+  - *Example*: `Computer Vision` -> `Autonomous Vehicle Perception` (Confidence: 0.88).
+  - *Reason*: "Both domains rely on feature extraction, semantic segmentation, and 3D bounding box detection across camera sensor feeds."
+  - *Limits*: "Does not imply expertise in vehicle kinematics, CAN bus protocols, or hard real-time ISO 26262 automotive safety standards."
+
+### 8.6 Recommendation Scoring & Signals
+Scores are normalized on a 0–100 scale:
+- **Direct Skill Match (35%)**: Proportional overlap of required skills, weighted higher for verified or project-backed skills.
+- **Transferable Skill Match (25%)**: Satisfied requirements via transferable edges with confidence weighting.
+- **Project Evidence (15%)**: Grounded evidence from past projects and achievements.
+- **Industry Exploration (10%)**: Bonus for adjacent domains offering cross-industry career mobility.
+- **Experience Compatibility (10%)**: Compares user experience against required minimums.
+- **Interest Relevance (5%)**: Overlap with stated profile headline, biography, and career interests.
+- **Feedback Adjustments**: Deterministic boosts/penalties from user reactions (`relevant` +8, `not_relevant` -35, `interested_in_industry` +10, `not_interested_in_industry` -25).
+- **Eligibility Filter**: Candidates failing explicit criteria (`ineligible`) receive severe score capping. Missing credentials are transparently marked as `unknown`.
+
+### 8.7 API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/v1/unclaimed-talent-radar/discover` | Discover opportunities (supports `discovery_mode`, pagination, filters) |
+| `GET` | `/api/v1/unclaimed-talent-radar/recommendations/me` | Personalized dashboard: Direct, Adjacent, and Exploratory feeds |
+| `GET` | `/api/v1/unclaimed-talent-radar/recommendations/{id}` | Detailed reasoning and learning suggestions for a specific opportunity |
+| `GET` | `/api/v1/unclaimed-talent-radar/profile-analysis` | Evidence tier breakdown for authenticated user |
+| `GET` | `/api/v1/unclaimed-talent-radar/skill-map` | Query canonical skills, aliases, and transferable relationships |
+| `POST` | `/api/v1/unclaimed-talent-radar/feedback` | Record recommendation feedback (upsert prevents duplicates) |
+| `POST` | `/api/v1/unclaimed-talent-radar/opportunities` | Create/seed empirical platform opportunities |
+
+#### Example: Discover Adjacent-Industry Opportunities
+**Request:**
+```http
+GET /api/v1/unclaimed-talent-radar/discover?discovery_mode=cross_industry_only&page=1&page_size=5
+Authorization: Bearer <JWT>
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "items": [
+    {
+      "opportunity_id": 2,
+      "title": "Autonomous Vehicle Perception Researcher",
+      "organization": "DriveAI Robotics",
+      "industry": "Autonomous Vehicles",
+      "opportunity_type": "research_project",
+      "location": "Bangalore",
+      "workplace_type": "hybrid",
+      "deadline": "2026-11-16T12:00:00Z",
+      "match_type": "adjacent_industry",
+      "relevance_score": 78.4,
+      "matched_skills": ["Python"],
+      "transferable_skills": [
+        {
+          "user_skill": "Computer Vision",
+          "related_domain": "Autonomous Vehicles",
+          "reason": "Both domains rely on feature extraction, semantic segmentation, and 3D bounding box detection across camera sensor feeds.",
+          "limits": "Does not imply expertise in vehicle kinematics, CAN bus protocols, or hard real-time ISO 26262 automotive safety standards.",
+          "confidence": 0.88
+        }
+      ],
+      "missing_skills": ["ROS 2"],
+      "eligibility_status": "eligible",
+      "eligibility_details": "Satisfies all specified eligibility criteria.",
+      "recommendation_reasons": [
+        "Directly matches 1 required skill(s): Python.",
+        "Demonstrated relevant project evidence in documented historical achievements.",
+        "Transferable skill connection: 'Computer Vision' is applicable to 'Autonomous Vehicles' - Both domains rely on feature extraction...",
+        "Opportunity is in the 'Autonomous Vehicles' sector, an adjacent industry offering cross-domain mobility beyond Information Technology."
+      ],
+      "learning_suggestions": [
+        {
+          "missing_skill": "ROS 2",
+          "anchor_skill": "Python",
+          "suggested_action": "Explore ROS 2 rclpy node architecture, publishers, subscribers, and launch files via simulation in Gazebo.",
+          "addressed_gap": "Bridges Python/C++ skills into modular robotics perception and node communication standards.",
+          "platform_resources": [
+            {
+              "skill": "ROS 2",
+              "title": "ROS 2 rclpy Architecture Lab",
+              "type": "lab"
+            }
+          ],
+          "disclaimer": "Preparation suggestions are deterministic learning guides and do not guarantee hiring or admission."
+        }
+      ]
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 5,
+  "total_pages": 1,
+  "discovery_mode": "cross_industry_only"
+}
+```
+
+---
+
+## 9. Major Feature 2: Skill Bounty Network
+
+### 9.1 Overview & Core Idea
+**STOP ASKING STUDENTS TO CLAIM THEY HAVE SKILLS. GIVE THEM AN OPPORTUNITY TO DEMONSTRATE THOSE SKILLS.**
+
+The **Skill Bounty Network** is a real-world technical challenge marketplace connecting students with alumni, founders, recruiters, and faculty. Platform professionals post practical problem statements reflecting actual engineering and research tasks (e.g., building an LSM tree, profiling LiDAR point clouds, optimizing API latency, or auditing container security).
+
+Students discover challenges, submit verifiable evidence (open-source git repositories, live demos, benchmarks, architecture documentation), and receive rigorous rubric-based technical reviews.
+
+A completed challenge may lead to:
+- Deep technical code reviews
+- 1-on-1 mentorship
+- High-signal portfolio proof of competency
+- Professional network connections
+- Collaboration and interview invitations, when explicitly offered by the creator
+
+> **Disclaimer**: All optional rewards and professional opportunities are explicitly defined by challenge creators and are distinguished from guaranteed employment or legal compensation. No real companies or sponsors are pre-populated or fabricated.
+
+---
+
+### 9.2 Challenge Lifecycle & State Machine
+Challenges follow an explicit, enforced state machine:
+```text
+  [ DRAFT ]  ───────────►  [ OPEN ]  ───────────►  [ CLOSED ]  ───────────►  [ COMPLETED ]
+      │                       │
+      └───────────────────────┴─────────────────►  [ CANCELLED ]
+```
+
+1. **DRAFT**: Created by an authorized professional (Alumni, Founder, Recruiter, Faculty). Not visible in public discovery feeds.
+2. **OPEN**: Published challenge with a future deadline. Accepting student submissions.
+3. **CLOSED**: Deadline passed or closed manually by the creator. Submissions are frozen; active reviews proceed.
+4. **COMPLETED**: All evaluations, feedback, and verified outcomes have been finalized.
+5. **CANCELLED**: Aborted by the creator. Sealed from future edits or submissions.
+
+*Automatic Expiration Guard*: Any challenge whose UTC deadline has passed is automatically treated as unavailable for new submissions, even in the absence of an external cron worker.
+
+---
+
+### 9.3 Submission & Evidence Verification
+Students submit empirical proof of work without server-side arbitrary code execution risks:
+- **Repository URL**: Links to GitHub, GitLab, etc. (strictly validated against HTTP/HTTPS syntax).
+- **Demo URL**: Optional live deployment preview.
+- **Supporting Evidence URLs**: Links to performance benchmarks, design documents, or technical writeups.
+- **Attachment References**: External artifact or release tags.
+- **Duplicate Prevention**: A student can hold only **one active submission** per challenge at a time. To resubmit, the student must update their existing submission or withdraw it first.
+- **Ownership Security**: Only the authoring student can edit or withdraw their submission prior to the challenge deadline. Unrelated creators cannot view or access another creator's submissions.
+
+---
+
+### 9.4 Review & Rubric Evaluation Workflow
+Challenge creators review submissions using structured evaluation criteria:
+- **Configurable Rubric**: Per-criterion scores and evaluation breakdowns.
+- **Technical Feedback**: Comprehensive code critique and architectural suggestions.
+- **Strengths & Areas for Improvement**: Actionable feedback items.
+- **Score Bounds**: Validated numeric score range (0.0 to 100.0). Scores represent assessment of the submitted artifact, not a complete measure of the human candidate.
+- **Self-Review Prevention**: Challenge authors and submitters are strictly prohibited from reviewing their own submissions (`HTTP 400 Bad Request`).
+
+---
+
+### 9.5 Verified Professional Outcomes
+Creators can award explicit, verifiable outcomes to high-performing submissions:
+- `feedback_received`: In-depth code review delivered.
+- `portfolio_project`: Verified high-quality work suitable for public portfolio evidence.
+- `mentorship_offered`: 1-on-1 career or technical mentorship extended.
+- `collaboration_offered`: Invitation to open-source or startup collaboration.
+- `interview_opportunity`: Fast-track or consideration for an interview stage.
+- `referral_offered`: Direct internal referral consideration.
+
+These records are explicitly granted and queryable across features (such as feeding into the `UnclaimedTalentRadar` skill evidence graph via `SkillBountyAdapter`).
+
+---
+
+### 9.6 AI-Ready Challenge Matching Engine
+The challenge recommendation system ranks open bounties deterministically without requiring an external AI API key:
+- **Direct Skill Overlap (45%)**: Overlap between student's profile skills and challenge required skills.
+- **Domain & Interest Relevance (25%)**: Alignment between challenge category and user biography, headline, and industry.
+- **Difficulty Compatibility (20%)**: Years of experience calibrated against difficulty tier (`Beginner`: 0–1.5 yrs, `Intermediate`: 1–4 yrs, `Advanced`: 3–6 yrs, `Expert`: 5+ yrs).
+- **Deadline Runway (10%)**: Remaining time window to ensure students have adequate development time.
+- **Extensible AI Protocol**: Defined via `ChallengeAIExplanationInterface(Protocol)`, enabling drop-in LLM explanation generation in future iterations.
+
+---
+
+### 9.7 API Endpoints
+
+| Method | Endpoint | Description | Access |
+|---|---|---|---|
+| `POST` | `/api/v1/skill-bounty/challenges` | Create a new challenge in draft status | Alumni, Founder, Recruiter, Faculty |
+| `GET` | `/api/v1/skill-bounty/challenges` | Discover challenges (filters, search, pagination) | Authenticated Users |
+| `GET` | `/api/v1/skill-bounty/challenges/{id}` | Get full challenge details and rubric | Authenticated Users |
+| `PATCH` | `/api/v1/skill-bounty/challenges/{id}` | Edit challenge fields (draft or open only) | Challenge Creator |
+| `POST` | `/api/v1/skill-bounty/challenges/{id}/publish` | Transition challenge from DRAFT to OPEN | Challenge Creator |
+| `POST` | `/api/v1/skill-bounty/challenges/{id}/close` | Transition challenge from OPEN to CLOSED | Challenge Creator |
+| `POST` | `/api/v1/skill-bounty/challenges/{id}/cancel` | Cancel challenge | Challenge Creator |
+| `POST` | `/api/v1/skill-bounty/challenges/{id}/complete` | Complete challenge | Challenge Creator |
+| `GET` | `/api/v1/skill-bounty/challenges/{id}/submissions` | List submissions for a challenge | Challenge Creator Only |
+| `POST` | `/api/v1/skill-bounty/challenges/{id}/submissions` | Submit solution to an open challenge | Students / Platform Users |
+| `GET` | `/api/v1/skill-bounty/submissions/me` | List submissions made by current user | Authenticated User |
+| `GET` | `/api/v1/skill-bounty/submissions/{id}` | Get single submission | Student Author or Creator |
+| `PATCH` | `/api/v1/skill-bounty/submissions/{id}` | Update active submission | Student Author Only |
+| `POST` | `/api/v1/skill-bounty/submissions/{id}/withdraw` | Withdraw active submission | Student Author Only |
+| `POST` | `/api/v1/skill-bounty/submissions/{id}/reviews` | Review and score a submission | Challenge Creator |
+| `GET` | `/api/v1/skill-bounty/submissions/{id}/reviews` | List reviews for a submission | Student Author or Creator |
+| `POST` | `/api/v1/skill-bounty/challenges/{id}/outcomes` | Award verified professional outcome | Challenge Creator |
+| `GET` | `/api/v1/skill-bounty/recommendations/me` | Get explainable challenge recommendations | Authenticated User |
+
+---
+
+### 9.8 Example API Requests & Responses
+
+#### 1. Create a Challenge
+**Request:**
+```http
+POST /api/v1/skill-bounty/challenges
+Authorization: Bearer <JWT_ALUMNI>
+Content-Type: application/json
+
+{
+  "title": "Build a High-Throughput Fraud Detection Engine",
+  "short_summary": "Design a real-time rule and anomaly evaluation service in Python.",
+  "problem_statement": "Financial transactions require real-time rule evaluation under 50ms latency. Build a prototype handling 5k req/sec with Redis caching.",
+  "category": "backend_engineering",
+  "required_skills": ["Python", "FastAPI", "Redis"],
+  "difficulty_level": "intermediate",
+  "estimated_effort": "4-6 hours",
+  "submission_instructions": "Submit GitHub repository with architecture diagram and Locust benchmark results.",
+  "evaluation_criteria": [
+    {"criterion": "System Latency (<50ms)", "max_points": 40},
+    {"criterion": "Code Modularity & Tests", "max_points": 30},
+    {"criterion": "Fault Tolerance", "max_points": 30}
+  ],
+  "deadline": "2026-11-20T23:59:59Z",
+  "organization_name": "FinTech Labs",
+  "mentorship_available": true,
+  "opportunity_type_offered": "Interview Consideration"
+}
+```
+
+**Response (`201 Created`):**
+```json
+{
+  "id": 1,
+  "creator_user_id": 1,
+  "title": "Build a High-Throughput Fraud Detection Engine",
+  "short_summary": "Design a real-time rule and anomaly evaluation service in Python.",
+  "problem_statement": "Financial transactions require real-time rule evaluation under 50ms latency...",
+  "category": "Backend Engineering",
+  "required_skills": ["Python", "FastAPI", "Redis"],
+  "difficulty_level": "Intermediate",
+  "estimated_effort": "4-6 hours",
+  "submission_instructions": "Submit GitHub repository with architecture diagram and Locust benchmark results.",
+  "evaluation_criteria": [
+    {"criterion": "System Latency (<50ms)", "max_points": 40},
+    {"criterion": "Code Modularity & Tests", "max_points": 30},
+    {"criterion": "Fault Tolerance", "max_points": 30}
+  ],
+  "deadline": "2026-11-20T23:59:59Z",
+  "organization_name": "FinTech Labs",
+  "reward_description": null,
+  "mentorship_available": true,
+  "opportunity_type_offered": "Interview Consideration",
+  "opportunity_details": null,
+  "status": "draft",
+  "published_at": null,
+  "closed_at": null,
+  "completed_at": null,
+  "created_at": "2026-10-17T11:30:00Z",
+  "updated_at": "2026-10-17T11:30:00Z",
+  "submissions_count": 0,
+  "creator_name": "Priya Nair",
+  "creator_role": "Alumni"
+}
+```
+
+#### 2. Get Challenge Recommendations for Authenticated Student
+**Request:**
+```http
+GET /api/v1/skill-bounty/recommendations/me?limit=5
+Authorization: Bearer <JWT_STUDENT>
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "user_id": 2,
+  "total": 1,
+  "recommendations": [
+    {
+      "challenge": {
+        "id": 1,
+        "creator_user_id": 1,
+        "title": "Build a High-Throughput Fraud Detection Engine",
+        "short_summary": "Design a real-time rule and anomaly evaluation service in Python.",
+        "problem_statement": "Financial transactions require real-time rule evaluation...",
+        "category": "Backend Engineering",
+        "required_skills": ["Python", "FastAPI", "Redis"],
+        "difficulty_level": "Intermediate",
+        "status": "open",
+        "deadline": "2026-11-20T23:59:59Z",
+        "mentorship_available": true,
+        "opportunity_type_offered": "Interview Consideration"
+      },
+      "relevance_score": 82.5,
+      "matched_skills": ["Python"],
+      "missing_skills": ["FastAPI", "Redis"],
+      "match_reasons": [
+        "Demonstrates your experience in Python.",
+        "Calibrated for intermediate level builders.",
+        "Creator offers 1-on-1 mentorship for top submissions.",
+        "Opportunity for: Interview Consideration."
+      ],
+      "difficulty_fit": "Moderate stretch challenge to accelerate growth."
+    }
+  ],
+  "disclaimer": "Challenge recommendations are deterministic indicators of skill and category alignment, not guarantees of selection or employment."
+}
+```
+
+---
+
+## 10. Database Migrations, Tests & Roadmap
+
+### Database Migrations
+Migrations are managed with Alembic. The migration history is linear:
+1. `0001_initial_schema`: Users, Profiles, and Career Journey models.
+2. `0002_unclaimed_talent_radar`: Opportunities and Talent Radar Feedback.
+3. `0003_skill_bounty_network`: Challenges, Submissions, Reviews, and Outcomes.
+
+Apply all migrations:
+```bash
+cd backend
+alembic upgrade head
+```
+
+Verify migration heads:
+```bash
+alembic heads
+# Expected: 0003_skill_bounty_network (head)
+```
+
+### Running Automated Tests
+The backend features 61 automated tests verifying all three major features:
+- `tests/test_auth.py`: Authentication, JWT, and user management (7 tests).
+- `tests/test_career_time_machine.py`: Feature 1 - Career pathways, timelines, skill gaps (11 tests).
+- `tests/test_health.py`: System health checks and routing (3 tests).
+- `tests/test_skill_bounty.py`: Feature 2 - Challenge creation, lifecycles, submissions, rubrics, outcomes, recommendations (20 tests).
+- `tests/test_unclaimed_talent_radar.py`: Feature 5 - Cross-industry discovery, transferable skill graph, eligibility (20 tests).
+
+Run the complete test suite:
+```bash
+cd backend
+python -m pytest
+# Expected: 61 passed
+```
+
+Run Skill Bounty tests exclusively:
+```bash
+python -m pytest tests/test_skill_bounty.py
+# Expected: 20 passed
+```
+
+### Known Limitations
+- **No Payment Processing**: In accordance with platform design, monetary reward processing is excluded. Rewards are limited to mentorship, portfolio evidence, interviews, and referrals.
+- **No Server-Side Code Execution**: For security reasons, submitted repositories are not executed or downloaded on the backend server. Evaluation is performed by authorized professional creators inspecting the repository links and live demos.
+- **Non-Guaranteed Opportunities**: All recommendations and professional outcomes are deterministic indicators and verifiable awards, not promises or legal guarantees of employment.

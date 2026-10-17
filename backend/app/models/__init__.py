@@ -9,6 +9,27 @@ from app.features.qualification_connections.models import (
     PolicyEvaluationLog,
 )
 from app.features.social.models import UserBlock, Notification
+from app.features.unclaimed_talent_radar.models import (
+    Opportunity,
+    OpportunityType,
+    OpportunityStatus,
+    OpportunityVisibility,
+    WorkplaceType,
+    TalentRadarFeedback,
+    FeedbackType,
+)
+from app.features.skill_bounty.models import (
+    Challenge,
+    ChallengeSubmission,
+    SubmissionReview,
+    ChallengeOutcome,
+    ChallengeCategory,
+    ChallengeDifficulty,
+    ChallengeStatus,
+    SubmissionStatus,
+    ReviewStatus,
+    OutcomeType,
+)
 
 __all__ = [
     "Base",
@@ -25,4 +46,21 @@ __all__ = [
     "PolicyEvaluationLog",
     "UserBlock",
     "Notification",
+    "Opportunity",
+    "OpportunityType",
+    "OpportunityStatus",
+    "OpportunityVisibility",
+    "WorkplaceType",
+    "TalentRadarFeedback",
+    "FeedbackType",
+    "Challenge",
+    "ChallengeSubmission",
+    "SubmissionReview",
+    "ChallengeOutcome",
+    "ChallengeCategory",
+    "ChallengeDifficulty",
+    "ChallengeStatus",
+    "SubmissionStatus",
+    "ReviewStatus",
+    "OutcomeType",
 ]
