@@ -647,7 +647,7 @@ export default function LiveCommunityNetwork({
           SUB-TAB 1 & 2: PUBLIC FEED OR GHOST FEED (With Active Members Sidebar)
           ═════════════════════════════════════════════════════════════════════ */}
       {(subTab === 'feed' || subTab === 'ghost') && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-20">
           {/* Main Feed Column (8 cols) */}
           <div className="lg:col-span-8 space-y-5">
             {subTab === 'feed' ? (
@@ -1112,7 +1112,7 @@ export default function LiveCommunityNetwork({
               <p className="text-xs text-slate-500">Try tweaking your keyword or filter chips above.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 pb-20">
               {filteredMembers.map((m) => {
                 const isStudentRole = m.role === 'student';
                 const isSelf = m.connectionStatus === 'self';

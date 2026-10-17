@@ -1369,7 +1369,7 @@ export default function KinGlassDashboard() {
       </div>
 
       {/* Main Container */}
-      <div className="relative z-10 w-full flex-1 flex flex-col items-center px-3 sm:px-6 lg:px-8 pt-4 pb-24">
+      <div className="relative z-10 w-full flex-1 flex flex-col items-center px-3 sm:px-6 lg:px-8 pt-4 pb-36">
         {/* ─── UNIVERSAL TOPBAR WITH 3D LOGO & EVALUATOR ROLE SWITCHER ─── */}
         <header className="w-full max-w-[1360px] mb-3 flex flex-wrap items-center justify-between gap-3 bg-white/70 backdrop-blur-xl border border-white/60 p-2.5 px-4 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
           {/* Left: Home link and 3D Logo & Brand */}
@@ -3494,28 +3494,28 @@ export default function KinGlassDashboard() {
       {/* ─── BOTTOM FLOATING GLASS DOCK (SINGLE KIN MASCOT BEHIND DOCK) ─── */}
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center pointer-events-none">
         
-        {/* PEEKING KIN MASCOT BEHIND DOCK: ONLY RENDERED WHEN TOUR IS NOT ACTIVE! */}
+        {/* ─── KIN AI MASCOT GUIDE FLOATING PROUDLY ABOVE DOCK ─── */}
         <AnimatePresence mode="wait">
           {!showMascotTour && (
             <motion.button
               key="dock-mascot-peek"
-              initial={{ opacity: 0, y: 28, scale: 0.85 }}
+              initial={{ opacity: 0, y: 14, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 28, scale: 0.85 }}
-              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              exit={{ opacity: 0, y: 14, scale: 0.9 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               onClick={() => {
                 setMascotStepIndex(0);
                 setShowMascotTour(true);
               }}
-              className="relative -mb-4 z-10 pointer-events-auto group cursor-pointer transition-transform duration-300 hover:-translate-y-2 focus:outline-none"
+              className="relative mb-2 z-30 pointer-events-auto group cursor-pointer transition-transform duration-300 hover:scale-110 hover:-translate-y-1 focus:outline-none"
               title="Kin AI Guide • Click me to interact! 👋"
             >
               <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-slate-200 shadow-md text-[10px] font-bold text-slate-800 whitespace-nowrap pointer-events-none">
                 Kin Guide • Click me 👋
               </div>
 
-              <div className="w-14 h-14 relative filter drop-shadow-[0_4px_14px_rgba(0,0,0,0.1)]">
-                <KinMascot pose={activeTab as any} size={56} />
+              <div className="w-13 h-13 relative filter drop-shadow-[0_4px_14px_rgba(0,0,0,0.12)]">
+                <KinMascot pose={activeTab as any} size={52} />
               </div>
             </motion.button>
           )}
@@ -3645,7 +3645,7 @@ export default function KinGlassDashboard() {
                             setActiveTab(KIN_WALKTHROUGH[next].tabId);
                           } else {
                             setShowMascotTour(false);
-                            showToast('Walkthrough complete! Kin is resting behind the dock navigation.');
+                            showToast('Walkthrough complete! Kin is here whenever you need guidance.');
                           }
                         }}
                         className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
