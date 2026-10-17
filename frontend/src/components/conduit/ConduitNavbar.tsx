@@ -11,12 +11,14 @@ interface ConduitNavbarProps {
   onExplore?: () => void;
   onHowItWorks?: () => void;
   onForInstitutions?: () => void;
+  onEnterNetwork?: () => void;
 }
 
 export default function ConduitNavbar({
   onExplore,
   onHowItWorks,
-  onForInstitutions
+  onForInstitutions,
+  onEnterNetwork
 }: ConduitNavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -120,14 +122,20 @@ export default function ConduitNavbar({
             ZONE 3: PRIMARY ACTION (ENTER NETWORK → Smooth blended borderless action, no pill boundary, no blur)
            ===================================================================== */}
         <div className="flex items-center justify-self-end">
-          <Link
+          <button
             id="nav-cta"
-            href="/dashboard"
+            onClick={() => {
+              if (onEnterNetwork) {
+                onEnterNetwork();
+              } else {
+                handleScrollTo('pricing', onExplore);
+              }
+            }}
             style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
             className="group hidden lg:inline-flex items-center h-[52px] text-[#11131A] font-bold text-[12px] tracking-[0.12em] uppercase transition-all duration-200 hover:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A]/30 whitespace-nowrap cursor-pointer select-none"
           >
             <span>ENTER NETWORK</span>
-          </Link>
+          </button>
 
 
           {/* Tablet & Mobile Menu Hamburger (visible below 1024px) */}

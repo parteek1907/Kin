@@ -10,12 +10,14 @@ interface ConduitHeroProps {
   onExplore?: () => void;
   onHowItWorks?: () => void;
   onForInstitutions?: () => void;
+  onEnterNetwork?: () => void;
 }
 
 export default function ConduitHero({
   onExplore,
   onHowItWorks,
-  onForInstitutions
+  onForInstitutions,
+  onEnterNetwork
 }: ConduitHeroProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
@@ -72,7 +74,7 @@ export default function ConduitHero({
           Wave starts below nav at ~28% height.
           Eyebrow, Headline, Subtext, CTA, Stats share the exact same left edge.
          ========================================================================= */}
-      <WavePanel onExplore={onExplore} />
+      <WavePanel onExplore={onExplore} onEnterNetwork={onEnterNetwork} />
 
       {/* =========================================================================
           LAYER 4: NAVBAR (FIXED TOP, 104px, 1fr auto 1fr GRID, LAYER 4)
@@ -81,6 +83,7 @@ export default function ConduitHero({
         onExplore={onExplore}
         onHowItWorks={onHowItWorks}
         onForInstitutions={onForInstitutions}
+        onEnterNetwork={onEnterNetwork}
       />
     </section>
   );

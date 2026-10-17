@@ -77,7 +77,7 @@ export default function ResumeUploadModal({ isOpen, onClose, onSuccess }: Resume
         if (onSuccess) onSuccess(data.profile);
         onClose();
       } else {
-        throw new Error(data.error || 'Failed to parse resume with Gemini.');
+        throw new Error(data.error || 'Failed to parse resume.');
       }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to analyze resume.');
@@ -140,7 +140,7 @@ export default function ResumeUploadModal({ isOpen, onClose, onSuccess }: Resume
           <div>
             <h2 className="text-xl font-black text-slate-900 tracking-tight">Upload Your CV / Resume</h2>
             <p className="text-xs text-slate-600 mt-0.5">
-              Powered by Gemini 3.5 AI • Automatically populates your personalized dashboard
+              Powered by Kin AI • Automatically populates your personalized dashboard
             </p>
           </div>
         </div>
@@ -242,7 +242,7 @@ export default function ResumeUploadModal({ isOpen, onClose, onSuccess }: Resume
               className="mt-2 w-full py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
             >
               <Sparkles className="w-3.5 h-3.5 text-[#E25C38]" />
-              <span>Parse with Gemini AI</span>
+              <span>Analyze with Kin</span>
             </button>
           )}
         </div>
@@ -270,7 +270,7 @@ export default function ResumeUploadModal({ isOpen, onClose, onSuccess }: Resume
                 className="object-contain"
               />
             </motion.div>
-            <h3 className="text-sm font-bold text-slate-900">Kin is reading your CV with Gemini AI...</h3>
+            <h3 className="text-sm font-bold text-slate-900">Kin is reading your CV...</h3>
             <p className="text-xs text-slate-500 mt-1 text-center">
               Extracting skills, career trajectory, and finding high-match opportunities
             </p>

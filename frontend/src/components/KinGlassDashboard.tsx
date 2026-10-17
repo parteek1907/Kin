@@ -123,6 +123,7 @@ export default function KinGlassDashboard() {
   } = useAuth();
 
   const router = useRouter();
+  const [networkRole, setNetworkRole] = useState<'student' | 'alumni'>('student');
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [currentTime, setCurrentTime] = useState('10:02 PM');
   const [autoAcceptThreshold, setAutoAcceptThreshold] = useState(64);
@@ -135,6 +136,26 @@ export default function KinGlassDashboard() {
   // Mascot Walkthrough State
   const [showMascotTour, setShowMascotTour] = useState(true);
   const [mascotStepIndex, setMascotStepIndex] = useState(0);
+
+  // Sync network role from URL or localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlRole = params.get('role');
+      if (urlRole === 'alumni') {
+        setNetworkRole('alumni');
+        setShowMascotTour(false);
+      } else {
+        const storedRole = localStorage.getItem('kin_network_role');
+        if (storedRole === 'alumni') {
+          setNetworkRole('alumni');
+          setShowMascotTour(false);
+        } else {
+          setNetworkRole('student');
+        }
+      }
+    }
+  }, []);
 
   // Interactive Modals & States
   const [selectedBounty, setSelectedBounty] = useState<SkillBounty | null>(null);
@@ -430,7 +451,125 @@ export default function KinGlassDashboard() {
 
         {/* ─── SINGLE FROSTED GLASS BACKDROP CONTAINER ─── */}
         <main className="w-full max-w-[1360px] flex-1 flex flex-col min-h-[calc(100vh-140px)]">
-          <div className="flex-1 w-full rounded-[36px] bg-white/18 border border-white/40 backdrop-blur-2xl shadow-[0_25px_60px_rgba(0,0,0,0.06),_inset_0_1.5px_2px_rgba(255,255,255,0.7)] p-5 sm:p-7 flex flex-col justify-between transition-all">
+          {networkRole === 'alumni' ? (
+            <div className="flex-1 w-full rounded-[36px] bg-white/25 border border-white/50 backdrop-blur-2xl shadow-[0_25px_60px_rgba(0,0,0,0.06),_inset_0_1.5px_2px_rgba(255,255,255,0.7)] p-6 sm:p-8 flex flex-col justify-between transition-all">
+              <div>
+                {/* Alumni Header Banner */}
+                <div className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-lg">
+                      A
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-black text-slate-900 tracking-tight">Alumni Command Center</h2>
+                        <span className="px-2.5 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider">
+                          Alumni Access
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        IIIT Delhi Alumni Network • Verified Portal
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      onClick={() => {
+                        setNetworkRole('student');
+                        localStorage.setItem('kin_network_role', 'student');
+                        showToast('Switched to Student Workspace');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                    >
+                      Switch to Student View
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await logout();
+                        showToast('Signed out successfully.');
+                        router.push('/');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Plain Minimal Alumni Feature Blocks */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Card 1: Student Talent Scouting */}
+                  <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                    <div>
+                      <div className="w-10 h-10 rounded-2xl bg-amber-50 text-[#E25C38] flex items-center justify-center mb-4">
+                        <Users className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900">Student Talent Scouting</h3>
+                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                        Discover top student builders with AST-verified code repositories, high commit velocities, and specialized skill alignments.
+                      </p>
+                    </div>
+                    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+                      <span>Pipeline: Ready</span>
+                      <span className="text-[#E25C38] font-bold">Awaiting Next Prompt</span>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Endowments & Bounties */}
+                  <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                    <div>
+                      <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mb-4">
+                        <Trophy className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900">Endowments & Bounties</h3>
+                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                        Post engineering challenges, sponsor student hackathons, and disburse USDC/crypto micro-grants directly into student builder wallets.
+                      </p>
+                    </div>
+                    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+                      <span>Vault: Configured</span>
+                      <span className="text-sky-600 font-bold">Awaiting Next Prompt</span>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Alumni Founder Conduits */}
+                  <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                    <div>
+                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
+                        <Briefcase className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900">Alumni Founder Conduits</h3>
+                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                        Connect with fellow graduates leading AI labs, seed-stage startups, and venture syndicates across the global network.
+                      </p>
+                    </div>
+                    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+                      <span>Network: Global</span>
+                      <span className="text-emerald-600 font-bold">Awaiting Next Prompt</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Plain Status Placeholder */}
+                <div className="mt-6 rounded-3xl p-8 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                    <Sparkles className="w-6 h-6 text-slate-700" />
+                  </div>
+                  <h4 className="text-base font-bold text-slate-900">Alumni Dashboard Initialized</h4>
+                  <p className="text-xs text-slate-600 max-w-md mt-1">
+                    Your alumni dashboard workspace is ready. Tell us the exact features, filters, or actions you would like to have here in your next prompt.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-6 text-center text-xs text-slate-500">
+                KIN Career Engine & Alumni Network • IIIT Delhi
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 w-full rounded-[36px] bg-white/18 border border-white/40 backdrop-blur-2xl shadow-[0_25px_60px_rgba(0,0,0,0.06),_inset_0_1.5px_2px_rgba(255,255,255,0.7)] p-5 sm:p-7 flex flex-col justify-between transition-all">
             
             {/* Real Resume Notice Banner */}
             <div className="mb-4 p-3 px-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
@@ -463,12 +602,6 @@ export default function KinGlassDashboard() {
                     <span>LinkedIn</span>
                   </a>
                 )}
-                <button
-                  onClick={openUploadResumeModal}
-                  className="text-[11px] font-bold text-[#E25C38] hover:underline cursor-pointer"
-                >
-                  Change CV / Re-upload
-                </button>
               </div>
             </div>
 
@@ -720,12 +853,12 @@ export default function KinGlassDashboard() {
                     {/* Right Column (4 cols): Auto-Connect & Talent Radar */}
                     <div className="lg:col-span-4 flex flex-col gap-5">
                       
-                      {/* Smart Auto-Connect Card - Solid White */}
+                      {/* Smart Connection Card - Solid White (No auto accept for students) */}
                       <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between transition-all">
                         <div>
                           <div className="flex items-center justify-between mb-3">
                             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                              Smart Auto-Connect
+                              Inbound Matching
                             </span>
                             <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
@@ -734,10 +867,10 @@ export default function KinGlassDashboard() {
                           </div>
 
                           <h4 className="text-base font-bold text-slate-900 leading-snug">
-                            Auto-Accept Handshakes
+                            Verified Inbound Inquiries
                           </h4>
                           <p className="text-xs text-slate-600 mt-1">
-                            Connect automatically when a builder matches your skill criteria.
+                            Receive direct inquiries from alumni & founders matching your verified code projects.
                           </p>
 
                           <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
@@ -760,16 +893,10 @@ export default function KinGlassDashboard() {
                           </div>
 
                           <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
-                            <span>Status:</span>
-                            <button
-                              onClick={() => {
-                                setAutoAcceptEnabled(!autoAcceptEnabled);
-                                showToast(autoAcceptEnabled ? 'Auto-connect paused' : 'Auto-connect enabled');
-                              }}
-                              className={`font-bold ${autoAcceptEnabled ? 'text-emerald-700' : 'text-slate-500'} cursor-pointer`}
-                            >
-                              {autoAcceptEnabled ? 'Active (Ready)' : 'Paused'}
-                            </button>
+                            <span>Inbound Review:</span>
+                            <span className="font-bold text-emerald-700">
+                              Manual Review Active
+                            </span>
                           </div>
                         </div>
 
@@ -777,7 +904,7 @@ export default function KinGlassDashboard() {
                           <button
                             onClick={() => {
                               setActiveTab('auto-connect');
-                              showToast('Configuring Auto-Connect Rules');
+                              showToast('Viewing Inbound Criteria');
                             }}
                             className="text-xs font-bold text-[#E25C38] hover:underline flex items-center gap-1 cursor-pointer"
                           >
@@ -1011,9 +1138,9 @@ export default function KinGlassDashboard() {
                 <div key="auto-connect" className="flex-1 flex flex-col justify-between gap-6 animate-in fade-in duration-150">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Smart Auto-Connect</h2>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Smart Match Criteria</h2>
                       <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                        No resumes or cold emails. Connect automatically when your match score beats your cutoff.
+                        Define qualification cutoffs for inbound messages and mentorship requests from alumni.
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1071,7 +1198,7 @@ export default function KinGlassDashboard() {
                         </div>
 
                         <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
-                          <span>{policy.autoAccept ? 'Listening for candidate builders...' : 'Policy is suspended'}</span>
+                          <span>{policy.autoAccept ? 'Listening for candidate matches (Manual Review)' : 'Rule is paused'}</span>
                         </div>
                       </div>
                     ))}
@@ -1106,15 +1233,34 @@ export default function KinGlassDashboard() {
                             </span>
                             <span className="text-xs font-bold text-slate-700">{opp.stipend}</span>
                           </div>
-                          <h3 className="text-base font-bold text-slate-900 leading-snug">{opp.role}</h3>
-                          <p className="text-xs text-slate-600 mt-1">{opp.company} • {opp.location}</p>
-                          <p className="text-xs text-slate-700 mt-3 leading-relaxed">{opp.skillsNeeded}</p>
+                          <h3 className="text-base font-bold text-slate-900 leading-snug">{opp.title || opp.role}</h3>
+                          <p className="text-xs text-slate-600 mt-1">
+                            <strong className="text-slate-900">{opp.organization || opp.company}</strong> • {opp.location} {opp.industry ? `• ${opp.industry}` : ''}
+                          </p>
+                          <p className="text-xs text-slate-700 mt-3 leading-relaxed">
+                            {opp.reasoning || opp.skillsNeeded}
+                          </p>
+                          {opp.bridgeSkills && opp.bridgeSkills.length > 0 && (
+                            <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block w-full mb-0.5">
+                                Latent Bridge Skills
+                              </span>
+                              {opp.bridgeSkills.map((skill: string) => (
+                                <span
+                                  key={skill}
+                                  className="px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] font-semibold text-slate-700 shadow-2xs"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
                           <span className="text-xs font-semibold text-slate-500">Autonomous Radar</span>
                           <button
-                            onClick={() => showToast(`Handshake signal transmitted to ${opp.company}`)}
+                            onClick={() => showToast(`Signal transmitted to ${opp.organization || opp.company}`)}
                             className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer transition-all"
                           >
                             Express Interest
@@ -1208,11 +1354,11 @@ export default function KinGlassDashboard() {
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => handleOpenDm(post.author)}
-                                className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all flex items-center gap-1 cursor-pointer"
-                                title={`Send message to ${post.author.name}`}
+                                className="p-1.5 rounded-full text-slate-400 hover:text-slate-900 transition-colors cursor-pointer"
+                                title={`Message ${post.author.name}`}
                               >
-                                <MessageSquare className="w-3 h-3 text-[#E25C38]" />
-                                <span>DM</span>
+                                <MessageSquare className="w-4 h-4 stroke-[2]" />
+                                <span className="sr-only">Message {post.author.name}</span>
                               </button>
                               <button
                                 onClick={() => handleConnectUser(post.id, post.author.name)}
@@ -1246,90 +1392,69 @@ export default function KinGlassDashboard() {
               )}
             </div>
 
-          </div>
+            </div>
+          )}
         </main>
 
         {/* ═══════════════════════════════════════════════════════════════
-            HORIZONTAL FROSTED GLASS DOCK (At Bottom)
+            FLOATING BOTTOM DOCK WITH PEEKING KIN MASCOT
+            Kin is situated BEHIND the navigation bar, with its upper half
+            peeking out from the top center edge. Clicking it interacts with us!
             ═══════════════════════════════════════════════════════════════ */}
-        <nav
-          aria-label="Dashboard Navigation"
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 sm:gap-2.5 py-1.5 px-3.5 rounded-full bg-white/50 hover:bg-white/65 border border-white/70 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1),_inset_0_1.5px_2px_rgba(255,255,255,0.8)] transition-all"
-        >
-          {/* First 3 Nav Items */}
-          {navItems.slice(0, 3).map((item) => {
-            const IconComponent = item.icon;
-            const isActive = activeTab === item.id;
-
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setProfileMenuOpen(false);
-                }}
-                className={`relative p-2.5 sm:p-3 rounded-full transition-all duration-200 group cursor-pointer ${
-                  isActive
-                    ? 'bg-[#121826] text-white shadow-[0_8px_20px_rgba(18,24,38,0.35)] scale-105'
-                    : 'text-slate-700 hover:text-slate-950 hover:bg-white/50'
-                }`}
-                title={item.label}
-              >
-                <IconComponent className="w-5 h-5 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
-
-                {/* Subtle indicator dot for active tab */}
-                {isActive && (
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#E25C38]" />
-                )}
-              </button>
-            );
-          })}
-
-          {/* Kin Mascot Popping Out in Center of Dock */}
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center pointer-events-none">
+          {/* Peeking Kin Mascot Behind Dock */}
           <button
             onClick={() => {
               setShowMascotTour(true);
               setMascotStepIndex(0);
             }}
-            className="relative -top-2 px-1 group cursor-pointer transition-transform hover:scale-115"
-            title="Kin AI Guide (Click to re-launch tour)"
+            className="relative -mb-4 z-10 pointer-events-auto group cursor-pointer transition-transform duration-300 hover:-translate-y-2 focus:outline-none"
+            title="Kin AI Guide • Click me to interact! 👋"
           >
-            <div className="w-11 h-11 relative filter drop-shadow-[0_8px_16px_rgba(226,92,56,0.3)]">
-              <KinMascot pose={activeTab as any} size={44} />
+            {/* Interactive tooltip */}
+            <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-slate-200/80 shadow-md text-[10px] font-bold text-slate-800 whitespace-nowrap pointer-events-none">
+              Kin Guide • Click me 👋
             </div>
-            <span className="sr-only">Kin Guide</span>
+
+            <div className="w-14 h-14 relative filter drop-shadow-[0_4px_14px_rgba(0,0,0,0.1)]">
+              <KinMascot pose={activeTab as any} size={56} />
+            </div>
           </button>
 
-          {/* Last 3 Nav Items */}
-          {navItems.slice(3).map((item) => {
-            const IconComponent = item.icon;
-            const isActive = activeTab === item.id;
+          {/* Frosted Glass Nav Bar in Front */}
+          <nav
+            aria-label="Dashboard Navigation"
+            className="relative z-20 pointer-events-auto flex items-center gap-1.5 sm:gap-2 py-1.5 px-3.5 rounded-full bg-white/75 hover:bg-white/85 border border-white/80 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1),_inset_0_1.5px_2px_rgba(255,255,255,0.8)] transition-all"
+          >
+            {navItems.map((item) => {
+              const IconComponent = item.icon;
+              const isActive = activeTab === item.id;
 
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setProfileMenuOpen(false);
-                }}
-                className={`relative p-2.5 sm:p-3 rounded-full transition-all duration-200 group cursor-pointer ${
-                  isActive
-                    ? 'bg-[#121826] text-white shadow-[0_8px_20px_rgba(18,24,38,0.35)] scale-105'
-                    : 'text-slate-700 hover:text-slate-950 hover:bg-white/50'
-                }`}
-                title={item.label}
-              >
-                <IconComponent className="w-5 h-5 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setProfileMenuOpen(false);
+                  }}
+                  className={`relative p-2.5 sm:p-3 rounded-full transition-all duration-200 group cursor-pointer ${
+                    isActive
+                      ? 'bg-[#121826] text-white shadow-[0_8px_20px_rgba(18,24,38,0.35)] scale-105'
+                      : 'text-slate-700 hover:text-slate-950 hover:bg-white/50'
+                  }`}
+                  title={item.label}
+                >
+                  <IconComponent className="w-5 h-5 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
 
-                {/* Subtle indicator dot for active tab */}
-                {isActive && (
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#E25C38]" />
-                )}
-              </button>
-            );
-          })}
+                  {/* Subtle indicator dot for active tab */}
+                  {isActive && (
+                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#E25C38]" />
+                  )}
+                </button>
+              );
+            })}
 
-          <div className="w-[1px] h-6 bg-slate-400/30 mx-1" />
+            <div className="w-[1px] h-6 bg-slate-400/30 mx-1" />
 
           {/* Profile Popover Menu in Bottom Dock */}
           <div className="relative">
@@ -1411,7 +1536,8 @@ export default function KinGlassDashboard() {
               </>
             )}
           </div>
-        </nav>
+          </nav>
+        </div>
 
       </div>
 

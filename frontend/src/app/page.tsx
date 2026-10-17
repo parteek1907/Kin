@@ -1,14 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import ConduitHero from '@/components/conduit/ConduitHero';
 import { Feature } from '@/components/ui/feature-section-with-bento-grid';
 import PricingSection3 from '@/components/ui/pricing-section-3';
 
 import KinFooter from '@/components/kin/KinFooter';
 import ToastAlert from '@/components/ToastAlert';
+import EnterNetworkModal from '@/components/network/EnterNetworkModal';
 
 export default function Home() {
+  const [isEnterNetworkOpen, setIsEnterNetworkOpen] = useState(false);
+
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
     if (el) {
@@ -24,6 +27,7 @@ export default function Home() {
         onExplore={() => scrollToSection('how-to-use')}
         onHowItWorks={() => scrollToSection('how-to-use')}
         onForInstitutions={() => scrollToSection('pricing')}
+        onEnterNetwork={() => setIsEnterNetworkOpen(true)}
       />
 
       {/* 2. HOW TO USE KIN • BENTO GRID FEATURE SECTION */}
@@ -37,8 +41,11 @@ export default function Home() {
       <KinFooter />
 
 
-      {/* Ambient Toast Alerts */}
-      <ToastAlert />
+      {/* Enter Network Modal with Student / Alumni Selection & CV Reading */}
+      <EnterNetworkModal
+        isOpen={isEnterNetworkOpen}
+        onClose={() => setIsEnterNetworkOpen(false)}
+      />
     </main>
   );
 }

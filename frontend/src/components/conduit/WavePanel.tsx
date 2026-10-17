@@ -4,6 +4,7 @@ import Link from 'next/link';
 interface WavePanelProps {
 
   onExplore?: () => void;
+  onEnterNetwork?: () => void;
 }
 
 const HEADLINE_LINES = [
@@ -12,7 +13,7 @@ const HEADLINE_LINES = [
   'YOUR NEXT MOVE.'
 ];
 
-export default function WavePanel({ onExplore }: WavePanelProps) {
+export default function WavePanel({ onExplore, onEnterNetwork }: WavePanelProps) {
   return (
     <>
       {/* =========================================================================
@@ -179,15 +180,24 @@ export default function WavePanel({ onExplore }: WavePanelProps) {
             A living network that connects proven expertise to real opportunities through trusted campus relationships.
           </p>
 
-          {/* 4. ACTIONS: Primary Enter Network CTA (Direct to Dashboard) + Secondary "Chat on WhatsApp" */}
+          {/* 4. ACTIONS: Primary Explore/Enter CTA + Secondary "Chat on WhatsApp" */}
           <div className="flex flex-wrap items-center gap-4">
-            <Link
-              href="/dashboard"
+            <button
+              onClick={() => {
+                if (onEnterNetwork) {
+                  onEnterNetwork();
+                } else if (onExplore) {
+                  onExplore();
+                } else {
+                  const el = document.getElementById('how-to-use');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
               style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
               className="h-[50px] px-8 rounded-xl bg-[#11131A] text-white font-bold text-[12px] tracking-[0.14em] uppercase transition-all duration-200 hover:bg-black active:scale-[0.98] shadow-lg flex items-center justify-center cursor-pointer"
             >
               <span>ENTER NETWORK</span>
-            </Link>
+            </button>
 
             <a
               href={`https://wa.me/${process.env.NEXT_PUBLIC_WA_BUSINESS_NUMBER || '919811022678'}?text=${encodeURIComponent('Hi KIN, I need…')}`}
