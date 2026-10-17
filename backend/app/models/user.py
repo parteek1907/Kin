@@ -33,5 +33,6 @@ class User(Base):
     kin_reputation_summary = relationship("KinReputationSummary", back_populates="user", uselist=False, cascade="all, delete-orphan")
     kin_ledger_entries = relationship("KinLedgerEntry", foreign_keys="KinLedgerEntry.user_id", back_populates="user", cascade="all, delete-orphan")
     ghost_entitlement = relationship("GhostEntitlement", back_populates="user", uselist=False, cascade="all, delete-orphan")
-
-
+    interviewer_profile = relationship("InterviewerProfile", foreign_keys="[InterviewerProfile.user_id]", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    conducted_sessions = relationship("InterviewSession", foreign_keys="[InterviewSession.interviewer_id]", back_populates="interviewer", cascade="all, delete-orphan")
+    attended_sessions = relationship("InterviewSession", foreign_keys="[InterviewSession.student_id]", back_populates="student", cascade="all, delete-orphan")

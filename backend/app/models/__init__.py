@@ -36,7 +36,7 @@ from app.features.kin_reputation.models import (
     KinLedgerEntry,
     KinAbuseAuditLog,
     ContributionEventType,
-    VerificationStatus,
+    VerificationStatus as KinVerificationStatus,
     ReputationTier,
 )
 from app.features.ghost_mode.models import (
@@ -56,6 +56,18 @@ from app.features.ghost_mode.models import (
     ReportReason,
     ReportStatus,
     ReactionType,
+)
+from app.features.mock_interviews.models import (
+    InterviewerProfile,
+    InterviewQuestion,
+    InterviewSession,
+    InterviewFeedback,
+    InterviewStudentReview,
+    InterviewCategory,
+    VerificationStatus as InterviewerVerificationStatus,
+    VerificationStatus,
+    SessionStatus,
+    QuestionAuthorType,
 )
 
 __all__ = [
@@ -95,7 +107,7 @@ __all__ = [
     "KinLedgerEntry",
     "KinAbuseAuditLog",
     "ContributionEventType",
-    "VerificationStatus",
+    "KinVerificationStatus",
     "ReputationTier",
     "GhostEntitlement",
     "GhostPersona",
@@ -113,6 +125,14 @@ __all__ = [
     "ReportReason",
     "ReportStatus",
     "ReactionType",
+    "InterviewerProfile",
+    "InterviewQuestion",
+    "InterviewSession",
+    "InterviewFeedback",
+    "InterviewStudentReview",
+    "InterviewCategory",
+    "InterviewerVerificationStatus",
+    "VerificationStatus",
+    "SessionStatus",
+    "QuestionAuthorType",
 ]
-
-

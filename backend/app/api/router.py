@@ -7,6 +7,7 @@ from app.features.skill_bounty.router import router as skill_bounty_router
 from app.features.unclaimed_talent_radar.router import router as unclaimed_talent_radar_router
 from app.features.kin_reputation.router import router as kin_reputation_router
 from app.features.ghost_mode.router import router as ghost_router
+from app.features.mock_interviews.router import router as mock_interviews_router
 
 api_router = APIRouter()
 
@@ -34,4 +35,5 @@ api_router.include_router(kin_reputation_router)
 # Major Feature 7: Kin Ghost Mode (Privacy Discussions)
 api_router.include_router(ghost_router)
 
-
+# Major Feature 8: Wisdom Capsule - 90-Second Mock Interviews
+api_router.include_router(mock_interviews_router)
