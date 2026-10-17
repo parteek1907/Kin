@@ -16,6 +16,11 @@ export interface UserProfile {
   verificationStatus?: string;
   firebaseUid?: string;
   token?: string;
+  githubUrl?: string;
+  githubUsername?: string;
+  linkedinUrl?: string;
+  portfolioUrl?: string;
+  summary?: string;
 }
 
 export interface VerificationPayload {
@@ -40,6 +45,11 @@ interface AuthContextType {
   isAuthModalOpen: boolean;
   openAuthModal: () => void;
   closeAuthModal: () => void;
+  parsedProfile: any | null;
+  setParsedProfile: (profile: any) => void;
+  isUploadResumeModalOpen: boolean;
+  openUploadResumeModal: () => void;
+  closeUploadResumeModal: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,18 +58,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isUploadResumeModalOpen, setIsUploadResumeModalOpen] = useState(false);
+  const [parsedProfile, setParsedProfileState] = useState<any | null>(null);
 
-  // Hydrate user from localStorage
+  // Hydrate user and parsed profile from localStorage
   useEffect(() => {
     try {
       const stored = localStorage.getItem('kin_user_auth');
+      const storedProfile = localStorage.getItem('kin_parsed_profile');
       if (stored) {
         setUser(JSON.parse(stored));
+      }
+      if (storedProfile) {
+        setParsedProfileState(JSON.parse(storedProfile));
       }
     } catch (e) {
       console.error('Error hydrating user auth:', e);
     }
   }, []);
+
+  const setParsedProfile = (profile: any) => {
+    setParsedProfileState(profile);
+    if (profile) {
+      const updatedUser: UserProfile = {
+        name: profile.name || 'Darsh Ohri',
+        email: profile.email || 'darshohri@gmail.com',
+        role: profile.role || 'Full-Stack & AI Software Developer',
+        institution: profile.institution || 'B.Tech CSE',
+        githubUrl: profile.githubUrl,
+        githubUsername: profile.githubUsername || 'darshohri',
+        linkedinUrl: profile.linkedinUrl,
+        portfolioUrl: profile.portfolioUrl,
+        summary: profile.summary,
+        verificationStatus: 'verified_developer',
+      };
+      setUser(updatedUser);
+      try {
+        localStorage.setItem('kin_user_auth', JSON.stringify(updatedUser));
+        localStorage.setItem('kin_parsed_profile', JSON.stringify(profile));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
 
   // Listen to Firebase auth state changes
   useEffect(() => {
@@ -175,9 +216,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null);
     setFirebaseUser(null);
+    setParsedProfileState(null);
     try {
       localStorage.removeItem('kin_user_auth');
       localStorage.removeItem('kin_auth_token');
+      localStorage.removeItem('kin_parsed_profile');
     } catch (e) {
       console.error(e);
     }
@@ -198,6 +241,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthModalOpen,
         openAuthModal: () => setIsAuthModalOpen(true),
         closeAuthModal: () => setIsAuthModalOpen(false),
+        parsedProfile,
+        setParsedProfile,
+        isUploadResumeModalOpen,
+        openUploadResumeModal: () => setIsUploadResumeModalOpen(true),
+        closeUploadResumeModal: () => setIsUploadResumeModalOpen(false),
       }}
     >
       {children}
