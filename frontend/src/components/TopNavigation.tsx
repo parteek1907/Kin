@@ -48,15 +48,11 @@ export default function TopNavigation() {
       {/* Brand lockup & Live Telemetry */}
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2.5">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 via-indigo-600 to-purple-600 p-0.5 shadow-glow-cyan flex items-center justify-center">
-            <div className="w-full h-full bg-[#07090E] rounded-[7px] flex items-center justify-center">
-              <Network className="w-5 h-5 text-cyan-400 animate-pulse" />
-            </div>
-          </div>
+          <img src="/images/kin_logo.png" alt="KIN" className="w-8 h-8 object-contain" />
           <div>
             <div className="flex items-center space-x-2">
-              <span className="font-extrabold text-base tracking-wider bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent">
-                NEXUS
+              <span className="font-extrabold text-base tracking-[0.24em] text-white">
+                KIN
               </span>
               <span className="text-[10px] font-mono tracking-widest px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/30 text-cyan-400 font-semibold">
                 LIVING TRUST NETWORK

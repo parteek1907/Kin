@@ -35,23 +35,20 @@ const ConnoisseurStackInteractor = dynamic(
 export function KinLogo({ className = "w-8 h-8", markOnly = false }: { className?: string; markOnly?: boolean }) {
   return (
     <div className="flex items-center gap-2.5 group cursor-pointer select-none">
-      {/* Bespoke Geometric Minimalist K Mark */}
-      <div className={`relative ${className} rounded-xl bg-[#141815] flex items-center justify-center p-1.5 shadow-[0_2px_8px_rgba(0,0,0,0.12)] group-hover:scale-105 transition-transform duration-300`}>
-        <svg viewBox="0 0 24 24" fill="none" className="w-full h-full text-white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          {/* Vertical anchor pillar */}
-          <line x1="6.5" y1="4.5" x2="6.5" y2="19.5" stroke="currentColor" />
-          {/* Upper kinship diagonal */}
-          <line x1="17" y1="5.5" x2="7" y2="12" stroke="currentColor" />
-          {/* Lower kinship diagonal */}
-          <line x1="8" y1="11.5" x2="17.5" y2="19" stroke="currentColor" />
-          {/* Precision terracotta connection node */}
-          <circle cx="11.8" cy="12" r="1.75" fill="#E25C38" />
-        </svg>
-      </div>
+      <img 
+        src="/images/kin_logo.png" 
+        alt="KIN Logo" 
+        className={`${className} object-contain transition-transform duration-300 group-hover:scale-105`} 
+      />
 
       {!markOnly && (
         <div className="flex items-baseline gap-1.5">
-          <span className="font-black text-[18px] tracking-[-0.05em] text-[#141815] font-sans">KIN</span>
+          <span 
+            style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
+            className="font-bold text-[20px] tracking-[0.24em] text-[#141815] uppercase"
+          >
+            KIN
+          </span>
           <span className="hidden sm:inline-block text-[9px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded-full bg-black/[0.04] text-zinc-500 font-semibold border border-black/[0.06]">
             network
           </span>

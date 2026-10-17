@@ -7,6 +7,11 @@ import AuthModal from '@/components/AuthModal';
 export const metadata: Metadata = {
   title: 'KIN — Campus Trust Network',
   description: 'A living network that connects proven expertise to real opportunities and trusted campus relationships.',
+  icons: {
+    icon: '/images/kin_logo.png',
+    shortcut: '/images/kin_logo.png',
+    apple: '/images/kin_logo.png',
+  },
 };
 
 export default function RootLayout({

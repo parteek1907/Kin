@@ -269,26 +269,50 @@ export default function KinGlassDashboard() {
           ═══════════════════════════════════════════════════════════════ */}
       <div className="relative z-10 w-full flex-1 flex flex-col items-center px-3 sm:px-6 lg:px-8 pt-4 pb-24">
         
-        {/* ─── TOP MINIMAL HEADER BAR (Removed "Back to Home" and top-right name) ─── */}
-        <header className="w-full max-w-[1360px] mb-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <span className="text-2xl font-black tracking-tight text-slate-900 hover:text-black transition-colors">
-              KIN
-            </span>
-          </Link>
+        {/* ─── TOP HEADER BAR (Logo Centered at Top) ─── */}
+        <header className="relative w-full max-w-[1360px] mb-3 flex items-center justify-between">
+          {/* Left: Back to Home */}
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/" 
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/30 hover:bg-white/50 border border-white/50 text-xs font-semibold text-slate-800 transition-all shadow-sm backdrop-blur-xl cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 stroke-[2.2] text-slate-700" />
+              <span className="hidden sm:inline">Back to Home</span>
+            </Link>
+          </div>
 
-          {/* Quick Guide Trigger Pill */}
-          <button
-            onClick={() => {
-              setShowMascotTour(true);
-              setMascotStepIndex(0);
-              setActiveTab('overview');
-            }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/30 hover:bg-white/50 border border-white/50 text-xs font-bold text-slate-800 transition-all shadow-sm backdrop-blur-xl cursor-pointer"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Interactive Guide</span>
-          </button>
+          {/* ─── Centre Top Brand Logo (Exact Image Spec) ─── */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-auto">
+            <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group focus:outline-none" aria-label="Kin Home">
+              <img 
+                src="/images/kin_logo.png" 
+                alt="KIN Logo" 
+                className="w-7 h-7 sm:w-8 sm:h-8 object-contain transition-transform duration-300 group-hover:scale-105" 
+              />
+              <span 
+                style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
+                className="text-[20px] sm:text-[24px] font-bold tracking-[0.24em] text-[#11131A] uppercase transition-opacity group-hover:opacity-80 select-none leading-none"
+              >
+                KIN
+              </span>
+            </Link>
+          </div>
+
+          {/* Right: Quick Guide Trigger Pill */}
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => {
+                setShowMascotTour(true);
+                setMascotStepIndex(0);
+                setActiveTab('overview');
+              }}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/30 hover:bg-white/50 border border-white/50 text-xs font-bold text-slate-800 transition-all shadow-sm backdrop-blur-xl cursor-pointer"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Interactive Guide</span>
+            </button>
+          </div>
         </header>
 
         {/* ─── UNIFIED FULL-HEIGHT LIQUID GLASS PANEL (Ultra-transparent luminous glass) ─── */}

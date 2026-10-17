@@ -61,9 +61,14 @@ export default function ConduitNavbar({
         <div id="nav-logo" className="flex items-center justify-self-start">
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="group flex items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A] rounded"
+            className="group flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A] rounded"
             aria-label="Kin Home"
           >
+            <img 
+              src="/images/kin_logo.png" 
+              alt="KIN Logo" 
+              className="w-8 h-8 object-contain transition-transform duration-300 group-hover:scale-105" 
+            />
             <span 
               style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
               className="inline-flex items-center text-[24px] font-bold tracking-[0.24em] text-[#11131A] uppercase transition-opacity group-hover:opacity-80 select-none leading-none"

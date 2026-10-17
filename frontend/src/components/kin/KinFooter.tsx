@@ -23,6 +23,11 @@ export default function KinFooter() {
           <div className="lg:col-span-5 flex flex-col justify-between">
             <div>
               <div className="flex items-center space-x-3 mb-4">
+                <img 
+                  src="/images/kin_logo.png" 
+                  alt="KIN Logo" 
+                  className="w-9 h-9 object-contain drop-shadow-[0_2px_8px_rgba(255,255,255,0.15)]" 
+                />
                 <span 
                   style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
                   className="text-[28px] font-bold tracking-[0.24em] text-white uppercase"
