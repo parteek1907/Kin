@@ -53,8 +53,8 @@ import {
 } from '@/services/dashboardService';
 import { useAuth } from '@/context/AuthContext';
 import ResumeUploadModal from './ResumeUploadModal';
-import { DARSH_OHRI_PROFILE } from '@/data/darshProfile';
 import KinMascot from './KinMascot';
+import ProfileCompletionWizard from './profile/ProfileCompletionWizard';
 
 type ActiveTab = 'overview' | 'time-machine' | 'bounties' | 'auto-connect' | 'radar' | 'community';
 
@@ -120,7 +120,10 @@ export default function KinGlassDashboard() {
     parsedProfile,
     isUploadResumeModalOpen,
     openUploadResumeModal,
-    closeUploadResumeModal
+    closeUploadResumeModal,
+    isProfileModalOpen,
+    openProfileModal,
+    closeProfileModal
   } = useAuth();
 
   const router = useRouter();
@@ -145,14 +148,23 @@ export default function KinGlassDashboard() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   // Mascot Walkthrough State
-  const [showMascotTour, setShowMascotTour] = useState(true);
+  const [showMascotTour, setShowMascotTour] = useState(false);
   const [mascotStepIndex, setMascotStepIndex] = useState(0);
 
-  // Sync network role from URL or localStorage
+  const dismissMascotTour = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('kin_mascot_tour_seen', 'true');
+    }
+    setShowMascotTour(false);
+  };
+
+  // Sync network role from URL or localStorage & check mascot tour
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlRole = params.get('role');
+      const tourDismissed = sessionStorage.getItem('kin_mascot_tour_seen');
+
       if (urlRole === 'alumni') {
         setNetworkRole('alumni');
         setShowMascotTour(false);
@@ -194,28 +206,31 @@ export default function KinGlassDashboard() {
   // GitHub Real-Time Data State
   const [githubData, setGithubData] = useState<any>(null);
 
-  // Derived real data from parsed profile or default (Darsh Ohri from uploaded CV)
-  const profile = parsedProfile || DARSH_OHRI_PROFILE;
-  const activeCareerMilestones = (profile?.careerMilestones && profile.careerMilestones.length > 0)
-    ? profile.careerMilestones
-    : DARSH_OHRI_PROFILE.careerMilestones;
-  const activeSkillGap = profile?.skillGap || DARSH_OHRI_PROFILE.skillGap;
-  const activeBounties = (profile?.bounties && profile.bounties.length > 0)
-    ? profile.bounties
-    : DARSH_OHRI_PROFILE.bounties;
-  const activeRadarOpportunities = (profile?.radarOpportunities && profile.radarOpportunities.length > 0)
-    ? profile.radarOpportunities
-    : DARSH_OHRI_PROFILE.radarOpportunities;
-  const rawName = profile?.name || user?.name;
-  const activeUserName = (!rawName || rawName === 'Not Specified') ? 'Darsh Ohri' : rawName;
-  const rawRole = profile?.role || user?.role;
-  const activeUserRole = (!rawRole || rawRole === 'Not Specified' || rawRole === 'Software Engineer') ? 'Full-Stack & AI Software Developer' : rawRole;
-  const rawInst = profile?.institution || user?.institution;
-  const activeUserInstitution = (!rawInst || rawInst === 'Not Specified') ? 'B.Tech CSE (Data Science Specialization)' : rawInst;
-  const activeUserEmail = profile?.email || user?.email || 'darshohri@gmail.com';
-  const activeGithubUsername = profile?.githubUsername || 'darshohri';
-  const activeLinkedinUrl = profile?.linkedinUrl || 'https://linkedin.com/in/darshohri';
-  const activeGithubUrl = profile?.githubUrl || 'https://github.com/darshohri';
+  // Dynamic User Profile Data (Hydrated from verified user session & completed profile)
+  const activeUserName = user?.name || parsedProfile?.name || 'Verified Member';
+  const activeUserRole = user?.role || user?.headline || parsedProfile?.role || (networkRole === 'alumni' ? 'Senior Technical Leader & Mentor' : 'Full-Stack Software Developer');
+  const activeUserInstitution = user?.institution || parsedProfile?.institution || (networkRole === 'alumni' ? 'Global Technology Syndicate' : 'IIIT Delhi');
+  const activeUserEmail = user?.email || parsedProfile?.email || 'builder@kin.network';
+  const activeLinkedinUrl = user?.linkedinUrl || parsedProfile?.linkedinUrl;
+  const activeGithubUrl = user?.githubUrl || parsedProfile?.githubUrl;
+  const activeGithubUsername = user?.githubUsername || (activeGithubUrl ? activeGithubUrl.replace(/^https?:\/\/(?:www\.)?github\.com\//i, '').replace(/\/$/, '') : '');
+  const activePortfolioUrl = user?.portfolioUrl || parsedProfile?.portfolioUrl;
+  const activeSkills = (user?.skills && user.skills.length > 0)
+    ? user.skills
+    : (parsedProfile?.skills && parsedProfile.skills.length > 0)
+    ? parsedProfile.skills
+    : ['React', 'Next.js', 'Python', 'FastAPI', 'TypeScript'];
+
+  const activeCareerMilestones = (parsedProfile?.careerMilestones && parsedProfile.careerMilestones.length > 0)
+    ? parsedProfile.careerMilestones
+    : MOCK_CAREER_MILESTONES;
+  const activeSkillGap = parsedProfile?.skillGap || MOCK_SKILL_GAP;
+  const activeBounties = (parsedProfile?.bounties && parsedProfile.bounties.length > 0)
+    ? parsedProfile.bounties
+    : MOCK_BOUNTIES;
+  const activeRadarOpportunities = (parsedProfile?.radarOpportunities && parsedProfile.radarOpportunities.length > 0)
+    ? parsedProfile.radarOpportunities
+    : MOCK_RADAR_OPPORTUNITIES;
 
   // Fetch real GitHub events if username available
   useEffect(() => {
@@ -326,11 +341,12 @@ export default function KinGlassDashboard() {
 
   const handleOpenDm = (author: { name: string; role: string }) => {
     setDmRecipient({ id: author.name, name: author.name, role: author.role });
+    const userFirstName = activeUserName.split(' ')[0] || 'there';
     setDmMessages([
       {
         id: 'dm-welcome',
         sender: 'them',
-        text: `Hey Darsh! Great connecting on Kin. Checked your verified AI projects and would love to collaborate.`,
+        text: `Hey ${userFirstName}! Great connecting on Kin. Checked your verified background and would love to collaborate.`,
         time: '10:45 AM'
       }
     ]);
@@ -483,6 +499,17 @@ export default function KinGlassDashboard() {
             <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-full bg-white/80 border border-slate-200 text-[11px] font-bold text-slate-700 capitalize">
               {networkRole === 'alumni' ? 'Alumni Hub' : 'Student Builder'}
             </span>
+
+            {/* Profile Setup / Edit Wizard */}
+            <button
+              onClick={openProfileModal}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title="Complete or Edit your 4-Step Profile"
+            >
+              <User className="w-3.5 h-3.5 text-[#E25C38]" />
+              <span className="hidden sm:inline">Profile Setup</span>
+              <span className="sm:hidden">Profile</span>
+            </button>
 
             <button
               onClick={openUploadResumeModal}
@@ -640,7 +667,7 @@ export default function KinGlassDashboard() {
               <div className="flex items-center gap-2.5">
                 <Sparkles className="w-4 h-4 text-[#E25C38] shrink-0" />
                 <span className="text-xs text-slate-700">
-                  Profile loaded: <strong className="text-slate-900">{activeUserName}</strong> ({activeUserRole}) • Verified from CV
+                  Profile: <strong className="text-slate-900">{activeUserName}</strong> ({activeUserRole}) • {user?.studentId || user?.businessId ? `ID: ${user?.studentId || user?.businessId}` : 'Verified Profile'}
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -727,7 +754,7 @@ export default function KinGlassDashboard() {
                                 Skills from CV
                               </span>
                               <div className="flex flex-wrap gap-1.5">
-                                {(activeCareerMilestones[selectedMilestoneIndex]?.acquiredSkills || profile.skills.slice(0, 5)).map(
+                                {(activeCareerMilestones[selectedMilestoneIndex]?.acquiredSkills || activeSkills.slice(0, 5)).map(
                                   (skill: string, sIdx: number) => (
                                     <span
                                       key={`overview-skill-${skill}-${sIdx}`}
@@ -769,7 +796,7 @@ export default function KinGlassDashboard() {
 
                           <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 mt-2">
                             <span className="truncate pr-2">
-                              Verified: <strong className="text-slate-900">{activeCareerMilestones[selectedMilestoneIndex]?.verifiedBy || 'LaunchED Global'}</strong>
+                              Verified: <strong className="text-slate-900">{activeCareerMilestones[selectedMilestoneIndex]?.verifiedBy || activeUserInstitution || 'Kin Node'}</strong>
                             </span>
                             <button
                               onClick={() => {
@@ -792,10 +819,27 @@ export default function KinGlassDashboard() {
                                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                                   GitHub Commits & Activity
                                 </span>
-                                <span className="text-xs font-bold text-slate-800">@{activeGithubUsername}</span>
+                                {activeGithubUrl ? (
+                                  <a
+                                    href={activeGithubUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs font-bold text-slate-800 hover:text-black flex items-center gap-1 group/gh mt-0.5"
+                                  >
+                                    <span>@{activeGithubUsername || 'profile'}</span>
+                                    <ExternalLink className="w-2.5 h-2.5 text-slate-400 group-hover/gh:text-slate-700" />
+                                  </a>
+                                ) : (
+                                  <button
+                                    onClick={openProfileModal}
+                                    className="text-xs font-bold text-[#E25C38] hover:underline flex items-center gap-1 mt-0.5 cursor-pointer"
+                                  >
+                                    <span>+ Connect GitHub</span>
+                                  </button>
+                                )}
                               </div>
                               <span className="text-xs font-mono font-bold text-[#0284c7] px-2.5 py-0.5 rounded-full bg-sky-50 border border-sky-200 shadow-xs">
-                                {githubData?.recentPushesCount ? `${githubData.recentPushesCount * 8} Commits` : '169 Peak'}
+                                {githubData?.recentPushesCount ? `${githubData.recentPushesCount * 8} Commits` : 'Verified Activity'}
                               </span>
                             </div>
 
@@ -1140,7 +1184,7 @@ export default function KinGlassDashboard() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono font-bold text-slate-700 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-2xs">
-                        Escrow: {profile.stats?.escrowVolume || '$4,200'}
+                        Escrow: {parsedProfile?.stats?.escrowVolume || '$4,200'}
                       </span>
                     </div>
                   </div>
@@ -1551,6 +1595,44 @@ export default function KinGlassDashboard() {
                     <button
                       onClick={() => {
                         setProfileMenuOpen(false);
+                        openProfileModal();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-900 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                    >
+                      <User className="w-4 h-4 text-[#E25C38]" />
+                      <span>Edit 4-Step Profile</span>
+                    </button>
+                    {activeLinkedinUrl && (
+                      <a
+                        href={activeLinkedinUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-sky-700 hover:bg-sky-50 transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <Linkedin className="w-4 h-4 text-sky-600" />
+                          <span>View LinkedIn Profile</span>
+                        </span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    {activeGithubUrl && (
+                      <a
+                        href={activeGithubUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <Github className="w-4 h-4 text-slate-800" />
+                          <span>View GitHub Profile</span>
+                        </span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    <button
+                      onClick={() => {
+                        setProfileMenuOpen(false);
                         openUploadResumeModal();
                       }}
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
@@ -1620,7 +1702,7 @@ export default function KinGlassDashboard() {
                 {/* Chat speech bubble right above Kin */}
                 <div className="mb-4 p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_25px_60px_rgba(0,0,0,0.35)] text-slate-900 relative w-full">
                   <button
-                    onClick={() => setShowMascotTour(false)}
+                    onClick={dismissMascotTour}
                     className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
                     title="Skip Guide"
                   >
@@ -1665,7 +1747,7 @@ export default function KinGlassDashboard() {
               {/* Speech dialog bubble */}
               <div className="pointer-events-auto w-full rounded-3xl p-5 bg-white border border-slate-100 shadow-[0_25px_60px_rgba(0,0,0,0.18)] text-slate-900 mb-2 relative animate-in fade-in slide-in-from-bottom-2 duration-200">
                 <button
-                  onClick={() => setShowMascotTour(false)}
+                  onClick={dismissMascotTour}
                   className="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
                   title="Close Guide"
                 >
@@ -1707,7 +1789,7 @@ export default function KinGlassDashboard() {
                           setMascotStepIndex(next);
                           setActiveTab(KIN_WALKTHROUGH[next].tabId);
                         } else {
-                          setShowMascotTour(false);
+                          dismissMascotTour();
                           showToast('Walkthrough complete! ✨');
                         }
                       }}
@@ -1857,6 +1939,21 @@ export default function KinGlassDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ─── Profile Completion Wizard Modal ─── */}
+      <ProfileCompletionWizard
+        isOpen={isProfileModalOpen}
+        onClose={closeProfileModal}
+        initialRole={networkRole}
+      />
+
+      {/* ─── Resume / CV Upload Modal ─── */}
+      {isUploadResumeModalOpen && (
+        <ResumeUploadModal
+          isOpen={isUploadResumeModalOpen}
+          onClose={closeUploadResumeModal}
+        />
       )}
     </div>
   );

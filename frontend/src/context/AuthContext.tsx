@@ -21,6 +21,15 @@ export interface UserProfile {
   linkedinUrl?: string;
   portfolioUrl?: string;
   summary?: string;
+  skills?: string[];
+  headline?: string;
+  graduationYear?: string;
+  resumeName?: string;
+  resumeUrl?: string;
+  officeHours?: string;
+  interests?: string[];
+  topProjectUrl?: string;
+  topProjectDescription?: string;
 }
 
 export interface VerificationPayload {
@@ -45,6 +54,10 @@ interface AuthContextType {
   isAuthModalOpen: boolean;
   openAuthModal: () => void;
   closeAuthModal: () => void;
+  isProfileModalOpen: boolean;
+  openProfileModal: () => void;
+  closeProfileModal: () => void;
+  updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
   parsedProfile: any | null;
   setParsedProfile: (profile: any) => void;
   isUploadResumeModalOpen: boolean;
@@ -58,15 +71,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isUploadResumeModalOpen, setIsUploadResumeModalOpen] = useState(false);
   const [parsedProfile, setParsedProfileState] = useState<any | null>(null);
 
   // Hydrate user and parsed profile from localStorage
   useEffect(() => {
     try {
+      const storedCompleted = localStorage.getItem('kin_completed_profile');
       const stored = localStorage.getItem('kin_user_auth');
       const storedProfile = localStorage.getItem('kin_parsed_profile');
-      if (stored) {
+      if (storedCompleted) {
+        setUser(JSON.parse(storedCompleted));
+      } else if (stored) {
         setUser(JSON.parse(stored));
       }
       if (storedProfile) {
@@ -77,28 +94,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const updateUserProfile = async (data: Partial<UserProfile>) => {
+    setUser((prev) => {
+      const updated: UserProfile = {
+        name: prev?.name || 'Verified Builder',
+        email: prev?.email || 'builder@kin.network',
+        ...prev,
+        ...data,
+      };
+      try {
+        localStorage.setItem('kin_user_auth', JSON.stringify(updated));
+        localStorage.setItem('kin_completed_profile', JSON.stringify(updated));
+        if (updated.userType) {
+          localStorage.setItem(
+            'kin_network_role',
+            updated.userType === 'professional' ? 'alumni' : 'student'
+          );
+        }
+      } catch (err) {
+        console.error('Error storing updated profile:', err);
+      }
+      return updated;
+    });
+  };
+
   const setParsedProfile = (profile: any) => {
     setParsedProfileState(profile);
     if (profile) {
-      const updatedUser: UserProfile = {
-        name: profile.name || 'Darsh Ohri',
-        email: profile.email || 'darshohri@gmail.com',
-        role: profile.role || 'Full-Stack & AI Software Developer',
-        institution: profile.institution || 'B.Tech CSE',
-        githubUrl: profile.githubUrl,
-        githubUsername: profile.githubUsername || 'darshohri',
-        linkedinUrl: profile.linkedinUrl,
-        portfolioUrl: profile.portfolioUrl,
-        summary: profile.summary,
-        verificationStatus: 'verified_developer',
-      };
-      setUser(updatedUser);
-      try {
-        localStorage.setItem('kin_user_auth', JSON.stringify(updatedUser));
-        localStorage.setItem('kin_parsed_profile', JSON.stringify(profile));
-      } catch (err) {
-        console.error(err);
-      }
+      setUser((prev) => {
+        const updatedUser: UserProfile = {
+          name: profile.name || prev?.name || 'Verified Member',
+          email: profile.email || prev?.email || 'builder@kin.network',
+          role: profile.role || prev?.role || 'Software Engineer',
+          institution: profile.institution || prev?.institution || 'IIIT Delhi',
+          githubUrl: profile.githubUrl || prev?.githubUrl,
+          githubUsername: profile.githubUsername || prev?.githubUsername,
+          linkedinUrl: profile.linkedinUrl || prev?.linkedinUrl,
+          portfolioUrl: profile.portfolioUrl || prev?.portfolioUrl,
+          summary: profile.summary || prev?.summary,
+          verificationStatus: 'verified_developer',
+          userType: prev?.userType || 'student',
+        };
+        try {
+          localStorage.setItem('kin_user_auth', JSON.stringify(updatedUser));
+          localStorage.setItem('kin_parsed_profile', JSON.stringify(profile));
+        } catch (err) {
+          console.error(err);
+        }
+        return updatedUser;
+      });
     }
   };
 
@@ -118,14 +162,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ? (payload.studentId ? 'verified_student' : 'pending')
       : (payload.businessId ? 'verified_professional' : 'pending');
 
+    const backendEndpoints = [
+      'http://localhost:8000/api/v1/auth/firebase-sync',
+      'http://127.0.0.1:8000/api/v1/auth/firebase-sync',
+    ];
+
     let backendSuccess = false;
     let jwtToken = '';
-
-    // Attempt connection via unified backend service route, falling back to local port if standalone
-    const backendEndpoints = [
-      '/api/v1/auth/firebase-sync',
-      'http://localhost:8000/api/v1/auth/firebase-sync',
-    ];
 
     for (const endpoint of backendEndpoints) {
       try {
@@ -191,8 +234,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = (name: string, email: string) => {
     const newUser: UserProfile = {
-      name: name.trim() || 'Prateek',
-      email: email.trim() || 'prateek@iiitd.ac.in',
+      name: name.trim() || 'Verified Member',
+      email: email.trim() || 'member@kin.network',
       role: 'Verified Systems Builder',
       institution: 'IIIT Delhi',
       userType: 'student',
@@ -221,6 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('kin_user_auth');
       localStorage.removeItem('kin_auth_token');
       localStorage.removeItem('kin_parsed_profile');
+      localStorage.removeItem('kin_completed_profile');
     } catch (e) {
       console.error(e);
     }
@@ -241,6 +285,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthModalOpen,
         openAuthModal: () => setIsAuthModalOpen(true),
         closeAuthModal: () => setIsAuthModalOpen(false),
+        isProfileModalOpen,
+        openProfileModal: () => setIsProfileModalOpen(true),
+        closeProfileModal: () => setIsProfileModalOpen(false),
+        updateUserProfile,
         parsedProfile,
         setParsedProfile,
         isUploadResumeModalOpen,

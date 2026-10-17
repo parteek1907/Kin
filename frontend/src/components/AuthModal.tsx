@@ -40,7 +40,7 @@ type AuthStep = 'firebase_auth' | 'role_select' | 'id_verification' | 'sync_comp
 
 export default function AuthModal() {
   const router = useRouter();
-  const { isAuthModalOpen, closeAuthModal, syncWithDatabase, login } = useAuth();
+  const { isAuthModalOpen, closeAuthModal, syncWithDatabase, login, openProfileModal } = useAuth();
 
   // Wizard state
   const [step, setStep] = useState<AuthStep>('firebase_auth');
@@ -417,8 +417,8 @@ export default function AuthModal() {
       } catch {}
       setTimeout(() => {
         handleClose();
-        router.push(`/dashboard?role=${userType === 'professional' ? 'alumni' : 'student'}`);
-      }, 1400);
+        openProfileModal();
+      }, 1200);
     } catch (err: any) {
       setErrorMessage(err.message || 'Error syncing verified identity to database.');
     } finally {

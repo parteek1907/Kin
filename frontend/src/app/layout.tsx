@@ -44,7 +44,6 @@ export default function RootLayout({
               {children}
               <AuthModal />
             </NetworkProvider>
-
           </AuthProvider>
         </SmoothScrollProvider>
       </body>
