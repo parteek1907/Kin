@@ -19,8 +19,8 @@ function readPolicies(): Record<string, FirewallPolicy> {
     if (!fs.existsSync(POLICY_FILE_PATH)) {
       const initial: Record<string, FirewallPolicy> = {
         default: {
-          professionalName: 'Rahul Mehta',
-          professionalRole: 'Staff Platform Engineer @ Uber',
+          professionalName: 'Verified Alumni Leader',
+          professionalRole: 'Senior Engineering Architect',
           firewallActive: true,
           threshold: 75,
           minCommits: 15,
@@ -58,8 +58,8 @@ export async function GET(req: NextRequest) {
     let policy = policies[professionalName];
     if (!policy) {
       const defaultPol = policies['default'] || {
-        professionalName: 'Rahul Mehta',
-        professionalRole: 'Staff Platform Engineer @ Uber',
+        professionalName: 'Verified Alumni Leader',
+        professionalRole: 'Senior Engineering Architect',
         firewallActive: true,
         threshold: 75,
         minCommits: 15,

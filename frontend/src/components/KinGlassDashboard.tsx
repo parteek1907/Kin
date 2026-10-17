@@ -282,7 +282,7 @@ export default function KinGlassDashboard() {
   // Student Outreach State (Live Connected & Evaluated Applications)
   const [outreachApplications, setOutreachApplications] = useState<OutreachApplication[]>([]);
   const [manualNoteModalOpen, setManualNoteModalOpen] = useState(false);
-  const [manualNoteSenior, setManualNoteSenior] = useState<string>('Rahul Mehta');
+  const [manualNoteSenior, setManualNoteSenior] = useState<string>('');
   const [manualNoteText, setManualNoteText] = useState('');
 
   // Send CV to Professional Modal State (Direct ATS Review from Social / Directory)
@@ -293,9 +293,9 @@ export default function KinGlassDashboard() {
     company: string;
     avatar?: string;
   }>({
-    name: 'Rahul Mehta',
-    role: 'Staff Platform Engineer @ Uber',
-    company: 'Uber',
+    name: '',
+    role: '',
+    company: '',
   });
   const [isEvaluatingAts, setIsEvaluatingAts] = useState(false);
   const [targetProPolicy, setTargetProPolicy] = useState<{
@@ -1587,28 +1587,13 @@ export default function KinGlassDashboard() {
                             <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
                               You haven&apos;t submitted your CV to any verified alumni yet. Find alumni in the Community Directory, inspect their live criteria firewall, and submit your CV for instant Gemini AI review.
                             </p>
-                            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                            <div className="pt-2 flex items-center justify-center">
                               <button
                                 onClick={() => setActiveTab('community')}
-                                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-xs"
                               >
-                                <Users className="w-3.5 h-3.5" />
-                                <span>Browse Alumni Directory</span>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedProForCv({
-                                    name: 'Rahul Mehta',
-                                    role: 'Staff Platform Engineer @ Uber',
-                                    company: 'Uber',
-                                    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
-                                  });
-                                  setIsSendCvModalOpen(true);
-                                }}
-                                className="px-4 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#E25C38] border border-orange-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
-                              >
-                                <Send className="w-3.5 h-3.5" />
-                                <span>Send CV to Rahul Mehta</span>
+                                <Users className="w-4 h-4 text-amber-400" />
+                                <span>Browse Alumni Directory in Network</span>
                               </button>
                             </div>
                           </div>
