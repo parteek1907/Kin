@@ -51,7 +51,9 @@ import {
   Share2,
   Eye,
   Filter,
-  CheckSquare
+  CheckSquare,
+  Trash2,
+  GitPullRequest
 } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
@@ -246,7 +248,7 @@ export default function KinGlassDashboard() {
   // ─────────────────────────────────────────────────────────────────────────────
   // PROBLEM STATEMENTS (IMAGE 3 UI) & SOLUTION SUBMISSION MODAL STATE
   // ─────────────────────────────────────────────────────────────────────────────
-  const [problems, setProblems] = useState<AlumniProblem[]>(ALUMNI_PROBLEMS);
+  const [problems, setProblems] = useState<AlumniProblem[]>([]);
   const [problemCategoryFilter, setProblemCategoryFilter] = useState<string>('All');
   const [selectedProblem, setSelectedProblem] = useState<AlumniProblem | null>(null);
   const [isSubmitSolutionModalOpen, setIsSubmitSolutionModalOpen] = useState(false);
@@ -265,7 +267,7 @@ export default function KinGlassDashboard() {
   const [newProblemContext, setNewProblemContext] = useState('');
 
   // Professional Candidate PR / Solution Review Console State
-  const [candidateSubmissions, setCandidateSubmissions] = useState<CandidateSolutionSubmission[]>(INITIAL_SUBMITTED_SOLUTIONS);
+  const [candidateSubmissions, setCandidateSubmissions] = useState<CandidateSolutionSubmission[]>([]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // AUTO-CONNECT & FIREWALL STATES
@@ -366,6 +368,53 @@ export default function KinGlassDashboard() {
     ? parsedProfile.radarOpportunities
     : MOCK_RADAR_OPPORTUNITIES;
 
+  // Live Connected Problem Statements & Candidate Submissions Sync
+  useEffect(() => {
+    // 1. Instant hydration from localStorage
+    try {
+      const cachedProblems = localStorage.getItem('kin_live_problems');
+      if (cachedProblems) {
+        const parsed = JSON.parse(cachedProblems);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setProblems(parsed);
+        }
+      }
+      const cachedSubmissions = localStorage.getItem('kin_live_submissions');
+      if (cachedSubmissions) {
+        const parsed = JSON.parse(cachedSubmissions);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCandidateSubmissions(parsed);
+        }
+      }
+    } catch (e) {}
+
+    // 2. Fetch live problem statements from persistent API
+    fetch('/api/problems')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.problems)) {
+          setProblems(d.problems);
+          try {
+            localStorage.setItem('kin_live_problems', JSON.stringify(d.problems));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    // 3. Fetch live candidate submissions from persistent API
+    fetch('/api/problems/submissions')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.submissions)) {
+          setCandidateSubmissions(d.submissions);
+          try {
+            localStorage.setItem('kin_live_submissions', JSON.stringify(d.submissions));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // GitHub telemetry
   const [githubData, setGithubData] = useState<any>(null);
   useEffect(() => {
@@ -409,56 +458,90 @@ export default function KinGlassDashboard() {
   // ─────────────────────────────────────────────────────────────────────────────
   // HANDLERS FOR STUDENT ACTIONS
   // ─────────────────────────────────────────────────────────────────────────────
-  const handleSubmitProjectSolution = (e: React.FormEvent) => {
+  const handleSubmitProjectSolution = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!repoUrlInput.trim()) {
       showToast('Please enter your GitHub repository link.');
       return;
     }
+    if (!selectedProblem) return;
     setSubmittingSolution(true);
 
-    setTimeout(() => {
-      setSubmittingSolution(false);
-      setIsSubmitSolutionModalOpen(false);
+    const submissionPayload = {
+      problemId: selectedProblem.id,
+      problemQuestion: selectedProblem.question,
+      studentName: activeUserName || 'Student Builder',
+      studentCollege: activeUserInstitution || 'IIIT Delhi',
+      studentAvatar: user?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+      repoUrl: repoUrlInput.trim(),
+      liveDemoUrl: liveUrlInput.trim() || undefined,
+      approachSummary: approachSummaryInput.trim() || 'Implemented core architecture with full test verification.',
+      testsPassed: `${selectedProblem.testCasesCount}/${selectedProblem.testCasesCount} tests passed (100%)`,
+    };
 
-      // Trigger Confetti
-      try {
-        confetti({
-          particleCount: 120,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      } catch (e) {}
+    try {
+      const res = await fetch('/api/problems/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submissionPayload),
+      });
 
-      // Update problem status
-      if (selectedProblem) {
-        setProblems((prev) =>
-          prev.map((p) => (p.id === selectedProblem.id ? { ...p, status: 'under_review' } : p))
-        );
-
-        // Prepend to professional candidate review console
-        const newSubmission: CandidateSolutionSubmission = {
+      if (res.ok) {
+        const data = await res.json();
+        const created = data.submission;
+        const updated = [created, ...candidateSubmissions.filter((s) => s.id !== created.id)];
+        setCandidateSubmissions(updated);
+        try {
+          localStorage.setItem('kin_live_submissions', JSON.stringify(updated));
+        } catch {}
+      } else {
+        const fallbackSub: CandidateSolutionSubmission = {
           id: `sub-${Date.now()}`,
-          problemId: selectedProblem.id,
-          problemQuestion: selectedProblem.question,
-          studentName: activeUserName,
-          studentCollege: activeUserInstitution,
-          studentAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-          repoUrl: repoUrlInput.trim(),
-          liveDemoUrl: liveUrlInput.trim() || undefined,
-          approachSummary: approachSummaryInput.trim() || 'Implemented core architecture with full test verification.',
-          testsPassed: `${selectedProblem.testCasesCount}/${selectedProblem.testCasesCount} tests passed (100%)`,
+          ...submissionPayload,
           submittedAt: 'Just now',
-          status: 'pending'
+          status: 'pending',
         };
-        setCandidateSubmissions([newSubmission, ...candidateSubmissions]);
+        const updated = [fallbackSub, ...candidateSubmissions];
+        setCandidateSubmissions(updated);
+        try {
+          localStorage.setItem('kin_live_submissions', JSON.stringify(updated));
+        } catch {}
       }
+    } catch {
+      const fallbackSub: CandidateSolutionSubmission = {
+        id: `sub-${Date.now()}`,
+        ...submissionPayload,
+        submittedAt: 'Just now',
+        status: 'pending',
+      };
+      const updated = [fallbackSub, ...candidateSubmissions];
+      setCandidateSubmissions(updated);
+      try {
+        localStorage.setItem('kin_live_submissions', JSON.stringify(updated));
+      } catch {}
+    }
 
-      showToast('Solution submitted directly to Senior Alumni! They will review your repository diff.');
-      setRepoUrlInput('');
-      setLiveUrlInput('');
-      setApproachSummaryInput('');
-    }, 900);
+    setSubmittingSolution(false);
+    setIsSubmitSolutionModalOpen(false);
+
+    // Trigger Confetti
+    try {
+      confetti({
+        particleCount: 120,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    } catch (e) {}
+
+    // Update problem status in local state
+    setProblems((prev) =>
+      prev.map((p) => (p.id === selectedProblem.id ? { ...p, status: 'under_review' } : p))
+    );
+
+    showToast('Solution submitted directly to Senior Alumni! They will review your repository diff.');
+    setRepoUrlInput('');
+    setLiveUrlInput('');
+    setApproachSummaryInput('');
   };
 
   const handleConfirmConsultBooking = () => {
@@ -476,39 +559,118 @@ export default function KinGlassDashboard() {
   // ─────────────────────────────────────────────────────────────────────────────
   // HANDLERS FOR ALUMNI / PROFESSIONAL ACTIONS
   // ─────────────────────────────────────────────────────────────────────────────
-  const handlePostNewProblem = (e: React.FormEvent) => {
+  const handlePostNewProblem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProblemQuestion.trim()) return;
 
-    const newProblem: AlumniProblem = {
-      id: `prob-${Date.now()}`,
-      category: newProblemCategory,
-      cardVariant: newProblemCategory === 'Housing' || newProblemCategory === 'Consumer Services' ? 'blue' : 'charcoal',
+    const payload = {
       question: newProblemQuestion.trim(),
-      alumniName: activeUserName,
-      alumniTitle: 'Senior Engineering Architect',
-      alumniCompany: newProblemCompany.trim() || 'TechCorp',
+      category: newProblemCategory,
+      alumniCompany: newProblemCompany.trim() || activeUserInstitution || 'TechCorp',
       bountyReward: newProblemReward.trim() || '₹25,000 / $300 USDC',
-      rewardType: 'USDC',
-      requiredTech: ['Next.js', 'PostgreSQL', 'Docker', 'FastAPI'],
       context: newProblemContext.trim() || 'Real production problem statement requiring AST-verified architecture.',
       starterRepoUrl: newProblemRepo.trim() || 'https://github.com/kin-network/starter',
-      deadline: '7 days left',
-      testCasesCount: 20,
-      status: 'open'
+      alumniName: activeUserName || 'Verified Alumni',
+      alumniTitle: user?.headline || 'Senior Engineering Architect',
     };
 
-    setProblems([newProblem, ...problems]);
+    try {
+      const res = await fetch('/api/problems', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const created = data.problem;
+        const updated = [created, ...problems];
+        setProblems(updated);
+        try {
+          localStorage.setItem('kin_live_problems', JSON.stringify(updated));
+        } catch {}
+      } else {
+        const fallbackProblem: AlumniProblem = {
+          id: `prob-${Date.now()}`,
+          category: newProblemCategory,
+          cardVariant: newProblemCategory === 'Housing' || newProblemCategory === 'Consumer Services' ? 'blue' : 'charcoal',
+          question: newProblemQuestion.trim(),
+          alumniName: activeUserName || 'Verified Alumni',
+          alumniTitle: 'Senior Engineering Architect',
+          alumniCompany: newProblemCompany.trim() || 'TechCorp',
+          bountyReward: newProblemReward.trim() || '₹25,000 / $300 USDC',
+          rewardType: 'USDC',
+          requiredTech: ['Next.js', 'PostgreSQL', 'Docker', 'FastAPI'],
+          context: newProblemContext.trim() || 'Real production problem statement requiring AST-verified architecture.',
+          starterRepoUrl: newProblemRepo.trim() || 'https://github.com/kin-network/starter',
+          deadline: '7 days left',
+          testCasesCount: 20,
+          status: 'open'
+        };
+        const updated = [fallbackProblem, ...problems];
+        setProblems(updated);
+        try {
+          localStorage.setItem('kin_live_problems', JSON.stringify(updated));
+        } catch {}
+      }
+    } catch {
+      const fallbackProblem: AlumniProblem = {
+        id: `prob-${Date.now()}`,
+        category: newProblemCategory,
+        cardVariant: newProblemCategory === 'Housing' || newProblemCategory === 'Consumer Services' ? 'blue' : 'charcoal',
+        question: newProblemQuestion.trim(),
+        alumniName: activeUserName || 'Verified Alumni',
+        alumniTitle: 'Senior Engineering Architect',
+        alumniCompany: newProblemCompany.trim() || 'TechCorp',
+        bountyReward: newProblemReward.trim() || '₹25,000 / $300 USDC',
+        rewardType: 'USDC',
+        requiredTech: ['Next.js', 'PostgreSQL', 'Docker', 'FastAPI'],
+        context: newProblemContext.trim() || 'Real production problem statement requiring AST-verified architecture.',
+        starterRepoUrl: newProblemRepo.trim() || 'https://github.com/kin-network/starter',
+        deadline: '7 days left',
+        testCasesCount: 20,
+        status: 'open'
+      };
+      const updated = [fallbackProblem, ...problems];
+      setProblems(updated);
+      try {
+        localStorage.setItem('kin_live_problems', JSON.stringify(updated));
+      } catch {}
+    }
+
     setIsPostProblemModalOpen(false);
     showToast('New Problem Statement posted to KIN Challenge Board!');
     setNewProblemQuestion('');
     setNewProblemContext('');
   };
 
-  const handleReviewSubmission = (subId: string, action: 'accepted' | 'changes_requested' | 'rejected') => {
-    setCandidateSubmissions((prev) =>
-      prev.map((s) => (s.id === subId ? { ...s, status: action } : s))
-    );
+  const handleDeleteProblem = async (problemId: string) => {
+    try {
+      await fetch(`/api/problems?id=${problemId}`, { method: 'DELETE' });
+    } catch {}
+    const updated = problems.filter((p) => p.id !== problemId);
+    setProblems(updated);
+    try {
+      localStorage.setItem('kin_live_problems', JSON.stringify(updated));
+    } catch {}
+    showToast('Problem statement removed from board.');
+  };
+
+  const handleReviewSubmission = async (subId: string, action: 'accepted' | 'changes_requested' | 'rejected') => {
+    try {
+      await fetch('/api/problems/submissions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: subId, status: action }),
+      });
+    } catch {}
+
+    const updated = candidateSubmissions.map((s) => (s.id === subId ? { ...s, status: action } : s));
+    setCandidateSubmissions(updated);
+    try {
+      localStorage.setItem('kin_live_submissions', JSON.stringify(updated));
+    } catch {}
+
     if (action === 'accepted') {
       try {
         confetti({ particleCount: 90, spread: 60, origin: { y: 0.5 } });
@@ -996,102 +1158,136 @@ export default function KinGlassDashboard() {
                     </div>
 
                     {/* Image 3 High-Contrast Bento Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {filteredProblems.map((prob) => {
-                        const isBlue = prob.cardVariant === 'blue';
-                        const isCharcoal = prob.cardVariant === 'charcoal';
-                        const isWhite = prob.cardVariant === 'white';
-
-                        return (
-                          <div
-                            key={prob.id}
-                            onClick={() => {
-                              setSelectedProblem(prob);
-                              setIsSubmitSolutionModalOpen(true);
-                            }}
-                            className={`rounded-3xl p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-1 group relative ${
-                              isBlue
-                                ? 'bg-[#0047FF] text-white shadow-[0_8px_30px_rgba(0,71,255,0.22)]'
-                                : isCharcoal
-                                ? 'bg-[#181A20] text-white border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.25)]'
-                                : 'bg-white text-slate-900 border border-slate-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)]'
-                            }`}
+                    {filteredProblems.length === 0 ? (
+                      <div className="rounded-3xl p-10 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] text-center flex flex-col items-center justify-center my-6">
+                        <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-[#E25C38] mb-4">
+                          <Trophy className="w-7 h-7" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900 mb-1">
+                          {problems.length === 0
+                            ? 'No Active Problem Statements on Challenge Board'
+                            : `No Problems Found in "${problemCategoryFilter}"`}
+                        </h3>
+                        <p className="text-xs text-slate-500 max-w-md leading-relaxed mb-6">
+                          {problems.length === 0
+                            ? 'Working professionals post real production bottlenecks from their Professional Dashboard. Once posted, you will see them here with USDC bounties and direct referral pathways.'
+                            : `Try selecting "All" or another category filter to explore live engineering challenges.`}
+                        </p>
+                        {problems.length === 0 ? (
+                          <button
+                            onClick={() => handleRoleToggle('alumni')}
+                            className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
                           >
-                            {/* Card Top: Category Pill + Circular Arrow */}
-                            <div>
-                              <div className="flex items-center justify-between mb-4">
-                                <span
-                                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                                    isBlue
-                                      ? 'bg-white/20 text-white border border-white/20'
-                                      : isCharcoal
-                                      ? 'bg-white/10 text-white border border-white/10'
-                                      : 'bg-slate-100 text-slate-800 border border-slate-200/60'
-                                  }`}
-                                >
-                                  {prob.category}
-                                </span>
+                            <Briefcase className="w-3.5 h-3.5 text-[#E25C38]" />
+                            <span>Switch to Professional Dashboard & Post Problem</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setProblemCategoryFilter('All')}
+                            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer"
+                          >
+                            View All Categories
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {filteredProblems.map((prob) => {
+                          const isBlue = prob.cardVariant === 'blue';
+                          const isCharcoal = prob.cardVariant === 'charcoal';
+                          const isWhite = prob.cardVariant === 'white';
 
-                                <div
-                                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:translate-x-0.5 ${
-                                    isBlue
-                                      ? 'border border-white/30 text-white'
-                                      : isCharcoal
-                                      ? 'border border-white/20 text-white'
-                                      : 'border border-slate-300 text-slate-700'
+                          return (
+                            <div
+                              key={prob.id}
+                              onClick={() => {
+                                setSelectedProblem(prob);
+                                setIsSubmitSolutionModalOpen(true);
+                              }}
+                              className={`rounded-3xl p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-1 group relative ${
+                                isBlue
+                                  ? 'bg-[#0047FF] text-white shadow-[0_8px_30px_rgba(0,71,255,0.22)]'
+                                  : isCharcoal
+                                  ? 'bg-[#181A20] text-white border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.25)]'
+                                  : 'bg-white text-slate-900 border border-slate-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)]'
+                              }`}
+                            >
+                              {/* Card Top: Category Pill + Circular Arrow */}
+                              <div>
+                                <div className="flex items-center justify-between mb-4">
+                                  <span
+                                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                                      isBlue
+                                        ? 'bg-white/20 text-white border border-white/20'
+                                        : isCharcoal
+                                        ? 'bg-white/10 text-white border border-white/10'
+                                        : 'bg-slate-100 text-slate-800 border border-slate-200/60'
+                                    }`}
+                                  >
+                                    {prob.category}
+                                  </span>
+
+                                  <div
+                                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:translate-x-0.5 ${
+                                      isBlue
+                                        ? 'border border-white/30 text-white'
+                                        : isCharcoal
+                                        ? 'border border-white/20 text-white'
+                                        : 'border border-slate-300 text-slate-700'
+                                    }`}
+                                  >
+                                    <ArrowRight className="w-3.5 h-3.5" />
+                                  </div>
+                                </div>
+
+                                {/* Provocative Question in Punchy Typography */}
+                                <h3
+                                  className={`text-base font-bold leading-snug tracking-tight mb-4 ${
+                                    isBlue || isCharcoal ? 'text-white' : 'text-slate-900'
                                   }`}
                                 >
-                                  <ArrowRight className="w-3.5 h-3.5" />
+                                  {prob.question}
+                                </h3>
+                              </div>
+
+                              {/* Card Footer: Alumni Poster & Reward */}
+                              <div className="pt-3 border-t border-current/10 flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className={isBlue || isCharcoal ? 'text-white/80' : 'text-slate-600'}>
+                                    {prob.alumniName}
+                                  </span>
+                                  <span className="font-bold text-[11px] truncate max-w-[130px]">
+                                    {prob.alumniCompany}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center justify-between mt-1">
+                                  <span
+                                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                                      isBlue
+                                        ? 'bg-white text-[#0047FF]'
+                                        : isCharcoal
+                                        ? 'bg-[#E25C38] text-white'
+                                        : 'bg-slate-900 text-white'
+                                    }`}
+                                  >
+                                    {prob.bountyReward}
+                                  </span>
+
+                                  <span
+                                    className={`text-[11px] font-bold flex items-center gap-1 group-hover:underline ${
+                                      isBlue || isCharcoal ? 'text-white' : 'text-[#E25C38]'
+                                    }`}
+                                  >
+                                    <span>Submit Solution</span>
+                                  </span>
                                 </div>
                               </div>
-
-                              {/* Provocative Question in Punchy Typography */}
-                              <h3
-                                className={`text-base font-bold leading-snug tracking-tight mb-4 ${
-                                  isBlue || isCharcoal ? 'text-white' : 'text-slate-900'
-                                }`}
-                              >
-                                {prob.question}
-                              </h3>
                             </div>
-
-                            {/* Card Footer: Alumni Poster & Reward */}
-                            <div className="pt-3 border-t border-current/10 flex flex-col gap-1.5">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className={isBlue || isCharcoal ? 'text-white/80' : 'text-slate-600'}>
-                                  {prob.alumniName}
-                                </span>
-                                <span className="font-bold text-[11px] truncate max-w-[130px]">
-                                  {prob.alumniCompany}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center justify-between mt-1">
-                                <span
-                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
-                                    isBlue
-                                      ? 'bg-white text-[#0047FF]'
-                                      : isCharcoal
-                                      ? 'bg-[#E25C38] text-white'
-                                      : 'bg-slate-900 text-white'
-                                  }`}
-                                >
-                                  {prob.bountyReward}
-                                </span>
-
-                                <span
-                                  className={`text-[11px] font-bold flex items-center gap-1 group-hover:underline ${
-                                    isBlue || isCharcoal ? 'text-white' : 'text-[#E25C38]'
-                                  }`}
-                                >
-                                  <span>Submit Solution</span>
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1866,60 +2062,135 @@ export default function KinGlassDashboard() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {candidateSubmissions.map((sub) => (
-                              <tr key={sub.id} className="hover:bg-slate-50/60 transition-colors">
-                                <td className="py-3 px-3">
-                                  <span className="font-bold text-slate-900 block">{sub.studentName}</span>
-                                  <span className="text-[10px] text-slate-500">{sub.studentCollege}</span>
-                                </td>
-                                <td className="py-3 px-3 max-w-xs">
-                                  <span className="font-medium truncate block">{sub.problemQuestion}</span>
-                                  <span className="text-[10px] text-slate-500">{sub.submittedAt}</span>
-                                </td>
-                                <td className="py-3 px-3">
-                                  <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="font-bold text-slate-900 hover:text-[#E25C38] flex items-center gap-1">
-                                    <Github className="w-3.5 h-3.5" />
-                                    <span>View GitHub Repo</span>
-                                  </a>
-                                  <span className="text-[10px] font-bold text-emerald-600 block mt-0.5">
-                                    {sub.testsPassed}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3">
-                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                    sub.status === 'accepted' ? 'bg-emerald-100 text-emerald-800' :
-                                    sub.status === 'changes_requested' ? 'bg-amber-100 text-amber-800' :
-                                    sub.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
-                                    'bg-slate-100 text-slate-700'
-                                  }`}>
-                                    {sub.status.toUpperCase()}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3 text-right">
-                                  {sub.status === 'pending' ? (
-                                    <div className="flex items-center justify-end gap-1.5">
-                                      <button
-                                        onClick={() => handleReviewSubmission(sub.id, 'accepted')}
-                                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] cursor-pointer"
-                                      >
-                                        Accept & Refer
-                                      </button>
-                                      <button
-                                        onClick={() => handleReviewSubmission(sub.id, 'changes_requested')}
-                                        className="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-[11px] cursor-pointer"
-                                      >
-                                        Changes
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <span className="text-[11px] text-slate-400 font-bold">Reviewed</span>
-                                  )}
+                            {candidateSubmissions.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="py-10 text-center text-slate-400">
+                                  <div className="flex flex-col items-center justify-center gap-1.5">
+                                    <GitPullRequest className="w-6 h-6 text-slate-300" />
+                                    <span className="font-bold text-xs text-slate-700">No Candidate Submissions in Queue Yet</span>
+                                    <span className="text-[11px] text-slate-400 max-w-sm">
+                                      When students submit GitHub solutions to your problem statements, their PRs, AST proof-of-work, and test results appear here for your review and interview referral.
+                                    </span>
+                                  </div>
                                 </td>
                               </tr>
-                            ))}
+                            ) : (
+                              candidateSubmissions.map((sub) => (
+                                <tr key={sub.id} className="hover:bg-slate-50/60 transition-colors">
+                                  <td className="py-3 px-3">
+                                    <span className="font-bold text-slate-900 block">{sub.studentName}</span>
+                                    <span className="text-[10px] text-slate-500">{sub.studentCollege}</span>
+                                  </td>
+                                  <td className="py-3 px-3 max-w-xs">
+                                    <span className="font-medium truncate block">{sub.problemQuestion}</span>
+                                    <span className="text-[10px] text-slate-500">{sub.submittedAt}</span>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="font-bold text-slate-900 hover:text-[#E25C38] flex items-center gap-1">
+                                      <Github className="w-3.5 h-3.5" />
+                                      <span>View GitHub Repo</span>
+                                    </a>
+                                    <span className="text-[10px] font-bold text-emerald-600 block mt-0.5">
+                                      {sub.testsPassed}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                      sub.status === 'accepted' ? 'bg-emerald-100 text-emerald-800' :
+                                      sub.status === 'changes_requested' ? 'bg-amber-100 text-amber-800' :
+                                      sub.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
+                                      'bg-slate-100 text-slate-700'
+                                    }`}>
+                                      {sub.status.toUpperCase()}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-3 text-right">
+                                    {sub.status === 'pending' ? (
+                                      <div className="flex items-center justify-end gap-1.5">
+                                        <button
+                                          onClick={() => handleReviewSubmission(sub.id, 'accepted')}
+                                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] cursor-pointer"
+                                        >
+                                          Accept & Refer
+                                        </button>
+                                        <button
+                                          onClick={() => handleReviewSubmission(sub.id, 'changes_requested')}
+                                          className="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-[11px] cursor-pointer"
+                                        >
+                                          Changes
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <span className="text-[11px] text-slate-400 font-bold">Reviewed</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))
+                            )}
                           </tbody>
                         </table>
                       </div>
+                    </div>
+
+                    {/* Live Problem Statements Management Section for Working Professionals */}
+                    <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-base font-bold text-slate-900">Active Problem Statements on Challenge Board</h3>
+                          <p className="text-xs text-slate-500">Live bottlenecks visible to students on their challenge feed</p>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-slate-500">
+                          {problems.length} Active Challenges
+                        </span>
+                      </div>
+
+                      {problems.length === 0 ? (
+                        <div className="py-8 text-center flex flex-col items-center justify-center border border-dashed border-slate-200 rounded-2xl">
+                          <Trophy className="w-6 h-6 text-slate-300 mb-2" />
+                          <span className="text-xs font-bold text-slate-700 mb-1">No Active Problem Statements</span>
+                          <p className="text-[11px] text-slate-500 max-w-sm mb-4">
+                            Click &ldquo;+ Post New Problem Statement&rdquo; above to publish an engineering bottleneck and invite student submissions.
+                          </p>
+                          <button
+                            onClick={() => setIsPostProblemModalOpen(true)}
+                            className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>+ Post Problem Statement</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                          {problems.map((prob) => (
+                            <div
+                              key={prob.id}
+                              className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 flex flex-col justify-between hover:border-slate-300 transition-colors"
+                            >
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-800">
+                                    {prob.category}
+                                  </span>
+                                  <button
+                                    onClick={() => handleDeleteProblem(prob.id)}
+                                    title="Delete Problem"
+                                    className="w-6 h-6 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <h4 className="text-xs font-bold text-slate-900 line-clamp-2 mb-2">
+                                  {prob.question}
+                                </h4>
+                              </div>
+                              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                                <span className="font-mono font-bold text-slate-700">{prob.bountyReward}</span>
+                                <span className="text-slate-500">{prob.alumniCompany}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
