@@ -192,6 +192,18 @@ export default function KinGlassDashboard() {
   const [showMascotTour, setShowMascotTour] = useState(false);
   const [mascotStepIndex, setMascotStepIndex] = useState(0);
 
+  // Profile Setup Modal State: local + context sync
+  const [localProfileModalOpen, setLocalProfileModalOpen] = useState(false);
+  const isProfileWizardOpen = isProfileModalOpen || localProfileModalOpen;
+  const handleOpenProfileWizard = () => {
+    setLocalProfileModalOpen(true);
+    if (openProfileModal) openProfileModal();
+  };
+  const handleCloseProfileWizard = () => {
+    setLocalProfileModalOpen(false);
+    if (closeProfileModal) closeProfileModal();
+  };
+
   const dismissMascotTour = () => {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('kin_mascot_tour_seen', 'true');
@@ -658,7 +670,7 @@ export default function KinGlassDashboard() {
             {/* Profile Setup / Edit Wizard */}
             <button
               id="profile-setup-btn"
-              onClick={openProfileModal}
+              onClick={handleOpenProfileWizard}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
               title="Complete or Edit your 4-Step Profile"
             >
@@ -690,6 +702,17 @@ export default function KinGlassDashboard() {
                     <p className="text-xs font-bold text-slate-900 truncate">{activeUserName}</p>
                     <p className="text-[10px] text-slate-500 truncate">{activeUserInstitution}</p>
                   </div>
+                  <button
+                    id="menu-edit-profile-btn"
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      handleOpenProfileWizard();
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-slate-800 hover:bg-slate-50 rounded-xl flex items-center gap-2 cursor-pointer font-bold"
+                  >
+                    <User className="w-3.5 h-3.5 text-[#E25C38]" />
+                    <span>Edit 4-Step Profile</span>
+                  </button>
                   <button
                     onClick={() => {
                       setProfileMenuOpen(false);
@@ -2991,8 +3014,8 @@ export default function KinGlassDashboard() {
 
       {/* ─── Profile Completion Wizard Modal ─── */}
       <ProfileCompletionWizard
-        isOpen={isProfileModalOpen}
-        onClose={closeProfileModal}
+        isOpen={isProfileWizardOpen}
+        onClose={handleCloseProfileWizard}
         initialRole={networkRole}
       />
 
