@@ -56,10 +56,10 @@ export default function TopNavigation() {
           <div>
             <div className="flex items-center space-x-2">
               <span className="font-extrabold text-base tracking-wider bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent">
-                CONDUIT
+                NEXUS
               </span>
               <span className="text-[10px] font-mono tracking-widest px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/30 text-cyan-400 font-semibold">
-                LIVING NETWORK ENGINE
+                LIVING TRUST NETWORK
               </span>
             </div>
             <div className="text-[11px] text-slate-400 font-mono flex items-center space-x-1.5">

@@ -79,3 +79,31 @@
   stroke-dasharray: 6 4;
   animation: signalFlow 1s linear infinite;
 }
+
+@keyframes orbit3d {
+  0% {
+    transform: rotateZ(0deg);
+  }
+  100% {
+    transform: rotateZ(360deg);
+  }
+}
+
+@keyframes solarTilt {
+  0%, 100% {
+    transform: rotateX(58deg) rotateZ(-12deg);
+  }
+  50% {
+    transform: rotateX(50deg) rotateZ(-6deg);
+  }
+}
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+

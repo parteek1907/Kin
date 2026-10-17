@@ -3,8 +3,8 @@ import './globals.css';
 import { NetworkProvider } from '@/context/NetworkContext';
 
 export const metadata: Metadata = {
-  title: 'CONDUIT // Living Proof-of-Work & Intent Network',
-  description: 'Artifact-Verified Intent & Multi-Hop Warm Routing Network connecting students, alumni, faculty, founders, and institutions.',
+  title: 'NEXUS // Living Proof-of-Work & Alumni Intent Network',
+  description: 'Artifact-Verified Intent & Multi-Hop Campus Trust Routing Network connecting students, alumni, faculty, and founders.',
 };
 
 export default function RootLayout({
@@ -22,7 +22,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-full w-full bg-[#F0F3F7] text-slate-800 antialiased font-sans overflow-x-hidden overflow-y-auto">
+      <body className="min-h-full w-full bg-[#030509] text-slate-100 antialiased font-sans overflow-x-hidden overflow-y-auto selection:bg-cyan-500 selection:text-black">
         <NetworkProvider>
           {children}
         </NetworkProvider>
