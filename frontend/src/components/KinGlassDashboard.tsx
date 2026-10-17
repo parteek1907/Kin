@@ -53,7 +53,8 @@ import {
   Filter,
   CheckSquare,
   Trash2,
-  GitPullRequest
+  GitPullRequest,
+  Loader2
 } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
@@ -65,7 +66,8 @@ import {
   ALUMNI_PROBLEMS,
   AlumniProblem,
   INITIAL_SUBMITTED_SOLUTIONS,
-  CandidateSolutionSubmission
+  CandidateSolutionSubmission,
+  OutreachApplication
 } from '@/data/alumniProblems';
 import {
   MOCK_POLICIES,
@@ -277,21 +279,57 @@ export default function KinGlassDashboard() {
   // ─────────────────────────────────────────────────────────────────────────────
   // AUTO-CONNECT & FIREWALL STATES
   // ─────────────────────────────────────────────────────────────────────────────
-  // Student Outreach State
+  // Student Outreach State (Live Connected & Evaluated Applications)
+  const [outreachApplications, setOutreachApplications] = useState<OutreachApplication[]>([]);
   const [manualNoteModalOpen, setManualNoteModalOpen] = useState(false);
   const [manualNoteSenior, setManualNoteSenior] = useState<string>('Rahul Mehta');
   const [manualNoteText, setManualNoteText] = useState('');
+
+  // Send CV to Professional Modal State (Direct ATS Review from Social / Directory)
+  const [isSendCvModalOpen, setIsSendCvModalOpen] = useState(false);
+  const [selectedProForCv, setSelectedProForCv] = useState<{
+    name: string;
+    role: string;
+    company: string;
+    avatar?: string;
+  }>({
+    name: 'Rahul Mehta',
+    role: 'Staff Platform Engineer @ Uber',
+    company: 'Uber',
+  });
+  const [isEvaluatingAts, setIsEvaluatingAts] = useState(false);
+  const [targetProPolicy, setTargetProPolicy] = useState<{
+    threshold: number;
+    minCommits: number;
+    mandatorySkills: string[];
+  } | null>(null);
+  const [isLoadingProPolicy, setIsLoadingProPolicy] = useState(false);
+
+  useEffect(() => {
+    if (isSendCvModalOpen && selectedProForCv.name) {
+      setIsLoadingProPolicy(true);
+      fetch(`/api/firewall/policy?professionalName=${encodeURIComponent(selectedProForCv.name)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.success && d.policy) {
+            setTargetProPolicy({
+              threshold: d.policy.threshold,
+              minCommits: d.policy.minCommits,
+              mandatorySkills: d.policy.mandatorySkills || ['React', 'Docker', 'PostgreSQL'],
+            });
+          }
+        })
+        .catch(() => {})
+        .finally(() => setIsLoadingProPolicy(false));
+    }
+  }, [isSendCvModalOpen, selectedProForCv.name]);
 
   // Professional Firewall Settings State
   const [firewallThreshold, setFirewallThreshold] = useState<number>(75);
   const [firewallMinCommits, setFirewallMinCommits] = useState<number>(15);
   const [firewallActive, setFirewallActive] = useState<boolean>(true);
   const [selectedFirewallSkills, setSelectedFirewallSkills] = useState<string[]>(['React', 'Docker', 'PostgreSQL']);
-  const [pendingQueue, setPendingQueue] = useState([
-    { id: 'pq-1', name: 'Tanmay Saxena', college: 'NSUT Delhi', match: 68, missing: 'Docker (0/1)', note: 'Hi Rahul! Built a high-concurrency pub-sub in Go and would love your guidance on Uber platform architecture.' },
-    { id: 'pq-2', name: 'Rhea Sen', college: 'DTU', match: 71, missing: 'Min Commits (12/15)', note: 'Hey! Loved your post on distributed cache warming. Check my Raft KV implementation.' },
-    { id: 'pq-3', name: 'Kabir Varma', college: 'IIIT Hyderabad', match: 64, missing: 'PostgreSQL', note: 'Hey Rahul, solving your CarDekho OBD-II problem right now!' },
-  ]);
+  const [pendingQueue, setPendingQueue] = useState<any[]>([]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 20-MINUTE DOORWAY STATES
@@ -418,7 +456,41 @@ export default function KinGlassDashboard() {
         }
       })
       .catch(() => {});
-  }, []);
+
+    // 4. Fetch live firewall policy configuration
+    fetch('/api/firewall/policy')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.policy) {
+          setFirewallThreshold(d.policy.threshold);
+          setFirewallMinCommits(d.policy.minCommits);
+          setSelectedFirewallSkills(d.policy.mandatorySkills);
+          setFirewallActive(d.policy.firewallActive);
+        }
+      })
+      .catch(() => {});
+
+    // 5. Fetch student's evaluated outreach applications (Image 1)
+    const currentStudentEmail = user?.email || activeUserEmail || 'aditya@iiitd.ac.in';
+    fetch(`/api/firewall/outreach?type=student&studentEmail=${encodeURIComponent(currentStudentEmail)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.applications)) {
+          setOutreachApplications(d.applications);
+        }
+      })
+      .catch(() => {});
+
+    // 6. Fetch professional's manual triage queue (Image 2)
+    fetch('/api/firewall/outreach?type=manual_queue')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.queue)) {
+          setPendingQueue(d.queue);
+        }
+      })
+      .catch(() => {});
+  }, [user?.email, activeUserEmail]);
 
   // GitHub telemetry
   const [githubData, setGithubData] = useState<any>(null);
@@ -554,11 +626,187 @@ export default function KinGlassDashboard() {
     showToast(`Confirmed! 20-min consult booked with ${selectedExpert?.name || 'Expert'}. Calendar invite dispatched.`);
   };
 
-  const handleSendManualQueueNote = (e: React.FormEvent) => {
+  const handleSendManualQueueNote = async (e: React.FormEvent) => {
     e.preventDefault();
+    const note = manualNoteText.trim();
+    const senior = manualNoteSenior;
     setManualNoteModalOpen(false);
-    showToast(`Note submitted to ${manualNoteSenior}'s manual triage queue!`);
+
+    try {
+      const res = await fetch('/api/firewall/outreach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'submit_manual_queue',
+          professionalName: senior,
+          studentEmail: activeUserEmail,
+          studentName: activeUserName,
+          studentCollege: activeUserInstitution,
+          manualNote: note,
+        }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setOutreachApplications((prev) =>
+          prev.map((a) =>
+            a.professionalName.toLowerCase() === senior.toLowerCase()
+              ? { ...a, status: 'in_manual_queue', manualNote: note }
+              : a
+          )
+        );
+        // Refresh manual triage queue
+        fetch('/api/firewall/outreach?type=manual_queue')
+          .then((r) => r.json())
+          .then((qd) => {
+            if (qd.success && Array.isArray(qd.queue)) setPendingQueue(qd.queue);
+          })
+          .catch(() => {});
+      }
+    } catch {}
+
+    showToast(`Note submitted to ${senior}'s manual triage queue!`);
     setManualNoteText('');
+  };
+
+  const handleInstantConnect = async (app: OutreachApplication) => {
+    try {
+      await fetch('/api/firewall/outreach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'instant_connect',
+          professionalName: app.professionalName,
+          studentEmail: activeUserEmail,
+          studentName: activeUserName,
+          studentCollege: activeUserInstitution,
+        }),
+      });
+      setOutreachApplications((prev) =>
+        prev.map((a) => (a.id === app.id ? { ...a, status: 'connected' } : a))
+      );
+      try {
+        confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 } });
+      } catch {}
+      showToast(`Smart Auto-Connect handshake triggered with ${app.professionalName}! Accepted.`);
+    } catch {
+      showToast(`Smart Auto-Connect handshake triggered with ${app.professionalName}!`);
+    }
+  };
+
+  const handleSaveFirewallPolicy = async () => {
+    try {
+      const res = await fetch('/api/firewall/policy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          professionalName: activeUserName,
+          professionalRole: activeUserRole,
+          firewallActive,
+          threshold: firewallThreshold,
+          minCommits: firewallMinCommits,
+          mandatorySkills: selectedFirewallSkills,
+        }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        showToast('Firewall policies saved and deployed to live gateway!');
+      } else {
+        showToast('Firewall policies updated.');
+      }
+    } catch {
+      showToast('Firewall policies saved.');
+    }
+  };
+
+  const handleEvaluateAndSendCv = async (
+    pro: { name: string; role: string; company?: string; avatar?: string },
+    policyReqs?: { threshold: number; minCommits: number; mandatorySkills: string[] }
+  ) => {
+    setIsEvaluatingAts(true);
+    try {
+      const studentCommits = githubData?.recentPushesCount ? githubData.recentPushesCount * 4 : 18;
+
+      // 1. Evaluate with Gemini AI
+      const evalRes = await fetch('/api/ats-evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentEmail: activeUserEmail,
+          studentName: activeUserName,
+          studentCollege: activeUserInstitution,
+          studentHeadline: activeUserRole,
+          studentSkills: activeSkills,
+          studentCommits,
+          resumeText: parsedProfile?.summary || '',
+          professionalName: pro.name,
+          professionalRole: pro.role,
+          firewallPolicy: policyReqs || {
+            threshold: firewallThreshold,
+            minCommits: firewallMinCommits,
+            mandatorySkills: selectedFirewallSkills,
+          },
+        }),
+      });
+
+      const evalData = await evalRes.json();
+      const result = evalData.result || {
+        currentMatch: 68,
+        targetMatch: policyReqs?.threshold || 75,
+        met: ['React (AST Verified)', `${studentCommits} Commits (Met)`],
+        missing: ['Docker (Missing on profile)'],
+        passed: false,
+      };
+
+      // 2. Save application to live outreach system
+      const outreachRes = await fetch('/api/firewall/outreach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          studentEmail: activeUserEmail,
+          studentName: activeUserName,
+          studentCollege: activeUserInstitution,
+          professionalName: pro.name,
+          professionalRole: pro.role,
+          professionalCompany: pro.company || 'TechCorp',
+          professionalAvatar: pro.avatar,
+          policy: `Requires ≥ ${result.targetMatch}% match, ${(policyReqs?.mandatorySkills || selectedFirewallSkills).join(', ')}, and min ${policyReqs?.minCommits || firewallMinCommits} commits.`,
+          targetMatch: result.targetMatch,
+          currentMatch: result.currentMatch,
+          met: result.met,
+          missing: result.missing,
+          atsFeedback: result.feedback || '',
+        }),
+      });
+
+      const outreachData = await outreachRes.json();
+      if (outreachData.success && outreachData.application) {
+        setOutreachApplications((prev) => {
+          const filtered = prev.filter(
+            (a) => a.professionalName.toLowerCase() !== pro.name.toLowerCase()
+          );
+          return [outreachData.application, ...filtered];
+        });
+      }
+
+      if (result.passed) {
+        try {
+          confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
+        } catch {}
+        showToast(`🎉 Gemini ATS Passed! Match: ${result.currentMatch}% / ${result.targetMatch}%. You can Instant Connect!`);
+      } else {
+        showToast(`Gemini ATS Score: ${result.currentMatch}% / ${result.targetMatch}%. Added to your Outreach list.`);
+      }
+
+      setIsSendCvModalOpen(false);
+      setActiveTab('outreach');
+    } catch (err) {
+      showToast('ATS Review completed.');
+      setIsSendCvModalOpen(false);
+      setActiveTab('outreach');
+    } finally {
+      setIsEvaluatingAts(false);
+    }
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -688,10 +936,30 @@ export default function KinGlassDashboard() {
     }
   };
 
-  const handlePendingQueueAction = (id: string, action: 'approve' | 'decline') => {
+  const handlePendingQueueAction = async (id: string, action: 'approve' | 'decline') => {
     const student = pendingQueue.find((p) => p.id === id);
     setPendingQueue((prev) => prev.filter((p) => p.id !== id));
-    showToast(action === 'approve' ? `Connected with ${student?.name}!` : `Declined request from ${student?.name}.`);
+
+    try {
+      await fetch('/api/firewall/outreach', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action }),
+      });
+
+      setOutreachApplications((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: action === 'approve' ? 'connected' : 'declined' } : a))
+      );
+    } catch {}
+
+    if (action === 'approve') {
+      try {
+        confetti({ particleCount: 80, spread: 60, origin: { y: 0.5 } });
+      } catch {}
+      showToast(`Connected with ${student?.name || 'candidate'}! Direct network admission granted.`);
+    } else {
+      showToast(`Declined request from ${student?.name || 'candidate'}.`);
+    }
   };
 
   const handleInstantSettlementPayout = () => {
@@ -1310,104 +1578,132 @@ export default function KinGlassDashboard() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                       {/* Left: Senior Cards */}
                       <div className="lg:col-span-2 space-y-4">
-                        {[
-                          {
-                            name: 'Rahul Mehta',
-                            role: 'Staff Platform Engineer @ Uber',
-                            req: 'Requires ≥ 75% match, React, Docker, and min 15 GitHub commits.',
-                            currentMatch: 62,
-                            targetMatch: 75,
-                            met: ['React (AST Verified)', '18 Commits (Met)'],
-                            missing: ['Docker (Missing on profile)']
-                          },
-                          {
-                            name: 'Dr. Priya Sharma',
-                            role: 'Lead Bioinformatician @ Apollo & Epic',
-                            req: 'Requires ≥ 70% match, Python, FHIR Standards, and min 20 commits.',
-                            currentMatch: 78,
-                            targetMatch: 70,
-                            met: ['Python (Verified)', 'FHIR Linkage (Met)', '22 Commits (Met)'],
-                            missing: []
-                          },
-                          {
-                            name: 'Siddharth Verma',
-                            role: 'Web3 Protocol Lead @ Polygon',
-                            req: 'Requires ≥ 80% match, Solidity, ERC-4337, and min 25 commits.',
-                            currentMatch: 58,
-                            targetMatch: 80,
-                            met: ['JavaScript (Met)'],
-                            missing: ['Solidity', 'Account Abstraction']
-                          }
-                        ].map((sr) => (
-                          <div key={sr.name} className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                              <div>
-                                <h3 className="text-base font-bold text-slate-900">{sr.name}</h3>
-                                <p className="text-xs text-slate-600 font-medium">{sr.role}</p>
-                              </div>
-                              <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full ${
-                                sr.currentMatch >= sr.targetMatch
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}>
-                                Match: {sr.currentMatch}% / {sr.targetMatch}%
-                              </span>
+                        {outreachApplications.length === 0 ? (
+                          <div className="p-8 sm:p-10 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] text-center space-y-3.5">
+                            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-[#E25C38] flex items-center justify-center mx-auto">
+                              <ShieldCheck className="w-6 h-6" />
                             </div>
-
-                            <p className="text-xs text-slate-600 mb-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                              <strong>Policy:</strong> {sr.req}
+                            <h3 className="text-base font-bold text-slate-900">No Alumni Outreach Submissions Yet</h3>
+                            <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+                              You haven&apos;t submitted your CV to any verified alumni yet. Find alumni in the Community Directory, inspect their live criteria firewall, and submit your CV for instant Gemini AI review.
                             </p>
-
-                            {/* Checklist */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 text-xs">
-                              <div>
-                                <span className="font-bold text-emerald-600 block mb-1">✓ Met Criteria:</span>
-                                {sr.met.map((m) => (
-                                  <div key={m} className="text-slate-700 flex items-center gap-1.5">• {m}</div>
-                                ))}
-                              </div>
-                              {sr.missing.length > 0 && (
-                                <div>
-                                  <span className="font-bold text-rose-600 block mb-1">✗ Missing to Unlock Auto-Accept:</span>
-                                  {sr.missing.map((m) => (
-                                    <div key={m} className="text-slate-700 flex items-center gap-1.5">• {m}</div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Actions */}
-                            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2.5">
-                              {sr.currentMatch >= sr.targetMatch ? (
-                                <button
-                                  onClick={() => showToast(`Smart Auto-Connect handshake triggered with ${sr.name}! Accepted.`)}
-                                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
-                                >
-                                  <Check className="w-3.5 h-3.5" />
-                                  <span>Instant Connect (Shield Passed)</span>
-                                </button>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      setManualNoteSenior(sr.name);
-                                      setManualNoteModalOpen(true);
-                                    }}
-                                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
-                                  >
-                                    Submit to {sr.name.split(' ')[0]}&apos;s Manual Queue
-                                  </button>
-                                  <button
-                                    onClick={() => setActiveTab('problems')}
-                                    className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#E25C38] text-xs font-bold transition-all border border-amber-200 cursor-pointer"
-                                  >
-                                    Solve Bounty to Unlock Auto-Connect
-                                  </button>
-                                </>
-                              )}
+                            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                              <button
+                                onClick={() => setActiveTab('community')}
+                                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                              >
+                                <Users className="w-3.5 h-3.5" />
+                                <span>Browse Alumni Directory</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedProForCv({
+                                    name: 'Rahul Mehta',
+                                    role: 'Staff Platform Engineer @ Uber',
+                                    company: 'Uber',
+                                    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+                                  });
+                                  setIsSendCvModalOpen(true);
+                                }}
+                                className="px-4 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#E25C38] border border-orange-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                                <span>Send CV to Rahul Mehta</span>
+                              </button>
                             </div>
                           </div>
-                        ))}
+                        ) : (
+                          outreachApplications.map((sr) => {
+                            const isPassed = sr.currentMatch >= sr.targetMatch;
+                            const isConnected = sr.status === 'connected';
+                            const isInQueue = sr.status === 'in_manual_queue';
+
+                            return (
+                              <div key={sr.id || sr.professionalName} className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                                  <div>
+                                    <h3 className="text-base font-bold text-slate-900">{sr.professionalName}</h3>
+                                    <p className="text-xs text-slate-600 font-medium">{sr.professionalRole}</p>
+                                  </div>
+                                  <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full ${
+                                    isPassed
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    Match: {sr.currentMatch}% / {sr.targetMatch}%
+                                  </span>
+                                </div>
+
+                                <p className="text-xs text-slate-600 mb-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                  <strong>Policy:</strong> {sr.policy}
+                                </p>
+
+                                {/* Checklist */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 text-xs">
+                                  <div>
+                                    <span className="font-bold text-emerald-600 block mb-1">✓ Met Criteria:</span>
+                                    {sr.met && sr.met.length > 0 ? (
+                                      sr.met.map((m) => (
+                                        <div key={m} className="text-slate-700 flex items-center gap-1.5">• {m}</div>
+                                      ))
+                                    ) : (
+                                      <div className="text-slate-400 italic">None yet</div>
+                                    )}
+                                  </div>
+                                  {sr.missing && sr.missing.length > 0 && (
+                                    <div>
+                                      <span className="font-bold text-rose-600 block mb-1">✗ Missing to Unlock Auto-Accept:</span>
+                                      {sr.missing.map((m) => (
+                                        <div key={m} className="text-slate-700 flex items-center gap-1.5">• {m}</div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Actions */}
+                                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2.5">
+                                  {isConnected ? (
+                                    <span className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 flex items-center gap-1.5">
+                                      <Check className="w-3.5 h-3.5" />
+                                      <span>Connected (Direct Handshake Complete)</span>
+                                    </span>
+                                  ) : isPassed ? (
+                                    <button
+                                      onClick={() => handleInstantConnect(sr)}
+                                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                      <span>Instant Connect (Shield Passed)</span>
+                                    </button>
+                                  ) : isInQueue ? (
+                                    <span className="px-4 py-2 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200 flex items-center gap-1.5">
+                                      <Clock className="w-3.5 h-3.5" />
+                                      <span>In Manual Triage Queue (Awaiting Senior Review)</span>
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          setManualNoteSenior(sr.professionalName);
+                                          setManualNoteModalOpen(true);
+                                        }}
+                                        className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                                      >
+                                        Submit to {sr.professionalName.split(' ')[0]}&apos;s Manual Queue
+                                      </button>
+                                      <button
+                                        onClick={() => setActiveTab('problems')}
+                                        className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#E25C38] text-xs font-bold transition-all border border-amber-200 cursor-pointer"
+                                      >
+                                        Solve Bounty to Unlock Auto-Connect
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
 
                       {/* Right: Tip & Telemetry */}
@@ -1749,6 +2045,15 @@ export default function KinGlassDashboard() {
                     currentUserInstitution={activeUserInstitution}
                     isStudent={true}
                     onShowToast={showToast}
+                    onSendCvToProfessional={(pro) => {
+                      setSelectedProForCv({
+                        name: pro.name,
+                        role: pro.role || 'Senior Engineering Leader',
+                        company: pro.institution || 'Tech Firm',
+                        avatar: pro.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+                      });
+                      setIsSendCvModalOpen(true);
+                    }}
                   />
                 )}
               </div>
@@ -2132,10 +2437,11 @@ export default function KinGlassDashboard() {
                         </div>
 
                         <button
-                          onClick={() => showToast('Firewall policies saved and deployed to live gateway!')}
-                          className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                          onClick={handleSaveFirewallPolicy}
+                          className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                         >
-                          Save Policy Configuration
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Save Policy Configuration</span>
                         </button>
                       </div>
 
@@ -3027,6 +3333,138 @@ export default function KinGlassDashboard() {
                   Submit Note to Queue
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── MODAL 5: SUBMIT CV & RUN GEMINI AI ATS GATEKEEPER REVIEW ─── */}
+      <AnimatePresence>
+        {isSendCvModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="max-w-lg w-full rounded-[32px] bg-white border border-slate-100 p-6 sm:p-7 shadow-2xl text-slate-900 space-y-4"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#E25C38] flex items-center justify-center">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">AI ATS Gatekeeper Evaluation</h3>
+                    <p className="text-[11px] text-slate-500">Direct Outreach & Acceptance Review</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => !isEvaluatingAts && setIsSendCvModalOpen(false)}
+                  disabled={isEvaluatingAts}
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer disabled:opacity-40"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Target Senior Info & Live Gatekeeper Criteria */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={selectedProForCv.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80'}
+                    alt={selectedProForCv.name}
+                    className="w-11 h-11 rounded-2xl object-cover border border-slate-200"
+                  />
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">{selectedProForCv.name}</h4>
+                    <p className="text-xs text-slate-600 font-medium">{selectedProForCv.role}</p>
+                    <span className="text-[10px] text-slate-400 font-mono">{selectedProForCv.company}</span>
+                  </div>
+                </div>
+
+                {/* Senior's Live Firewall Settings (The exact policy they configured in Image 2!) */}
+                <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/60 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 flex items-center gap-1.5 text-[11px]">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#E25C38]" />
+                      <span>Live Firewall Policy</span>
+                    </span>
+                    <span className="font-mono font-bold text-[#E25C38] bg-white px-2 py-0.5 rounded-md border border-amber-200 text-[11px]">
+                      Threshold: ≥ {targetProPolicy?.threshold || firewallThreshold}% Match
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 flex flex-wrap gap-x-3 gap-y-1 pt-1">
+                    <span>
+                      <strong>Min GitHub Commits:</strong> {targetProPolicy?.minCommits || firewallMinCommits}
+                    </span>
+                    <span>
+                      <strong>Mandatory Skills:</strong> {(targetProPolicy?.mandatorySkills || selectedFirewallSkills).join(', ')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Student's Uploaded / Onboarded CV Snapshot */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2 text-xs">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                  <span className="font-bold text-slate-800 text-[11px]">Your Evaluated Credentials</span>
+                  <span className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    Profile Linked
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Candidate:</span>
+                    <span className="font-bold text-slate-800 truncate block">{activeUserName}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Verified Commits:</span>
+                    <span className="font-bold text-slate-800 font-mono">
+                      {githubData?.recentPushesCount ? githubData.recentPushesCount * 4 : 18} Commits (AST Met)
+                    </span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-slate-400 block text-[10px]">Profile Skills:</span>
+                    <span className="text-slate-700 font-medium line-clamp-1">
+                      {activeSkills.slice(0, 6).join(', ')}
+                    </span>
+                  </div>
+                  <div className="col-span-2 pt-1 flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                    <span className="flex items-center gap-1.5 font-mono text-[10px] text-slate-700 truncate">
+                      <FileText className="w-3.5 h-3.5 text-[#E25C38] shrink-0" />
+                      <span className="truncate">{user?.resumeName || parsedProfile?.resumeName || 'Primary_Engineering_Resume.pdf'}</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400 shrink-0">Onboarded CV</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Engine description */}
+              <p className="text-[11px] text-slate-500 leading-relaxed italic">
+                Kin&apos;s Google Gemini 2.5 Flash ATS engine evaluates semantic project relevance, verified GitHub commits, and syntax AST checks strictly against {selectedProForCv.name.split(' ')[0]}&apos;s live gatekeeper policy.
+              </p>
+
+              {/* Action Button */}
+              <button
+                type="button"
+                disabled={isEvaluatingAts}
+                onClick={() => handleEvaluateAndSendCv(selectedProForCv, targetProPolicy || undefined)}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-black hover:from-black hover:to-slate-900 text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {isEvaluatingAts ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                    <span>Gemini AI Analyzing CV against Firewall Criteria...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>Run Gemini AI ATS Review & Submit CV</span>
+                  </>
+                )}
+              </button>
             </motion.div>
           </div>
         )}

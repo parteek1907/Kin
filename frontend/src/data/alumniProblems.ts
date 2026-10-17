@@ -32,8 +32,30 @@ export interface CandidateSolutionSubmission {
   status: 'pending' | 'accepted' | 'changes_requested' | 'rejected';
 }
 
+export interface OutreachApplication {
+  id: string;
+  studentEmail: string;
+  studentName: string;
+  studentCollege: string;
+  professionalName: string;
+  professionalRole: string;
+  professionalCompany?: string;
+  professionalAvatar?: string;
+  policy: string;
+  targetMatch: number;
+  currentMatch: number;
+  met: string[];
+  missing: string[];
+  atsFeedback?: string;
+  submittedAt: string;
+  status: 'evaluated' | 'in_manual_queue' | 'connected' | 'declined';
+  manualNote?: string;
+  evaluatedAt: string;
+}
+
 // Live, connected problems posted by working professionals (starts clean, zero hardcoded demo data)
 export const ALUMNI_PROBLEMS: AlumniProblem[] = [];
 
 // Live candidate submissions queue (populated directly from student solution submissions)
 export const INITIAL_SUBMITTED_SOLUTIONS: CandidateSolutionSubmission[] = [];
+

@@ -30,6 +30,7 @@ export interface UserProfile {
   interests?: string[];
   topProjectUrl?: string;
   topProjectDescription?: string;
+  avatarUrl?: string;
 }
 
 export interface VerificationPayload {

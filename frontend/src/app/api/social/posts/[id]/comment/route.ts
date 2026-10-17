@@ -17,7 +17,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      comments: comments.map((c) => ({
+      comments: comments.map((c: any) => ({
         id: c.id,
         authorName: c.authorName,
         authorRole: c.authorRole,

@@ -24,6 +24,7 @@ import {
   ChevronDown,
   Loader2,
   Filter,
+  FileText,
 } from 'lucide-react';
 
 interface LiveMember {
@@ -85,6 +86,13 @@ interface LiveCommunityNetworkProps {
   currentUserInstitution?: string;
   isStudent?: boolean;
   onShowToast: (msg: string) => void;
+  onSendCvToProfessional?: (member: {
+    name: string;
+    role: string;
+    institution?: string;
+    avatarUrl?: string;
+    skills?: string[];
+  }) => void;
 }
 
 export default function LiveCommunityNetwork({
@@ -94,6 +102,7 @@ export default function LiveCommunityNetwork({
   currentUserInstitution = 'IIIT Delhi',
   isStudent = true,
   onShowToast,
+  onSendCvToProfessional,
 }: LiveCommunityNetworkProps) {
   const [subTab, setSubTab] = useState<'feed' | 'ghost' | 'directory'>('feed');
 
@@ -758,7 +767,27 @@ export default function LiveCommunityNetwork({
                         </div>
 
                         {/* Action */}
-                        <div>
+                        <div className="flex items-center gap-1.5">
+                          {isStudent && m.role !== 'student' && !isSelf && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onSendCvToProfessional?.({
+                                  name: m.name,
+                                  role: m.headline || 'Senior Engineering Leader',
+                                  institution: m.institution,
+                                  avatarUrl: m.avatarUrl,
+                                  skills: m.skills,
+                                })
+                              }
+                              className="px-2 py-1 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#E25C38] border border-orange-200 text-[10px] font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1"
+                              title="Submit CV for AI ATS Review"
+                            >
+                              <FileText className="w-2.5 h-2.5" />
+                              <span>CV</span>
+                            </button>
+                          )}
+
                           {isSelf ? (
                             <span className="text-[10px] font-bold text-slate-400">You</span>
                           ) : isConnected ? (
@@ -955,6 +984,18 @@ export default function LiveCommunityNetwork({
                           )}
                         </div>
                       )}
+
+                      {!isStudentRole && (
+                        <div className="mt-3 p-2.5 rounded-2xl bg-amber-50/80 border border-amber-200/60 flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <ShieldCheck className="w-4 h-4 text-[#E25C38]" />
+                            <span className="font-bold text-slate-800 text-[11px]">Gatekeeper Firewall</span>
+                          </div>
+                          <span className="font-mono text-[10px] font-bold text-[#E25C38] bg-white px-2 py-0.5 rounded-lg border border-amber-200">
+                            Auto-Accept: ≥ 75%
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Bottom: Verified Links & Connect Action */}
@@ -1010,8 +1051,28 @@ export default function LiveCommunityNetwork({
                         )}
                       </div>
 
-                      {/* Connection Button */}
-                      <div>
+                      {/* Connection & Send CV Buttons */}
+                      <div className="flex items-center gap-2">
+                        {isStudent && !isStudentRole && !isSelf && (
+                          <button
+                            id={`send-cv-btn-${m.id}`}
+                            onClick={() =>
+                              onSendCvToProfessional?.({
+                                name: m.name,
+                                role: m.headline || 'Senior Engineering Leader',
+                                institution: m.institution,
+                                avatarUrl: m.avatarUrl,
+                                skills: m.skills,
+                              })
+                            }
+                            className="px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#E25C38] border border-orange-200 text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1.5"
+                            title="Submit CV for AI ATS Gatekeeper Review"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Send CV</span>
+                          </button>
+                        )}
+
                         {isSelf ? (
                           <span className="text-xs font-bold text-slate-400">Current User</span>
                         ) : isConnected ? (

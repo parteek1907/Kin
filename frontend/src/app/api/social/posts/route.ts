@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const formatted = posts.map((p) => {
+    const formatted = posts.map((p: any) => {
       let parsedTags: string[] = [];
       try {
         parsedTags = typeof p.tags === 'string' ? JSON.parse(p.tags) : p.tags;
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
         likes: p.likesCount,
         isLiked,
         commentsCount: p.comments.length,
-        comments: p.comments.map((c) => ({
+        comments: p.comments.map((c: any) => ({
           id: c.id,
           authorName: c.authorName,
           authorRole: c.authorRole,

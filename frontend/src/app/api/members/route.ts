@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Format member records and determine connection state
-    const formatted = members.map((m) => {
+    const formatted = members.map((m: any) => {
       let connectionStatus: 'none' | 'pending' | 'connected' | 'self' = 'none';
       let connectionId: string | null = null;
 
@@ -76,13 +76,13 @@ export async function GET(req: NextRequest) {
           connectionStatus = 'self';
         } else {
           // Check sent
-          const sent = m.receivedConnections.find((c) => c.senderId === currentMemberId);
+          const sent = m.receivedConnections.find((c: any) => c.senderId === currentMemberId);
           if (sent) {
             connectionStatus = sent.status === 'accepted' ? 'connected' : 'pending';
             connectionId = sent.id;
           } else {
             // Check received
-            const received = m.sentConnections.find((c) => c.receiverId === currentMemberId);
+            const received = m.sentConnections.find((c: any) => c.receiverId === currentMemberId);
             if (received) {
               connectionStatus = received.status === 'accepted' ? 'connected' : 'pending';
               connectionId = received.id;
