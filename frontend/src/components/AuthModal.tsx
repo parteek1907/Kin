@@ -36,32 +36,33 @@ import {
   FirebaseUser
 } from '@/lib/firebase';
 
-type AuthStep = 'firebase_auth' | 'role_select' | 'id_verification' | 'sync_complete';
+type AuthStep = 'role_select' | 'firebase_auth' | 'id_verification' | 'sync_complete';
 
 export default function AuthModal() {
-  const router = useRouter();
-  const { isAuthModalOpen, closeAuthModal, syncWithDatabase, login, openProfileModal } = useAuth();
+  const { isAuthModalOpen, closeAuthModal, syncWithDatabase, login, setActiveRole, openProfileModal } = useAuth();
 
-  // Wizard state
-  const [step, setStep] = useState<AuthStep>('firebase_auth');
+  // Wizard state: Step 1 is the Dual-Role Selection Screen
+  const [step, setStep] = useState<AuthStep>('role_select');
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Step 1: Firebase Auth credentials
+  // Step 1: Role Selection
+  const [userType, setUserType] = useState<'student' | 'professional'>('student');
+
+  // Step 2: Credentials
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authenticatedFirebaseUser, setAuthenticatedFirebaseUser] = useState<FirebaseUser | null>(null);
 
-  // Step 2: Role Selection
-  const [userType, setUserType] = useState<'student' | 'professional'>('student');
-
-  // Step 3: Verification Details & Document Upload
+  // Step 3: Role-Specific Onboarding & Verification Details
   const [studentId, setStudentId] = useState('');
   const [businessId, setBusinessId] = useState('');
   const [institutionOrCompany, setInstitutionOrCompany] = useState('IIIT Delhi');
   const [departmentOrTitle, setDepartmentOrTitle] = useState('Computer Science & Engineering');
+  const [gradYear, setGradYear] = useState('2026');
+  const [experienceYears, setExperienceYears] = useState('5');
 
   // File upload and Gemini AI Scanner state
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -79,7 +80,7 @@ export default function AuthModal() {
   const handleClose = () => {
     closeAuthModal();
     setTimeout(() => {
-      setStep('firebase_auth');
+      setStep('role_select');
       setLoading(false);
       setErrorMessage(null);
       setUploadedFile(null);
@@ -363,28 +364,33 @@ export default function AuthModal() {
     setName(demoName);
     setEmail(demoEmail);
     setUserType(demoType);
+    const chosenRole = demoType === 'student' ? 'Student' : 'Alumni';
+    setActiveRole(chosenRole);
     if (demoType === 'student') {
       setStudentId('2024-CS-0412');
       setInstitutionOrCompany('IIIT Delhi');
       setDepartmentOrTitle('Computer Science & Engineering');
     } else {
       setBusinessId('CORP-ANTH-8821');
-      setInstitutionOrCompany('Anthropic');
+      setInstitutionOrCompany('Anthropic / Google');
       setDepartmentOrTitle('Staff Systems Architect');
     }
-    setStep('role_select');
+    login(demoName, demoEmail);
+    handleClose();
+    window.location.href = `/dashboard?role=${demoType === 'student' ? 'student' : 'alumni'}`;
   };
 
-  // STEP 2: Proceed from Role Selection to ID Verification
-  const handleRoleConfirmed = () => {
-    if (userType === 'student' && !institutionOrCompany) {
+  // STEP 2: Proceed from Role Selection to Firebase Auth / Credentials
+  const handleRoleConfirmed = (selectedRole: 'student' | 'professional') => {
+    setUserType(selectedRole);
+    if (selectedRole === 'student') {
       setInstitutionOrCompany('IIIT Delhi');
-      setDepartmentOrTitle('Computer Science');
-    } else if (userType === 'professional' && institutionOrCompany === 'IIIT Delhi') {
-      setInstitutionOrCompany('Anthropic / TechCorp');
-      setDepartmentOrTitle('Senior Systems Engineer');
+      setDepartmentOrTitle('Computer Science & Engineering');
+    } else {
+      setInstitutionOrCompany('Google / Uber');
+      setDepartmentOrTitle('Staff Software Engineer');
     }
-    setStep('id_verification');
+    setStep('firebase_auth');
   };
 
   // STEP 3: Complete ID Verification & Sync to Database
@@ -396,6 +402,7 @@ export default function AuthModal() {
     const uid = authenticatedFirebaseUser?.uid || `fb_usr_${Date.now()}`;
     const userEmail = email.trim() || authenticatedFirebaseUser?.email || 'builder@kin.network';
     const userFullName = name.trim() || authenticatedFirebaseUser?.displayName || (userType === 'student' ? 'Student Builder' : 'Tech Professional');
+    const chosenRole = userType === 'student' ? 'Student' : 'Alumni';
 
     const payload = {
       firebaseUid: uid,
@@ -410,11 +417,13 @@ export default function AuthModal() {
 
     try {
       const res = await syncWithDatabase(payload);
+      setActiveRole(chosenRole);
       setSyncStatusMsg(res.message);
       setStep('sync_complete');
       try {
         localStorage.setItem('kin_network_role', userType === 'professional' ? 'alumni' : 'student');
       } catch {}
+
       setTimeout(() => {
         handleClose();
         openProfileModal();
@@ -446,14 +455,14 @@ export default function AuthModal() {
 
           {/* Stepper Dots */}
           <div className="flex items-center gap-1.5 mb-5">
-            <div className={`h-1.5 rounded-full transition-all ${step === 'firebase_auth' ? 'w-7 bg-[#E25C38]' : 'w-2 bg-slate-200'}`} />
             <div className={`h-1.5 rounded-full transition-all ${step === 'role_select' ? 'w-7 bg-[#E25C38]' : 'w-2 bg-slate-200'}`} />
+            <div className={`h-1.5 rounded-full transition-all ${step === 'firebase_auth' ? 'w-7 bg-[#E25C38]' : 'w-2 bg-slate-200'}`} />
             <div className={`h-1.5 rounded-full transition-all ${step === 'id_verification' ? 'w-7 bg-[#E25C38]' : 'w-2 bg-slate-200'}`} />
             <div className={`h-1.5 rounded-full transition-all ${step === 'sync_complete' ? 'w-7 bg-emerald-500' : 'w-2 bg-slate-200'}`} />
             <span className="ml-auto text-[10px] font-mono uppercase tracking-wider text-slate-600 font-bold">
-              {step === 'firebase_auth' && 'Step 1 of 3: Firebase Auth'}
-              {step === 'role_select' && 'Step 2 of 3: Choose Role'}
-              {step === 'id_verification' && 'Step 3 of 3: ID Verification'}
+              {step === 'role_select' && 'Step 1 of 3: Choose Role'}
+              {step === 'firebase_auth' && 'Step 2 of 3: Firebase Auth'}
+              {step === 'id_verification' && 'Step 3 of 3: Verification'}
               {step === 'sync_complete' && 'Verified & Connected'}
             </span>
           </div>
@@ -639,32 +648,30 @@ export default function AuthModal() {
           )}
 
           {/* ══════════════════════════════════════════════════════════════════════
-              SCREEN 2: ROLE SELECTION ("Are you a Student or a Professional?")
+              SCREEN 1: DUAL-ROLE SELECTION (The First Screen)
               ══════════════════════════════════════════════════════════════════════ */}
           {step === 'role_select' && (
             <motion.div
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
             >
-              <button
-                type="button"
-                onClick={() => setStep('firebase_auth')}
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-900 mb-3 cursor-pointer"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to credentials</span>
-              </button>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-xl bg-[#E25C38] flex items-center justify-center text-white font-black text-sm shadow-sm">
+                  K
+                </div>
+                <span className="text-sm font-extrabold tracking-tight text-slate-900">KIN Ecosystem</span>
+              </div>
 
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                Are you a Student or a Professional?
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-1">
+                Enter KIN Platform
               </h2>
               <p className="text-xs text-slate-600 mt-1">
-                Select your platform role. Next, we will collect your verification ID to connect your profile to the database.
+                Select your path. Every feature operates as a two-sided mirror handshake between students and senior alumni.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 my-6">
-                {/* Option 1: Student */}
+                {/* Card A: Student / Graduate */}
                 <div
                   onClick={() => setUserType('student')}
                   className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
@@ -678,10 +685,17 @@ export default function AuthModal() {
                   }`}>
                     <GraduationCap className="w-5 h-5" />
                   </div>
-                  <h3 className="text-sm font-black text-slate-900">Student Builder</h3>
-                  <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                    Undergraduate, Master&apos;s or PhD student building proof-of-work, seeking bounties & mentorship.
+                  <h3 className="text-sm font-black text-slate-900">Continue as Student / Graduate</h3>
+                  <p className="text-[11px] text-slate-600 mt-1.5 leading-relaxed">
+                    Explore alumni career blueprints, solve bounties, and book 1-on-1 verified mentorship.
                   </p>
+
+                  <div className="flex flex-wrap gap-1 mt-3 pt-2.5 border-t border-slate-100">
+                    <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Proof-of-Work</span>
+                    <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Career Time Machine</span>
+                    <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Mock Interviews</span>
+                  </div>
+
                   {userType === 'student' && (
                     <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#E25C38] text-white flex items-center justify-center">
                       <CheckCircle2 className="w-3.5 h-3.5" />
@@ -689,7 +703,7 @@ export default function AuthModal() {
                   )}
                 </div>
 
-                {/* Option 2: Professional */}
+                {/* Card B: Working Professional / Alumni */}
                 <div
                   onClick={() => setUserType('professional')}
                   className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
@@ -703,10 +717,17 @@ export default function AuthModal() {
                   }`}>
                     <Briefcase className="w-5 h-5" />
                   </div>
-                  <h3 className="text-sm font-black text-slate-900">Professional / Alumni</h3>
-                  <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                    Alumni engineer, startup founder, recruiter, or faculty member offering mentoring & challenges.
+                  <h3 className="text-sm font-black text-slate-900">Continue as Working Professional / Alumni</h3>
+                  <p className="text-[11px] text-slate-600 mt-1.5 leading-relaxed">
+                    Set auto-connect firewall rules, post bounties, host paid 20-min consults, and scout talent.
                   </p>
+
+                  <div className="flex flex-wrap gap-1 mt-3 pt-2.5 border-t border-slate-100">
+                    <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Auto-Connect Gatekeeper</span>
+                    <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">50/50 Revenue Payouts</span>
+                    <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Talent Scout</span>
+                  </div>
+
                   {userType === 'professional' && (
                     <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#E25C38] text-white flex items-center justify-center">
                       <CheckCircle2 className="w-3.5 h-3.5" />
@@ -717,10 +738,10 @@ export default function AuthModal() {
 
               <button
                 type="button"
-                onClick={handleRoleConfirmed}
+                onClick={() => handleRoleConfirmed(userType)}
                 className="w-full py-3 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer group"
               >
-                <span>Continue to {userType === 'student' ? 'Student' : 'Business'} ID Verification</span>
+                <span>Continue as {userType === 'student' ? 'Student / Graduate' : 'Working Professional'}</span>
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
               </button>
             </motion.div>

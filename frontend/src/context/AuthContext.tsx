@@ -48,6 +48,8 @@ interface AuthContextType {
   isLoggedIn: boolean;
   userInitial: string;
   firebaseUser: FirebaseUser | null;
+  activeRole: 'Student' | 'Alumni';
+  setActiveRole: (role: 'Student' | 'Alumni') => void;
   syncWithDatabase: (payload: VerificationPayload) => Promise<{ success: boolean; message: string }>;
   login: (name: string, email: string) => void;
   logout: () => Promise<void>;
@@ -74,20 +76,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isUploadResumeModalOpen, setIsUploadResumeModalOpen] = useState(false);
   const [parsedProfile, setParsedProfileState] = useState<any | null>(null);
+  const [activeRole, setActiveRoleState] = useState<'Student' | 'Alumni'>('Student');
 
-  // Hydrate user and parsed profile from localStorage
+  // Hydrate user, parsed profile, and active role from localStorage
   useEffect(() => {
     try {
       const storedCompleted = localStorage.getItem('kin_completed_profile');
       const stored = localStorage.getItem('kin_user_auth');
       const storedProfile = localStorage.getItem('kin_parsed_profile');
+      const storedRole = localStorage.getItem('kin_active_role');
       if (storedCompleted) {
         setUser(JSON.parse(storedCompleted));
       } else if (stored) {
-        setUser(JSON.parse(stored));
+        const parsedUser = JSON.parse(stored);
+        setUser(parsedUser);
+        if (parsedUser.role === 'Alumni' || parsedUser.userType === 'professional') {
+          setActiveRoleState('Alumni');
+        }
       }
       if (storedProfile) {
         setParsedProfileState(JSON.parse(storedProfile));
+      }
+      if (storedRole === 'Student' || storedRole === 'Alumni') {
+        setActiveRoleState(storedRole);
       }
     } catch (e) {
       console.error('Error hydrating user auth:', e);
@@ -116,6 +127,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return updated;
     });
+  };
+
+  const setActiveRole = (role: 'Student' | 'Alumni') => {
+    setActiveRoleState(role);
+    try {
+      localStorage.setItem('kin_active_role', role);
+      localStorage.setItem('kin_network_role', role.toLowerCase());
+    } catch (e) {
+      console.error('Error saving active role:', e);
+    }
   };
 
   const setParsedProfile = (profile: any) => {
@@ -214,8 +235,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     setUser(newUser);
+    setActiveRoleState(chosenRole);
     try {
       localStorage.setItem('kin_user_auth', JSON.stringify(newUser));
+      localStorage.setItem('kin_active_role', chosenRole);
+      localStorage.setItem('kin_network_role', chosenRole.toLowerCase());
       if (jwtToken) {
         localStorage.setItem('kin_auth_token', jwtToken);
       }
@@ -236,15 +260,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const newUser: UserProfile = {
       name: name.trim() || 'Verified Member',
       email: email.trim() || 'member@kin.network',
-      role: 'Verified Systems Builder',
+      role: 'Student',
       institution: 'IIIT Delhi',
       userType: 'student',
       verificationStatus: 'verified_student',
       studentId: '2024-CS-0412',
     };
     setUser(newUser);
+    setActiveRoleState('Student');
     try {
       localStorage.setItem('kin_user_auth', JSON.stringify(newUser));
+      localStorage.setItem('kin_active_role', 'Student');
+      localStorage.setItem('kin_network_role', 'student');
     } catch (e) {
       console.error(e);
     }
@@ -279,6 +306,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoggedIn: !!user,
         userInitial,
         firebaseUser,
+        activeRole,
+        setActiveRole,
         syncWithDatabase,
         login,
         logout,
