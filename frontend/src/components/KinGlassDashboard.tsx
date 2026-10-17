@@ -60,6 +60,7 @@ import { useAuth } from '@/context/AuthContext';
 import ResumeUploadModal from './ResumeUploadModal';
 import KinMascot from './KinMascot';
 import ProfileCompletionWizard from './profile/ProfileCompletionWizard';
+import LiveCommunityNetwork from './community/LiveCommunityNetwork';
 import {
   ALUMNI_PROBLEMS,
   AlumniProblem,
@@ -219,6 +220,10 @@ export default function KinGlassDashboard() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlRole = params.get('role');
+      const urlTab = params.get('tab');
+      if (urlTab) {
+        setActiveTab(urlTab as ActiveTab);
+      }
       if (params.get('setup') === 'true' || params.get('profile') === 'true' || params.has('step')) {
         setLocalProfileModalOpen(true);
       }
@@ -1735,176 +1740,16 @@ export default function KinGlassDashboard() {
                   </div>
                 )}
 
-                {/* 8. STUDENT & PROFESSIONAL COMMUNITY & SOCIAL TAB */}
+                {/* 8. STUDENT & PROFESSIONAL COMMUNITY & SOCIAL TAB (LIVE DATABASE BACKED) */}
                 {activeTab === 'community' && (
-                  <div key="student-community" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                          Professional & Ghost Social Network
-                        </h2>
-                        <p className="text-xs text-slate-600 mt-1">
-                          Share engineering milestones or switch to Kin Ghost Mode for candid, anonymous insights.
-                        </p>
-                      </div>
-
-                      {/* Sub-Tab Switcher */}
-                      <div className="flex items-center p-1 rounded-full bg-slate-100 border border-slate-200">
-                        <button
-                          onClick={() => setCommunitySubTab('feed')}
-                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                            communitySubTab === 'feed' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
-                          }`}
-                        >
-                          🌐 Public Feed
-                        </button>
-                        <button
-                          onClick={() => setCommunitySubTab('ghost')}
-                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                            communitySubTab === 'ghost' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-                          }`}
-                        >
-                          👻 Kin Ghost Mode
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                      {/* Left: Feed Stream (8 cols) */}
-                      <div className="lg:col-span-8 space-y-4">
-                        {communitySubTab === 'feed' ? (
-                          <>
-                            {/* Public Composer */}
-                            <form onSubmit={handleSocialPost} className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                              <textarea
-                                value={newPostContent}
-                                onChange={(e) => setNewPostContent(e.target.value)}
-                                placeholder="Share a project breakthrough, question, or milestone with verified alumni..."
-                                rows={2}
-                                className="w-full text-xs text-slate-900 placeholder-slate-400 bg-transparent resize-none focus:outline-none"
-                              />
-                              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                <span className="text-[10px] text-slate-500 font-bold">Posting as: {activeUserName} (Student)</span>
-                                <button
-                                  type="submit"
-                                  className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
-                                >
-                                  <Send className="w-3 h-3" />
-                                  <span>Post</span>
-                                </button>
-                              </div>
-                            </form>
-
-                            {/* Public Posts */}
-                            {socialFeed.map((post) => (
-                              <div key={post.id} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">
-                                      {post.author.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                      <h4 className="text-xs font-bold text-slate-900">{post.author.name}</h4>
-                                      <span className="text-[10px] text-slate-500">{post.author.role}</span>
-                                    </div>
-                                  </div>
-                                  <span className="text-[10px] text-slate-400">{post.timestamp}</span>
-                                </div>
-                                <p className="text-xs text-slate-800 leading-relaxed my-2">{post.content}</p>
-                                <div className="pt-2 border-t border-slate-100 flex items-center gap-4 text-xs text-slate-500 font-medium">
-                                  <button onClick={() => showToast('Endorsed post!')} className="hover:text-[#E25C38] flex items-center gap-1 cursor-pointer">
-                                    <Heart className="w-3.5 h-3.5" />
-                                    <span>{post.likes}</span>
-                                  </button>
-                                  <button onClick={() => showToast('Opening comments...')} className="hover:text-slate-900 flex items-center gap-1 cursor-pointer">
-                                    <MessageSquare className="w-3.5 h-3.5" />
-                                    <span>Comment</span>
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </>
-                        ) : (
-                          <>
-                            {/* Ghost Mode Composer */}
-                            <form onSubmit={handleGhostPost} className="p-4 rounded-3xl bg-[#181A20] text-white border border-white/10 shadow-lg">
-                              <div className="flex items-center gap-2 mb-2 text-xs font-mono text-amber-400">
-                                <span>👻 Posting as: Ghost-Cadet-108 (Cryptographically Pseudonymous)</span>
-                              </div>
-                              <textarea
-                                value={newGhostText}
-                                onChange={(e) => setNewGhostText(e.target.value)}
-                                placeholder="Ask candid questions about placement realities, real compensation, or imposter syndrome safely..."
-                                rows={2}
-                                className="w-full text-xs text-white placeholder-slate-400 bg-transparent resize-none focus:outline-none"
-                              />
-                              <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                                <span className="text-[10px] text-slate-400">Zero corporate or college affiliation leaked</span>
-                                <button
-                                  type="submit"
-                                  className="px-4 py-1.5 rounded-xl bg-[#E25C38] hover:bg-[#c94927] text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
-                                >
-                                  <Send className="w-3 h-3" />
-                                  <span>Post Ghost Insight</span>
-                                </button>
-                              </div>
-                            </form>
-
-                            {/* Ghost Posts */}
-                            {ghostPosts.map((g) => (
-                              <div key={g.id} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center font-mono">
-                                      👻
-                                    </span>
-                                    <span className="text-xs font-mono font-bold text-slate-900">{g.persona}</span>
-                                    <span className="text-[10px] text-slate-500">• {g.role}</span>
-                                  </div>
-                                  <span className="text-[10px] text-slate-400">{g.timestamp}</span>
-                                </div>
-                                <p className="text-xs text-slate-800 leading-relaxed my-2">{g.content}</p>
-                                <div className="pt-2 border-t border-slate-100 flex items-center gap-4 text-xs text-slate-500">
-                                  <button onClick={() => showToast('Upvoted anonymous insight!')} className="hover:text-[#E25C38] flex items-center gap-1 cursor-pointer">
-                                    <Heart className="w-3.5 h-3.5" />
-                                    <span>{g.likes}</span>
-                                  </button>
-                                  <span>{g.replies} replies</span>
-                                </div>
-                              </div>
-                            ))}
-                          </>
-                        )}
-                      </div>
-
-                      {/* Right: People You May Know (4 cols) */}
-                      <div className="lg:col-span-4 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
-                        <h3 className="text-base font-bold text-slate-900">People You May Know</h3>
-                        <p className="text-xs text-slate-500">Alumni from your department & batchmates</p>
-
-                        <div className="space-y-3">
-                          {[
-                            { name: 'Kavya Verma', role: 'SDE-1 @ Zomato', dept: 'IIITD CSE 2024' },
-                            { name: 'Aditya Nair', role: 'Quant Analyst @ Tower', dept: 'IIITD CSAM 2023' },
-                            { name: 'Pooja Iyer', role: 'Bioinformatician @ Fortis', dept: 'IIITD CB 2024' }
-                          ].map((p) => (
-                            <div key={p.name} className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50">
-                              <div>
-                                <h4 className="text-xs font-bold text-slate-900">{p.name}</h4>
-                                <span className="text-[10px] text-slate-500 block">{p.role}</span>
-                              </div>
-                              <button
-                                onClick={() => showToast(`Smart connect requested with ${p.name}!`)}
-                                className="px-3 py-1 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 hover:bg-slate-100 cursor-pointer shadow-2xs"
-                              >
-                                Connect
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <LiveCommunityNetwork
+                    currentUserEmail={user?.email || 'aditya@iiitd.ac.in'}
+                    currentUserName={activeUserName}
+                    currentUserRole={activeUserRole}
+                    currentUserInstitution={activeUserInstitution}
+                    isStudent={true}
+                    onShowToast={showToast}
+                  />
                 )}
               </div>
             )}
@@ -2498,7 +2343,7 @@ export default function KinGlassDashboard() {
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                       <div className="lg:col-span-7 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-mono font-bold text-slate-500">Candidate: Darsh Ohri (IIIT Delhi)</span>
+                          <span className="text-xs font-mono font-bold text-slate-500">Candidate: Aditya Sharma (IIIT Delhi)</span>
                           <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">New Submission</span>
                         </div>
 
@@ -2515,7 +2360,7 @@ export default function KinGlassDashboard() {
                               <Play className="w-4 h-4 ml-0.5" />
                             </button>
                             <div>
-                              <span className="text-xs font-bold block">Darsh_Ohri_Consensus_Answer.wav</span>
+                              <span className="text-xs font-bold block">Aditya_Consensus_Answer.wav</span>
                               <span className="text-[10px] text-slate-400">1:28 duration • Waveform clear</span>
                             </div>
                           </div>
@@ -2590,7 +2435,7 @@ export default function KinGlassDashboard() {
                           <textarea
                             value={wisdomFeedbackAdvice}
                             onChange={(e) => setWisdomFeedbackAdvice(e.target.value)}
-                            placeholder="Write constructive tactical advice for Darsh..."
+                            placeholder="Write constructive tactical advice for Aditya..."
                             rows={4}
                             className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none"
                           />
@@ -2630,7 +2475,7 @@ export default function KinGlassDashboard() {
 
                       <div className="space-y-3">
                         {[
-                          { name: 'Darsh Ohri', college: 'IIIT Delhi (CSE Data Science)', velocity: 'Top 4% Velocity', topSkill: 'FastAPI, FHIR, Vector Search', bountyWins: '2 Bounties Won' },
+                          { name: 'Aditya Sharma', college: 'IIIT Delhi (CSE & AI)', velocity: 'Top 3% Velocity', topSkill: 'FastAPI, PyTorch, Distributed Raft', bountyWins: '2 Bounties Won' },
                           { name: 'Aarav Sharma', college: 'Tier 3 Govt College (Electrical)', velocity: 'Top 2% Velocity', topSkill: 'Rust, WebUSB, Account Abstraction', bountyWins: '3 Bounties Won' },
                           { name: 'Sanya Mirza', college: 'SGSITS Indore (IT)', velocity: 'Top 5% Velocity', topSkill: 'Next.js, Solr, Predictive ML', bountyWins: '1 Bounty Won' }
                         ].map((cand) => (
@@ -2659,128 +2504,16 @@ export default function KinGlassDashboard() {
                   </div>
                 )}
 
-                {/* 8. ALUMNI COMMUNITY & SOCIAL TAB */}
+                {/* 8. ALUMNI COMMUNITY & GHOST MODE TAB (LIVE DATABASE BACKED) */}
                 {activeTab === 'community' && (
-                  <div key="alumni-community" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                          Professional & Ghost Social Network
-                        </h2>
-                        <p className="text-xs text-slate-600 mt-1">
-                          Share architectural learnings with peers or share industry compensation realities in Ghost Mode.
-                        </p>
-                      </div>
-
-                      {/* Sub-Tab Switcher */}
-                      <div className="flex items-center p-1 rounded-full bg-slate-100 border border-slate-200">
-                        <button
-                          onClick={() => setCommunitySubTab('feed')}
-                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                            communitySubTab === 'feed' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
-                          }`}
-                        >
-                          🌐 Public Feed
-                        </button>
-                        <button
-                          onClick={() => setCommunitySubTab('ghost')}
-                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                            communitySubTab === 'ghost' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-                          }`}
-                        >
-                          👻 Kin Ghost Mode
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                      <div className="lg:col-span-8 space-y-4">
-                        {communitySubTab === 'feed' ? (
-                          <>
-                            <form onSubmit={handleSocialPost} className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                              <textarea
-                                value={newPostContent}
-                                onChange={(e) => setNewPostContent(e.target.value)}
-                                placeholder="Share engineering architectures, hiring openings, or tech updates..."
-                                rows={2}
-                                className="w-full text-xs text-slate-900 placeholder-slate-400 bg-transparent resize-none focus:outline-none"
-                              />
-                              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                <span className="text-[10px] text-slate-500 font-bold">Posting as: Verified Alumni (Uber)</span>
-                                <button
-                                  type="submit"
-                                  className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
-                                >
-                                  Post Update
-                                </button>
-                              </div>
-                            </form>
-
-                            {socialFeed.map((post) => (
-                              <div key={post.id} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div>
-                                    <h4 className="text-xs font-bold text-slate-900">{post.author.name}</h4>
-                                    <span className="text-[10px] text-slate-500">{post.author.role}</span>
-                                  </div>
-                                  <span className="text-[10px] text-slate-400">{post.timestamp}</span>
-                                </div>
-                                <p className="text-xs text-slate-800 leading-relaxed my-2">{post.content}</p>
-                              </div>
-                            ))}
-                          </>
-                        ) : (
-                          <>
-                            <form onSubmit={handleGhostPost} className="p-4 rounded-3xl bg-[#181A20] text-white border border-white/10 shadow-lg">
-                              <span className="text-xs font-mono text-amber-400 block mb-2">👻 Posting as: Ghost-Architect-402 (Zero Employer Trace)</span>
-                              <textarea
-                                value={newGhostText}
-                                onChange={(e) => setNewGhostText(e.target.value)}
-                                placeholder="Share unfiltered industry advice, real salary bands, or layoff warnings..."
-                                rows={2}
-                                className="w-full text-xs text-white placeholder-slate-400 bg-transparent resize-none focus:outline-none"
-                              />
-                              <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                                <span className="text-[10px] text-slate-400">Identity protected</span>
-                                <button
-                                  type="submit"
-                                  className="px-4 py-1.5 rounded-xl bg-[#E25C38] text-white text-xs font-bold cursor-pointer"
-                                >
-                                  Post Ghost Insight
-                                </button>
-                              </div>
-                            </form>
-
-                            {ghostPosts.map((g) => (
-                              <div key={g.id} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-xs font-mono font-bold text-slate-900">👻 {g.persona}</span>
-                                  <span className="text-[10px] text-slate-400">{g.timestamp}</span>
-                                </div>
-                                <p className="text-xs text-slate-800 leading-relaxed my-2">{g.content}</p>
-                              </div>
-                            ))}
-                          </>
-                        )}
-                      </div>
-
-                      <div className="lg:col-span-4 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
-                        <h3 className="text-base font-bold text-slate-900">Talent to Watch</h3>
-                        <p className="text-xs text-slate-500">Students with highest commit momentum</p>
-                        <div className="space-y-3">
-                          {[
-                            { name: 'Darsh Ohri', metric: '48 commits / 14 days' },
-                            { name: 'Aarav Sharma', metric: '36 commits / 14 days' }
-                          ].map((t) => (
-                            <div key={t.name} className="p-2.5 rounded-2xl bg-slate-50 flex justify-between items-center text-xs">
-                              <span className="font-bold text-slate-900">{t.name}</span>
-                              <span className="text-emerald-600 font-mono font-bold text-[10px]">{t.metric}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <LiveCommunityNetwork
+                    currentUserEmail={user?.email || 'parth.arora@deepmind.com'}
+                    currentUserName={activeUserName}
+                    currentUserRole={activeUserRole}
+                    currentUserInstitution={activeUserInstitution}
+                    isStudent={false}
+                    onShowToast={showToast}
+                  />
                 )}
               </div>
             )}
@@ -2845,6 +2578,7 @@ export default function KinGlassDashboard() {
             return (
               <button
                 key={item.id}
+                id={`nav-tab-${item.id}`}
                 onClick={() => {
                   setActiveTab(item.id);
                   setProfileMenuOpen(false);

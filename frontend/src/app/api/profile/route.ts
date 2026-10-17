@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 function cleanUrl(url?: string): string | undefined {
   if (!url) return undefined;
@@ -80,6 +81,57 @@ export async function POST(req: NextRequest) {
       topProjectDescription: topProjectDescription?.trim(),
       updatedAt: new Date().toISOString(),
     };
+
+    // 1. Persist directly to Live Database (Prisma Member model)
+    try {
+      await prisma.member.upsert({
+        where: { email: completedProfile.email },
+        update: {
+          name: completedProfile.name,
+          role: userType === 'student' ? 'student' : 'professional',
+          headline: completedProfile.headline,
+          institution: completedProfile.institution,
+          studentId: completedProfile.studentId ?? undefined,
+          businessId: completedProfile.businessId ?? undefined,
+          verificationStatus: completedProfile.verificationStatus,
+          linkedinUrl: completedProfile.linkedinUrl ?? undefined,
+          githubUrl: completedProfile.githubUrl ?? undefined,
+          githubUsername: completedProfile.githubUsername ?? undefined,
+          portfolioUrl: completedProfile.portfolioUrl ?? undefined,
+          resumeName: completedProfile.resumeName ?? undefined,
+          skills: JSON.stringify(completedProfile.skills),
+          bio: completedProfile.bio ?? undefined,
+          graduationYear: completedProfile.graduationYear ?? undefined,
+          officeHours: completedProfile.officeHours ?? undefined,
+          topProjectUrl: completedProfile.topProjectUrl ?? undefined,
+          topProjectDescription: completedProfile.topProjectDescription ?? undefined,
+          updatedAt: new Date(),
+        },
+        create: {
+          email: completedProfile.email,
+          name: completedProfile.name,
+          role: userType === 'student' ? 'student' : 'professional',
+          headline: completedProfile.headline,
+          institution: completedProfile.institution,
+          studentId: completedProfile.studentId ?? undefined,
+          businessId: completedProfile.businessId ?? undefined,
+          verificationStatus: completedProfile.verificationStatus,
+          linkedinUrl: completedProfile.linkedinUrl ?? undefined,
+          githubUrl: completedProfile.githubUrl ?? undefined,
+          githubUsername: completedProfile.githubUsername ?? undefined,
+          portfolioUrl: completedProfile.portfolioUrl ?? undefined,
+          resumeName: completedProfile.resumeName ?? undefined,
+          skills: JSON.stringify(completedProfile.skills),
+          bio: completedProfile.bio ?? undefined,
+          graduationYear: completedProfile.graduationYear ?? undefined,
+          officeHours: completedProfile.officeHours ?? undefined,
+          topProjectUrl: completedProfile.topProjectUrl ?? undefined,
+          topProjectDescription: completedProfile.topProjectDescription ?? undefined,
+        },
+      });
+    } catch (dbErr) {
+      console.warn('[Prisma Member Upsert Warning]', dbErr);
+    }
 
     // Forward sync to backend FastAPI database if running
     try {
