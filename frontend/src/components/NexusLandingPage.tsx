@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useNetwork } from '@/context/NetworkContext';
 import { PersonaType } from '@/types';
@@ -261,17 +262,13 @@ export default function NexusLandingPage() {
 
             {/* Right Action: Dashboard Button */}
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent('open-dashboard'));
-                  }
-                }}
+              <Link
+                href="/dashboard"
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#141815] hover:bg-[#2A2A2A] text-white text-[13px] font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_4px_14px_rgba(0,0,0,0.12)] cursor-pointer"
               >
                 <LayoutDashboard className="w-3.5 h-3.5 text-[#E25C38]" />
                 <span>Dashboard</span>
-              </button>
+              </Link>
             </div>
           </nav>
         </div>
