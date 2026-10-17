@@ -754,6 +754,7 @@ export default function ProfileCompletionWizard({
             <div className="flex items-center gap-2">
               {currentStep < 4 ? (
                 <button
+                  id="wizard-next-btn"
                   type="button"
                   onClick={handleNext}
                   className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer group"
@@ -763,6 +764,7 @@ export default function ProfileCompletionWizard({
                 </button>
               ) : (
                 <button
+                  id="wizard-submit-btn"
                   type="button"
                   onClick={handleSaveProfile}
                   disabled={isSubmitting}

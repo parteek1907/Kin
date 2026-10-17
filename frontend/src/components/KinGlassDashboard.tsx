@@ -657,6 +657,7 @@ export default function KinGlassDashboard() {
           <div className="flex items-center gap-2">
             {/* Profile Setup / Edit Wizard */}
             <button
+              id="profile-setup-btn"
               onClick={openProfileModal}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
               title="Complete or Edit your 4-Step Profile"
