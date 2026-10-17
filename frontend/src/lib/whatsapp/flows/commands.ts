@@ -153,34 +153,24 @@ export async function handleStartCommand(contact: WhatsappContact): Promise<void
 }
 
 export async function handleDeleteDataCommand(contact: WhatsappContact): Promise<void> {
-  // Data-deletion path: unlinking removes the phone number and message bodies
-  const contactId = contact.id;
+  const language = contact.language || 'en';
 
-  // Clear messages
-  await prisma.whatsappMessage.updateMany({
-    where: { contactId },
-    data: { body: '[DELETED UPON USER REQUEST]' },
-  });
+  const bodyText =
+    language === 'hi'
+      ? `⚠️ *डेटा हटाने की पुष्टि करें*\n\nक्या आप वाकई KIN से अपना प्रोफ़ाइल, आवश्यकताएं, वॉइस ट्रांसक्रिप्ट और परिचय इतिहास स्थायी रूप से हटाना चाहते हैं?\n\nयह क्रिया पूर्ववत नहीं की जा सकती। केवल एक अनाम लॉग रखा जाएगा।`
+      : language === 'hinglish'
+      ? `⚠️ *Data Deletion Confirm Karein*\n\nKya aap KIN se apna saara profile, requirements, transcripts aur intro history permanently delete karna chahte hain?\n\nYe action undo nahi ho sakta. Sirf ek anonymous log bachega.`
+      : `⚠️ *Confirm Permanent Data Deletion*\n\nAre you sure you want to permanently erase your profile, requirements, audio transcripts, and introduction history from KIN in accordance with India's DPDP Act 2023?\n\nThis action cannot be undone. Only an anonymous hash will be kept in our deletion log.`;
 
-  // Redact contact
-  await prisma.whatsappContact.update({
-    where: { id: contactId },
-    data: {
-      name: '[DELETED]',
-      institution: '[DELETED]',
-      batch: '[DELETED]',
-      preferences: '{}',
-      optedOutAt: new Date(),
-    },
-  });
-
-  // Anonymize alumni if linked
-  await prisma.alumni.deleteMany({
-    where: { phoneE164: contact.phoneE164 },
-  });
-
-  await waClient.sendText(
-    contact.phoneE164,
-    '🔒 *Data Deletion Complete.*\n\nYour profile information, requirements history, and message contents have been permanently erased from KIN systems in compliance with privacy regulations.'
-  );
+  try {
+    await waClient.sendInteractiveButtons(contact.phoneE164, bodyText, [
+      { id: 'kin_confirm_delete_data', title: 'Confirm Delete' },
+      { id: 'kin_cancel_delete_data', title: 'Cancel' },
+    ]);
+  } catch {
+    await waClient.sendText(
+      contact.phoneE164,
+      `${bodyText}\n\nReply *CONFIRM DELETE* to proceed with permanent deletion, or *CANCEL* to keep your account active.`
+    );
+  }
 }

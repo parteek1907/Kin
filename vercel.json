@@ -21,13 +21,19 @@
   },
   "rewrites": [
     {
-      "source": "/api/whatsapp/(.*)",
+      "source": "/api/whatsapp/:path*",
       "destination": {
         "service": "frontend"
       }
     },
     {
-      "source": "/api/(.*)",
+      "source": "/api/data-deletion/:path*",
+      "destination": {
+        "service": "frontend"
+      }
+    },
+    {
+      "source": "/api/:path*",
       "destination": {
         "service": "backend"
       }
@@ -51,7 +57,7 @@
       }
     },
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "destination": {
         "service": "frontend"
       }

@@ -69,14 +69,20 @@ Output JSON matching this schema:
   "missing_field": "role" | "skills" | "none"
 }`;
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const isGroq = waConfig.llmApiKey?.startsWith('gsk_');
+  const endpoint = isGroq
+    ? 'https://api.groq.com/openai/v1/chat/completions'
+    : 'https://api.openai.com/v1/chat/completions';
+  const model = isGroq ? 'llama-3.3-70b-versatile' : 'gpt-4o-mini';
+
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${waConfig.llmApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model,
       temperature: 0.1,
       response_format: { type: 'json_object' },
       messages: [
@@ -90,7 +96,8 @@ Output JSON matching this schema:
   });
 
   if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.statusText}`);
+    const errorBody = await response.text().catch(() => '');
+    throw new Error(`${isGroq ? 'Groq' : 'OpenAI'} API error (${response.status}): ${errorBody || response.statusText}`);
   }
 
   const json = await response.json();

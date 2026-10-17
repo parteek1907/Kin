@@ -34,7 +34,19 @@ export async function processInboundTextJob(payload: BackgroundJobPayload): Prom
     return;
   }
 
-  // 1. Check Canonical Commands First
+  // 1. Check Confirm Delete text
+  const cleanText = text.trim().toLowerCase();
+  if (cleanText === 'confirm delete' || cleanText === 'confirm deletion') {
+    const { executePermanentDataDeletion } = await import('../deletion');
+    const result = await executePermanentDataDeletion(phoneE164, 'whatsapp');
+    await waClient.sendText(
+      phoneE164,
+      `🔒 *Data Deletion Completed*\n\nYour personal profile, requirement listings, audio transcripts, and introduction history have been permanently erased from KIN in compliance with India's DPDP Act 2023.\n\n*Confirmation Code:* ${result.confirmationCode}\n*Timestamp:* ${result.timestamp}\n\nOnly an anonymous compliance hash was retained.`
+    );
+    return;
+  }
+
+  // 2. Check Canonical Commands
   const canonical = resolveCommand(text);
   if (canonical !== 'UNKNOWN') {
     switch (canonical) {

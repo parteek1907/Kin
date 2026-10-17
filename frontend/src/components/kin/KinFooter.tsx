@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { ArrowUp, Github, Shield, Sparkles } from 'lucide-react';
 
 export default function KinFooter() {
@@ -80,19 +81,19 @@ export default function KinFooter() {
               </ul>
             </div>
 
-            {/* Column 3: Institutional */}
+            {/* Column 3: Institutional & Legal */}
             <div className="col-span-2 sm:col-span-1">
               <h4 
                 style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
                 className="text-[12px] font-bold tracking-[0.16em] uppercase text-white mb-4"
               >
-                Governance
+                Governance & Legal
               </h4>
               <ul className="space-y-3 text-[14px] text-[#9CA3AF]">
-                <li><span className="hover:text-white transition-colors cursor-pointer">Data Sovereignty</span></li>
-                <li><span className="hover:text-white transition-colors cursor-pointer">Zero-Knowledge Vouching</span></li>
-                <li><span className="hover:text-white transition-colors cursor-pointer">Privacy & Consent</span></li>
-                <li><span className="hover:text-white transition-colors cursor-pointer">Terms of Service</span></li>
+                <li><Link href="/privacy" className="hover:text-[#B6E64A] transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-[#B6E64A] transition-colors">Terms of Service</Link></li>
+                <li><Link href="/data-deletion" className="hover:text-[#B6E64A] transition-colors">Data Deletion (DPDP)</Link></li>
+                <li><span className="text-white/40 cursor-default">Zero-Knowledge Vouching</span></li>
               </ul>
             </div>
 

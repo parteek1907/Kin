@@ -36,12 +36,18 @@ export class OpenAIWhisperProvider implements TranscriptionProvider {
       const fileBlob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
 
 
+      const isGroq = this.apiKey.startsWith('gsk_') || waConfig.transcriptionProvider === 'groq';
+      const endpoint = isGroq
+        ? 'https://api.groq.com/openai/v1/audio/transcriptions'
+        : 'https://api.openai.com/v1/audio/transcriptions';
+      const model = isGroq ? 'whisper-large-v3-turbo' : 'whisper-1';
+
       const formData = new FormData();
       formData.append('file', fileBlob, filename);
-      formData.append('model', 'whisper-1');
+      formData.append('model', model);
       formData.append('prompt', 'Transcribe college alumni hiring, internship, and mentorship requirements in English, Hindi, or Hinglish.');
 
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
@@ -51,7 +57,7 @@ export class OpenAIWhisperProvider implements TranscriptionProvider {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`OpenAI Whisper API failed (${response.status}): ${errorText}`);
+        throw new Error(`${isGroq ? 'Groq' : 'OpenAI'} Whisper API failed (${response.status}): ${errorText}`);
       }
 
       const data = await response.json();

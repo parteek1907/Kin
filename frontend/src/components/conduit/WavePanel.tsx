@@ -1,5 +1,4 @@
 import React from 'react';
-import Link from 'next/link';
 
 interface WavePanelProps {
 
@@ -144,7 +143,7 @@ export default function WavePanel({ onExplore, onEnterNetwork }: WavePanelProps)
          ========================================================================= */}
       <div 
         id="hero-content"
-        className="relative md:absolute md:inset-0 z-30 w-full flex flex-col justify-end min-h-[100svh] px-[var(--gutter)] pt-[calc(20svh+12px)] md:pt-0 pb-8 md:pb-12 lg:pb-14 pointer-events-none"
+        className="relative md:absolute md:inset-0 z-30 w-full flex flex-col justify-end min-h-[100svh] px-[var(--gutter)] pt-[calc(20svh+12px)] md:pt-0 pb-6 md:pb-8 lg:pb-10 pointer-events-none"
       >
         <div className="w-full flex flex-col items-start pointer-events-auto">
           
@@ -171,45 +170,14 @@ export default function WavePanel({ onExplore, onEnterNetwork }: WavePanelProps)
             ))}
           </h1>
 
-          {/* 3. SUBTEXT: comfortable tracking 0.025em, relaxed leading 1.7, filling lower-left quadrant */}
+          {/* 3. SUBTEXT: comfortable tracking 0.025em, relaxed leading 1.75, filling lower-left quadrant */}
           <p
             id="hero-subtext"
             style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
-            className="text-[#4A4B53] text-[15px] sm:text-[17px] md:text-[20px] font-normal leading-[1.6] md:leading-[1.7] tracking-[0.025em] max-w-[580px] md:max-w-[640px] mb-8"
+            className="text-[#4A4B53] text-[16px] sm:text-[18px] md:text-[21px] font-normal leading-[1.65] md:leading-[1.75] tracking-[0.025em] max-w-[620px] md:max-w-[700px] mb-2"
           >
             A living network that connects proven expertise to real opportunities through trusted campus relationships.
           </p>
-
-          {/* 4. ACTIONS: Primary Explore/Enter CTA + Secondary "Chat on WhatsApp" */}
-          <div className="flex flex-wrap items-center gap-4">
-            <button
-              onClick={() => {
-                if (onEnterNetwork) {
-                  onEnterNetwork();
-                } else if (onExplore) {
-                  onExplore();
-                } else {
-                  const el = document.getElementById('how-to-use');
-                  el?.scrollIntoView({ behavior: 'smooth' });
-                }
-              }}
-              style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-              className="h-[50px] px-8 rounded-xl bg-[#11131A] text-white font-bold text-[12px] tracking-[0.14em] uppercase transition-all duration-200 hover:bg-black active:scale-[0.98] shadow-lg flex items-center justify-center cursor-pointer"
-            >
-              <span>ENTER NETWORK</span>
-            </button>
-
-            <a
-              href={`https://wa.me/${process.env.NEXT_PUBLIC_WA_BUSINESS_NUMBER || '919811022678'}?text=${encodeURIComponent('Hi KIN, I need…')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-              className="h-[50px] px-7 rounded-xl bg-white/80 hover:bg-white text-[#11131A] border border-black/10 hover:border-black/20 font-bold text-[12px] tracking-[0.14em] uppercase transition-all duration-200 shadow-sm flex items-center justify-center hover:shadow-md cursor-pointer group"
-            >
-              <span>CHAT ON WHATSAPP</span>
-            </a>
-          </div>
-
 
         </div>
       </div>

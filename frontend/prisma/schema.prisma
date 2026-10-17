@@ -236,3 +236,16 @@ model BackgroundJob {
   @@index([status, runAt])
   @@map("background_jobs")
 }
+
+model DataDeletionLog {
+  id               String   @id @default(cuid())
+  phoneHash        String   @map("phone_hash") // SHA-256 hash of normalized phone
+  confirmationCode String   @unique @map("confirmation_code") // KIN-DEL-XXXXXXXX
+  requestedVia     String   @default("web_form") @map("requested_via") // "whatsapp" | "web_form" | "email"
+  status           String   @default("completed") // "completed"
+  details          String   @default("{}") // JSON telemetry
+  deletedAt        DateTime @default(now()) @map("deleted_at")
+
+  @@index([phoneHash])
+  @@map("data_deletion_logs")
+}

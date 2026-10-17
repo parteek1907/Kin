@@ -5,10 +5,39 @@
  * Example: npx tsx scripts/wa-test-send.ts +919811022678 hello_world
  */
 
-import { waClient } from '../frontend/src/lib/whatsapp/client';
+import fs from 'fs';
+import path from 'path';
+
+// Automatically load .env if present
+const envFiles = [
+  path.resolve(__dirname, '../frontend/.env'),
+  path.resolve(__dirname, '../.env')
+];
+for (const envFile of envFiles) {
+  if (fs.existsSync(envFile)) {
+    const lines = fs.readFileSync(envFile, 'utf8').split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const key = trimmed.slice(0, eqIdx).trim();
+        let val = trimmed.slice(eqIdx + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+}
+
 import { normalizePhone, maskPhone } from '../frontend/src/lib/whatsapp/phone';
 
 async function main() {
+  const { waClient } = await import('../frontend/src/lib/whatsapp/client');
   const targetPhone = process.argv[2];
   const templateName = process.argv[3] || 'hello_world';
 

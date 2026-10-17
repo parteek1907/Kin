@@ -178,6 +178,25 @@ export async function handleButtonOrListReply(ctx: FlowContext): Promise<FlowRes
     return { handled: true };
   }
 
+  // 6. Data Deletion Confirmation Buttons
+  if (buttonId === 'kin_confirm_delete_data') {
+    const { executePermanentDataDeletion } = await import('../deletion');
+    const result = await executePermanentDataDeletion(phone, 'whatsapp');
+    await waClient.sendText(
+      phone,
+      `🔒 *Data Deletion Completed*\n\nYour personal profile, requirement listings, audio transcripts, and introduction history have been permanently erased from KIN in compliance with India's DPDP Act 2023.\n\n*Confirmation Code:* ${result.confirmationCode}\n*Timestamp:* ${result.timestamp}\n\nOnly an anonymous compliance hash was retained.`
+    );
+    return { handled: true, clearState: true };
+  }
+
+  if (buttonId === 'kin_cancel_delete_data') {
+    await waClient.sendText(
+      phone,
+      `Action cancelled. Your KIN account and requirements remain active.`
+    );
+    return { handled: true };
+  }
+
   // 6. Language Selection Buttons
   if (buttonId === 'lang_en' || buttonId === 'lang_hi' || buttonId === 'lang_hinglish') {
     const langMap: Record<string, string> = {
