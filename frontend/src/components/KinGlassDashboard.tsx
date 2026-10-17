@@ -11,25 +11,20 @@ import {
   ShieldCheck,
   Radio,
   Users,
-  ArrowLeft,
   ChevronRight,
   User,
   LogOut,
-  UserPlus,
   X,
-  ExternalLink,
   CheckCircle2,
-  Clock,
-  Sparkles,
   Send,
   Heart,
-  Share2,
-  SlidersHorizontal,
   Plus,
-  GitPullRequest,
-  Check,
-  Activity,
-  Layers
+  HelpCircle,
+  Settings,
+  Sliders,
+  Sparkles,
+  ArrowRight,
+  ArrowLeft
 } from 'lucide-react';
 import {
   MOCK_CAREER_MILESTONES,
@@ -46,6 +41,52 @@ import { useAuth } from '@/context/AuthContext';
 
 type ActiveTab = 'overview' | 'time-machine' | 'bounties' | 'auto-connect' | 'radar' | 'community';
 
+interface MascotStep {
+  title: string;
+  description: string;
+  tabId: ActiveTab;
+  tip: string;
+}
+
+const MASCOT_GUIDE_STEPS: MascotStep[] = [
+  {
+    title: "Hi, I'm Kin! Welcome to your Dashboard 👋",
+    description: "I'm here to show you around. KIN helps you plan your career milestones, earn rewards from real coding bounties, and connect with top alumni automatically.",
+    tabId: 'overview',
+    tip: "You can click on any icon in the bottom menu to switch features anytime."
+  },
+  {
+    title: "1. Career Time Machine",
+    description: "Explore the verified career steps taken by senior engineers at Anthropic and Figma. It compares your experience and highlights the exact skills to learn next.",
+    tabId: 'time-machine',
+    tip: "Click 'Test My Next Career Move' to simulate how gaining new skills boosts your match score!"
+  },
+  {
+    title: "2. Paid Coding Challenges",
+    description: "Solve real technical challenges and earn USDC rewards directly. Submit your GitHub pull request and our automated test suite verifies it in seconds.",
+    tabId: 'bounties',
+    tip: "No long interview rounds — your verified code speaks for itself."
+  },
+  {
+    title: "3. Smart Auto-Connect",
+    description: "Skip cold outreach and recruiter spam. Set your match score threshold (e.g. 64%). When founders and alumni search for your skills, you connect automatically.",
+    tabId: 'auto-connect',
+    tip: "You can adjust your score cutoff or switch between Strict, Alumni, and Open modes."
+  },
+  {
+    title: "4. Hidden Job Opportunities",
+    description: "Our radar spots high-paying roles in industries like Robotics, Genomics, and Finance where your existing programming skills transfer naturally.",
+    tabId: 'radar',
+    tip: "Discover high-leverage roles you might not have known you were qualified for!"
+  },
+  {
+    title: "5. Alumni & Builder Network",
+    description: "Stay connected with peers and mentors across top tech companies. Share updates, see what teammates are building, and connect in 1 tap.",
+    tabId: 'community',
+    tip: "Click on your profile avatar in the bottom dock to access settings or restart this guide anytime."
+  }
+];
+
 export default function KinGlassDashboard() {
   const { user, isLoggedIn, userInitial, openAuthModal, logout } = useAuth();
 
@@ -54,9 +95,15 @@ export default function KinGlassDashboard() {
   const [autoAcceptThreshold, setAutoAcceptThreshold] = useState(64);
   const [autoAcceptEnabled, setAutoAcceptEnabled] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
-  // Modal and Interactive States
+  // Profile Popover in Bottom Menu
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  // Mascot Guide State
+  const [showMascotTour, setShowMascotTour] = useState(true);
+  const [mascotStepIndex, setMascotStepIndex] = useState(0);
+
+  // Interactive Modals & States
   const [selectedBounty, setSelectedBounty] = useState<SkillBounty | null>(null);
   const [submitPrModalOpen, setSubmitPrModalOpen] = useState(false);
   const [prUrlInput, setPrUrlInput] = useState('');
@@ -92,11 +139,11 @@ export default function KinGlassDashboard() {
 
   const navItems = [
     { id: 'overview' as ActiveTab, label: 'Overview', icon: LayoutGrid },
-    { id: 'time-machine' as ActiveTab, label: 'Career Time Machine', icon: History },
-    { id: 'bounties' as ActiveTab, label: 'Skill Bounty Network', icon: Trophy },
-    { id: 'auto-connect' as ActiveTab, label: 'Qualification Auto-Connect', icon: ShieldCheck },
-    { id: 'radar' as ActiveTab, label: 'Unclaimed Talent Radar', icon: Radio },
-    { id: 'community' as ActiveTab, label: 'Community Feed', icon: Users },
+    { id: 'time-machine' as ActiveTab, label: 'Career Journey', icon: History },
+    { id: 'bounties' as ActiveTab, label: 'Paid Challenges', icon: Trophy },
+    { id: 'auto-connect' as ActiveTab, label: 'Auto-Connect', icon: ShieldCheck },
+    { id: 'radar' as ActiveTab, label: 'Hidden Opportunities', icon: Radio },
+    { id: 'community' as ActiveTab, label: 'Alumni Network', icon: Users },
   ];
 
   const handleTogglePolicy = (policyId: number) => {
@@ -104,7 +151,7 @@ export default function KinGlassDashboard() {
       prev.map((p) => {
         if (p.id === policyId) {
           const nextVal = !p.autoAccept;
-          showToast(`Policy "${p.name}" Auto-Accept: ${nextVal ? 'ENABLED' : 'PAUSED'}`);
+          showToast(`Rule "${p.name}": ${nextVal ? 'Active' : 'Paused'}`);
           return { ...p, autoAccept: nextVal };
         }
         return p;
@@ -129,7 +176,7 @@ export default function KinGlassDashboard() {
       prev.map((item) => {
         if (item.id === postId) {
           const nextConnected = !item.connected;
-          showToast(nextConnected ? `1-Tap Handshake connected with ${authorName}` : `Disconnected from ${authorName}`);
+          showToast(nextConnected ? `Connected with ${authorName} in 1 tap!` : `Disconnected from ${authorName}`);
           return { ...item, connected: nextConnected };
         }
         return item;
@@ -145,7 +192,7 @@ export default function KinGlassDashboard() {
       id: Date.now(),
       author: {
         name: user?.name || 'Verified Builder',
-        role: 'Systems Engineer',
+        role: 'Software Engineer',
         institution: 'KIN Network',
         avatar: '/images/hero_builder_avatar.jpg',
         verified: true,
@@ -153,21 +200,41 @@ export default function KinGlassDashboard() {
       content: newPostContent.trim(),
       timestamp: 'Just now',
       mutualConnections: 1,
-      tags: ['#ASTVerified', '#ProofOfWork', '#KIN'],
+      tags: ['#VerifiedBuilder', '#KIN'],
       likes: 1,
       connected: true,
     };
 
     setSocialFeed([newPost, ...socialFeed]);
     setNewPostContent('');
-    showToast('Update published to KIN Network');
+    showToast('Update shared with the network');
+  };
+
+  const currentMascotStep = MASCOT_GUIDE_STEPS[mascotStepIndex];
+
+  const nextMascotStep = () => {
+    if (mascotStepIndex < MASCOT_GUIDE_STEPS.length - 1) {
+      const nextIdx = mascotStepIndex + 1;
+      setMascotStepIndex(nextIdx);
+      setActiveTab(MASCOT_GUIDE_STEPS[nextIdx].tabId);
+    } else {
+      setShowMascotTour(false);
+      showToast('Guide completed! Click your profile anytime to reopen.');
+    }
+  };
+
+  const prevMascotStep = () => {
+    if (mascotStepIndex > 0) {
+      const prevIdx = mascotStepIndex - 1;
+      setMascotStepIndex(prevIdx);
+      setActiveTab(MASCOT_GUIDE_STEPS[prevIdx].tabId);
+    }
   };
 
   return (
-    <div className="relative w-full min-h-screen font-sans text-slate-900 selection:bg-[#E25C38]/20 selection:text-[#E25C38] overflow-x-hidden pb-28">
+    <div className="relative w-full min-h-screen font-sans text-slate-900 selection:bg-[#E25C38]/20 selection:text-[#E25C38] overflow-x-hidden flex flex-col justify-between">
       {/* ═══════════════════════════════════════════════════════════════
           NATURAL DAYLIGHT MODERN LIVING ROOM BACKGROUND (VisionOS Style)
-          Soft daylight, crisp minimalist architecture, panoramic windows
           ═══════════════════════════════════════════════════════════════ */}
       <div className="fixed inset-0 w-screen h-screen z-0 pointer-events-none overflow-hidden">
         <Image
@@ -178,7 +245,6 @@ export default function KinGlassDashboard() {
           sizes="100vw"
           className="object-cover object-center w-full h-full filter brightness-[0.98] contrast-[1.02]"
         />
-        {/* Soft daylight ambient wash */}
         <div className="absolute inset-0 bg-white/5 backdrop-blur-[0.5px]" />
       </div>
 
@@ -189,90 +255,49 @@ export default function KinGlassDashboard() {
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className="fixed top-6 right-8 z-50 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/85 border border-white/90 text-slate-900 shadow-[0_15px_35px_rgba(0,0,0,0.12)] backdrop-blur-2xl"
+            className="fixed top-5 right-6 z-50 flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-white/85 border border-white/90 text-slate-900 shadow-xl backdrop-blur-2xl text-xs font-semibold"
           >
             <div className="w-2 h-2 rounded-full bg-[#E25C38]" />
-            <span className="text-xs font-semibold tracking-wide">{toastMessage}</span>
+            <span>{toastMessage}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* ═══════════════════════════════════════════════════════════════
-          MAIN CANVAS: LIGHT GRAY TRANSPARENT GLASS
+          MAIN CANVAS: HIGHLY TRANSPARENT FROSTED GLASS
+          Stretches from top header down to right above bottom menu dock!
           ═══════════════════════════════════════════════════════════════ */}
-      <div className="relative z-10 w-full min-h-screen p-3 sm:p-5 lg:p-8 flex flex-col items-center">
+      <div className="relative z-10 w-full flex-1 flex flex-col items-center px-3 sm:px-6 lg:px-8 pt-4 pb-24">
         
-        {/* ─── TOP MINIMAL HEADER BAR (Removed "Campus Intelligence" tagline) ─── */}
-        <header className="w-full max-w-[1320px] mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2 group">
-              <span className="text-2xl font-black tracking-tight text-slate-900">KIN</span>
-            </Link>
-          </div>
+        {/* ─── TOP MINIMAL HEADER BAR (Removed "Back to Home" and top-right name) ─── */}
+        <header className="w-full max-w-[1360px] mb-3 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 group">
+            <span className="text-2xl font-black tracking-tight text-slate-900 hover:text-black transition-colors">
+              KIN
+            </span>
+          </Link>
 
-          <div className="flex items-center gap-3">
-            {/* Login / User Indicator in Header */}
-            {isLoggedIn ? (
-              <div className="relative">
-                <button
-                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/60 hover:bg-white border border-white/80 shadow-sm text-xs font-bold text-slate-800 transition-all cursor-pointer"
-                >
-                  <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[11px] font-black">
-                    {userInitial}
-                  </span>
-                  <span className="hidden sm:inline">{user?.name}</span>
-                </button>
-
-                {userDropdownOpen && (
-                  <div className="absolute right-0 top-11 p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xl w-48 text-xs z-50">
-                    <span className="font-bold text-slate-900 truncate block">{user?.name}</span>
-                    <span className="text-[10px] text-slate-500 truncate block mb-2">{user?.email}</span>
-                    <div className="w-full h-[1px] bg-slate-100 my-1.5" />
-                    <button
-                      onClick={() => {
-                        logout();
-                        setUserDropdownOpen(false);
-                        showToast('Signed out successfully');
-                      }}
-                      className="w-full py-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 font-semibold transition-colors text-left px-2 text-slate-600 flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={openAuthModal}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
-              >
-                <UserPlus className="w-3.5 h-3.5 text-[#E25C38]" />
-                <span>Get started</span>
-              </button>
-            )}
-
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/50 hover:bg-white/80 border border-white/70 text-xs font-semibold text-slate-800 transition-all shadow-sm backdrop-blur-xl"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
-              <span>Back to Home</span>
-            </Link>
-          </div>
+          {/* Quick Guide Trigger Pill */}
+          <button
+            onClick={() => {
+              setShowMascotTour(true);
+              setMascotStepIndex(0);
+              setActiveTab('overview');
+            }}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/30 hover:bg-white/50 border border-white/50 text-xs font-bold text-slate-800 transition-all shadow-sm backdrop-blur-xl cursor-pointer"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Interactive Guide</span>
+          </button>
         </header>
 
-        {/* ═══════════════════════════════════════════════════════════════
-            THE UNIFIED FLOATING VISIONOS GLASS WINDOW
-            Clean, light-gray/transparent frosted glass panel
-            ═══════════════════════════════════════════════════════════════ */}
-        <main className="w-full max-w-[1320px]">
-          <div className="rounded-[36px] bg-white/45 hover:bg-white/50 border border-white/70 backdrop-blur-3xl shadow-[0_25px_60px_rgba(0,0,0,0.07),_inset_0_1.5px_2px_rgba(255,255,255,0.85)] p-6 sm:p-8 transition-all min-h-[580px]">
+        {/* ─── UNIFIED FULL-HEIGHT LIQUID GLASS PANEL (Ultra-transparent luminous glass) ─── */}
+        <main className="w-full max-w-[1360px] flex-1 flex flex-col min-h-[calc(100vh-140px)]">
+          <div className="flex-1 w-full rounded-[36px] bg-white/12 hover:bg-white/16 border border-white/30 backdrop-blur-xl shadow-[0_25px_60px_rgba(0,0,0,0.06),_inset_0_1px_1.5px_rgba(255,255,255,0.5)] p-5 sm:p-7 flex flex-col justify-between transition-all">
             
             <AnimatePresence mode="wait">
               {/* ─────────────────────────────────────────────────────────────
-                  TAB 1: OVERVIEW (Master Cockpit - No gaps, no fake player)
+                  TAB 1: OVERVIEW (Master Cockpit)
                   ───────────────────────────────────────────────────────────── */}
               {activeTab === 'overview' && (
                 <motion.div
@@ -281,617 +306,212 @@ export default function KinGlassDashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.18 }}
-                  className="grid grid-cols-1 lg:grid-cols-12 gap-6"
+                  className="flex-1 flex flex-col justify-between gap-5"
                 >
-                  {/* Left Column (8 cols): Hero + Chart + 3 Metric Tiles (Tightly packed with gap-5) */}
-                  <div className="lg:col-span-8 flex flex-col gap-5">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                     
-                    {/* Top Row: Career Time Machine Hero (7 cols) + Skill Velocity Chart (5 cols) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-5">
+                    {/* Left Column (8 cols): Career Journey + Coding Velocity */}
+                    <div className="lg:col-span-8 flex flex-col gap-5">
                       
-                      {/* Hero Card: Career Time Machine */}
-                      <div className="sm:col-span-7 rounded-3xl p-6 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-[0_10px_25px_rgba(0,0,0,0.04),_inset_0_1px_1.5px_rgba(255,255,255,0.8)] flex flex-col justify-between transition-all">
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                              Career Time Machine
-                            </span>
-                            <span className="text-xs font-mono font-bold text-slate-800">
-                              {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].period}
-                            </span>
+                      {/* Top Row: Career Card + Coding Activity */}
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-5">
+                        
+                        {/* Career Journey Card (7 cols) */}
+                        <div className="sm:col-span-7 rounded-3xl p-6 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm flex flex-col justify-between transition-all">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                Career Journey
+                              </span>
+                              <span className="text-xs font-mono font-bold text-slate-700">
+                                {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].period}
+                              </span>
+                            </div>
+
+                            <h3 className="text-xl font-bold text-slate-900 leading-snug">
+                              {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].role}
+                            </h3>
+                            <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+                              {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].company}
+                            </p>
+
+                            {/* Stat Metrics Box */}
+                            <div className="rounded-2xl p-4 bg-white/30 border border-white/50 my-3.5 flex items-center justify-between shadow-xs">
+                              <div>
+                                <div className="text-lg font-black text-slate-900">
+                                  {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].duration}
+                                </div>
+                                <div className="text-[11px] text-slate-600 font-medium">Experience Level</div>
+                              </div>
+                              <div className="w-[1px] h-8 bg-slate-300/40" />
+                              <div>
+                                <div className="text-lg font-black text-[#E25C38]">
+                                  {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].velocityScore}% Match
+                                </div>
+                                <div className="text-[11px] text-slate-600 font-medium">Fit for Role</div>
+                              </div>
+                            </div>
+
+                            {/* Timeline Stage Scrubber */}
+                            <div className="my-2">
+                              <div className="flex justify-between text-[11px] font-semibold text-slate-600 mb-1.5">
+                                <span>Career Milestone</span>
+                                <span>Step {selectedMilestoneIndex + 1} of {MOCK_CAREER_MILESTONES.length}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {MOCK_CAREER_MILESTONES.map((m, idx) => (
+                                  <button
+                                    key={m.id}
+                                    onClick={() => setSelectedMilestoneIndex(idx)}
+                                    className={`flex-1 h-2 rounded-full transition-all cursor-pointer ${
+                                      selectedMilestoneIndex === idx
+                                        ? 'bg-[#E25C38]'
+                                        : selectedMilestoneIndex > idx
+                                        ? 'bg-slate-400/80'
+                                        : 'bg-slate-300/60 hover:bg-slate-400/70'
+                                    }`}
+                                    title={m.role}
+                                  />
+                                ))}
+                              </div>
+                            </div>
                           </div>
 
-                          <h3 className="text-lg sm:text-xl font-bold text-slate-900 leading-snug">
-                            {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].role}
-                          </h3>
-                          <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                            {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].company}
-                          </p>
-
-                          {/* Stat Metrics Box */}
-                          <div className="rounded-2xl p-4 bg-white/40 border border-white/60 my-4 flex items-center justify-between shadow-sm">
-                            <div>
-                              <div className="text-lg font-black text-slate-900">
-                                {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].duration}
-                              </div>
-                              <div className="text-[11px] text-slate-600 font-medium">Trajectory Span</div>
-                            </div>
-                            <div className="w-[1px] h-8 bg-slate-300/60" />
-                            <div>
-                              <div className="text-lg font-black text-[#E25C38]">
-                                {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].velocityScore}% Match
-                              </div>
-                              <div className="text-[11px] text-slate-600 font-medium">Empirical Fit</div>
-                            </div>
+                          <div className="pt-3 border-t border-slate-300/30 flex items-center justify-between text-xs text-slate-600 mt-2">
+                            <span>Alumni: <strong className="text-slate-900">Dr. Aarav Sharma</strong> (Anthropic)</span>
+                            <button
+                              onClick={() => {
+                                setActiveTab('time-machine');
+                                showToast('Opening Career Journey');
+                              }}
+                              className="font-bold text-slate-900 hover:text-[#E25C38] flex items-center gap-1 transition-colors cursor-pointer"
+                            >
+                              <span>Explore Full Path</span>
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
                           </div>
+                        </div>
 
-                          {/* Timeline Scrubber */}
-                          <div className="my-2">
-                            <div className="flex justify-between text-[11px] font-semibold text-slate-600 mb-2">
-                              <span>Timeline Stage</span>
-                              <span>Stage {selectedMilestoneIndex + 1} of {MOCK_CAREER_MILESTONES.length}</span>
+                        {/* Coding Velocity (5 cols) */}
+                        <div className="sm:col-span-5 rounded-3xl p-6 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm flex flex-col justify-between transition-all">
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                                  Coding Activity
+                                </span>
+                                <span className="text-xs font-bold text-slate-800">Verified Commits</span>
+                              </div>
+                              <span className="text-xs font-mono font-bold text-[#0284c7] px-2.5 py-0.5 rounded-full bg-sky-100/70 border border-sky-300 shadow-xs">
+                                169 Peak
+                              </span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {MOCK_CAREER_MILESTONES.map((m, idx) => (
-                                <button
-                                  key={m.id}
-                                  onClick={() => setSelectedMilestoneIndex(idx)}
-                                  className={`flex-1 h-2.5 rounded-full transition-all cursor-pointer ${
-                                    selectedMilestoneIndex === idx
-                                      ? 'bg-[#E25C38] shadow-sm'
-                                      : selectedMilestoneIndex > idx
-                                      ? 'bg-slate-400/80'
-                                      : 'bg-slate-200/80 hover:bg-slate-300'
-                                  }`}
-                                  title={m.role}
-                                />
+
+                            {/* Bar Chart */}
+                            <div className="flex items-end justify-between h-32 pt-2 px-2">
+                              {[
+                                { month: 'Jan', value: 55, active: false },
+                                { month: 'Feb', value: 75, active: false },
+                                { month: 'Mar', value: 100, active: true },
+                                { month: 'Apr', value: 65, active: false },
+                                { month: 'May', value: 85, active: false },
+                                { month: 'Jun', value: 70, active: false },
+                              ].map((bar) => (
+                                <div key={bar.month} className="flex flex-col items-center gap-1.5 flex-1">
+                                  <div className="w-full h-24 flex items-end justify-center">
+                                    <div
+                                      style={{ height: `${bar.value}%` }}
+                                      className={`w-3.5 sm:w-4 rounded-full transition-all ${
+                                        bar.active
+                                          ? 'bg-[#0284c7] shadow-sm'
+                                          : 'bg-slate-300/80 hover:bg-slate-400'
+                                      }`}
+                                    />
+                                  </div>
+                                  <span className="text-[11px] text-slate-600 font-semibold">{bar.month}</span>
+                                </div>
                               ))}
                             </div>
                           </div>
-                        </div>
 
-                        <div className="pt-3 border-t border-slate-300/40 flex items-center justify-between text-xs text-slate-600 mt-3">
-                          <span>Alumni: <strong className="text-slate-900">Dr. Aarav Sharma</strong> (Anthropic)</span>
-                          <button
-                            onClick={() => {
-                              setActiveTab('time-machine');
-                              showToast('Switched to Career Time Machine');
-                            }}
-                            className="font-bold text-slate-900 hover:text-[#E25C38] flex items-center gap-1 transition-colors cursor-pointer"
-                          >
-                            <span>Full Path</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Skill Velocity Activity Chart (5 cols) */}
-                      <div className="sm:col-span-5 rounded-3xl p-6 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-[0_10px_25px_rgba(0,0,0,0.04),_inset_0_1px_1.5px_rgba(255,255,255,0.8)] flex flex-col justify-between transition-all">
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                                Skill Velocity
-                              </span>
-                              <span className="text-xs font-bold text-slate-800">AST Commits</span>
-                            </div>
-                            <span className="text-xs font-mono font-bold text-[#0284c7] px-2.5 py-0.5 rounded-full bg-sky-100/70 border border-sky-300 shadow-sm">
-                              169 Peak
-                            </span>
-                          </div>
-
-                          {/* Bar Chart */}
-                          <div className="flex items-end justify-between h-32 pt-2 px-2">
-                            {[
-                              { month: 'Jan', value: 55, active: false },
-                              { month: 'Feb', value: 75, active: false },
-                              { month: 'Mar', value: 100, active: true },
-                              { month: 'Apr', value: 65, active: false },
-                              { month: 'May', value: 85, active: false },
-                              { month: 'Jun', value: 70, active: false },
-                            ].map((bar) => (
-                              <div key={bar.month} className="flex flex-col items-center gap-2 flex-1">
-                                <div className="w-full h-24 flex items-end justify-center">
-                                  <div
-                                    style={{ height: `${bar.value}%` }}
-                                    className={`w-3.5 sm:w-4 rounded-full transition-all ${
-                                      bar.active
-                                        ? 'bg-[#0284c7] shadow-sm'
-                                        : 'bg-slate-300/80 hover:bg-slate-400'
-                                    }`}
-                                  />
-                                </div>
-                                <span className="text-[11px] text-slate-600 font-semibold">{bar.month}</span>
-                              </div>
-                            ))}
+                          <div className="pt-3 border-t border-slate-300/30 flex items-center justify-between text-xs text-slate-600 mt-2">
+                            <span>Evaluated monthly</span>
+                            <span className="text-emerald-700 font-bold">+28% Growth</span>
                           </div>
                         </div>
 
-                        <div className="pt-3 border-t border-slate-300/40 flex items-center justify-between text-xs text-slate-600 mt-3">
-                          <span>Evaluated monthly</span>
-                          <span className="text-emerald-700 font-bold">+28% Velocity</span>
-                        </div>
                       </div>
 
-                    </div>
-
-                    {/* Middle Row: 3 Key Metric Tiles (Naturally fitted with gap-5) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                      <div
-                        onClick={() => {
-                          setActiveTab('community');
-                          showToast('Switched to Community Feed');
-                        }}
-                        className="rounded-3xl p-5 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-sm transition-all cursor-pointer group"
-                      >
-                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                          Verified Builders
-                        </span>
-                        <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">76,420</div>
-                        <span className="text-xs text-emerald-700 font-bold mt-1 flex items-center gap-1">
-                          <span>14 Active Clusters</span>
-                          <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                        </span>
-                      </div>
-
-                      <div
-                        onClick={() => {
-                          setActiveTab('bounties');
-                          showToast('Switched to Skill Bounty Network');
-                        }}
-                        className="rounded-3xl p-5 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-sm transition-all cursor-pointer group"
-                      >
-                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                          Skill Bounty Escrow
-                        </span>
-                        <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">$3,600 USDC</div>
-                        <span className="text-xs text-amber-700 font-bold mt-1 flex items-center gap-1">
-                          <span>4 Open Challenges</span>
-                          <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                        </span>
-                      </div>
-
-                      <div
-                        onClick={() => {
-                          setActiveTab('radar');
-                          showToast('Switched to Unclaimed Talent Radar');
-                        }}
-                        className="rounded-3xl p-5 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-sm transition-all cursor-pointer group"
-                      >
-                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                          Talent Radar Matches
-                        </span>
-                        <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">18 Discovered</div>
-                        <span className="text-xs text-purple-700 font-bold mt-1 flex items-center gap-1">
-                          <span>Cross-Industry Transfer</span>
-                          <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                        </span>
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* Right Column (4 cols): Auto-Connect Cutoff Dial & Presets (Clean, no fake music player!) */}
-                  <div className="lg:col-span-4 rounded-3xl p-6 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-[0_10px_25px_rgba(0,0,0,0.04),_inset_0_1px_1.5px_rgba(255,255,255,0.8)] flex flex-col justify-between transition-all">
-                    <div>
-                      {/* Top Header: Clock + Dial Toggle */}
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-sm font-mono font-bold text-slate-800 tracking-tight">
-                          {currentTime}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-slate-600">Auto-Connect</span>
-                          <button
-                            onClick={() => {
-                              setAutoAcceptEnabled(!autoAcceptEnabled);
-                              showToast(`Auto-accept ${!autoAcceptEnabled ? 'Active' : 'Paused'}`);
-                            }}
-                            className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${
-                              autoAcceptEnabled ? 'bg-[#E25C38]' : 'bg-slate-300'
-                            }`}
-                          >
-                            <div
-                              className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
-                                autoAcceptEnabled ? 'translate-x-4' : 'translate-x-0'
-                              }`}
-                            />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Circular Arc Dial (64% Cutoff Dial) */}
-                      <div className="relative w-44 h-44 mx-auto my-3 flex items-center justify-center">
-                        <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
-                          <circle
-                            cx="50"
-                            cy="50"
-                            r="39"
-                            fill="none"
-                            stroke="rgba(203, 213, 225, 0.45)"
-                            strokeWidth="7"
-                          />
-                          <circle
-                            cx="50"
-                            cy="50"
-                            r="39"
-                            fill="none"
-                            stroke="#0284c7"
-                            strokeWidth="7"
-                            strokeDasharray="245"
-                            strokeDashoffset={245 - (245 * autoAcceptThreshold) / 100}
-                            strokeLinecap="round"
-                          />
-                        </svg>
-
-                        <div className="absolute flex flex-col items-center">
-                          <span className="text-4xl font-black text-slate-900 tracking-tight">
-                            {autoAcceptThreshold}%
+                      {/* Middle Row: 3 Key Metric Tiles */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                        <div
+                          onClick={() => {
+                            setActiveTab('community');
+                            showToast('Opening Alumni Network');
+                          }}
+                          className="rounded-3xl p-5 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm transition-all cursor-pointer group"
+                        >
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Verified Engineers
                           </span>
-                          <span className="text-xs text-slate-600 font-semibold mt-0.5">
-                            Cutoff Score
+                          <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">76,420</div>
+                          <span className="text-xs text-emerald-700 font-bold mt-1 flex items-center gap-1">
+                            <span>In Our Network</span>
+                            <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                          </span>
+                        </div>
+
+                        <div
+                          onClick={() => {
+                            setActiveTab('bounties');
+                            showToast('Opening Paid Challenges');
+                          }}
+                          className="rounded-3xl p-5 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm transition-all cursor-pointer group"
+                        >
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Open Rewards Pool
+                          </span>
+                          <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">$3,600 USDC</div>
+                          <span className="text-xs text-amber-700 font-bold mt-1 flex items-center gap-1">
+                            <span>Ready to Earn</span>
+                            <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                          </span>
+                        </div>
+
+                        <div
+                          onClick={() => {
+                            setActiveTab('radar');
+                            showToast('Opening Hidden Opportunities');
+                          }}
+                          className="rounded-3xl p-5 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm transition-all cursor-pointer group"
+                        >
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                            New Opportunities
+                          </span>
+                          <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">18 Discovered</div>
+                          <span className="text-xs text-purple-700 font-bold mt-1 flex items-center gap-1">
+                            <span>Based on Your Skills</span>
+                            <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                           </span>
                         </div>
                       </div>
 
-                      {/* Minus & Plus Buttons */}
-                      <div className="flex items-center justify-center gap-3 my-2">
-                        <button
-                          onClick={() => setAutoAcceptThreshold(Math.max(40, autoAcceptThreshold - 2))}
-                          className="w-9 h-9 rounded-full bg-white/70 hover:bg-white text-slate-800 flex items-center justify-center text-base font-bold shadow-sm transition-all cursor-pointer"
-                        >
-                          -
-                        </button>
-                        <button
-                          onClick={() => setAutoAcceptThreshold(Math.min(98, autoAcceptThreshold + 2))}
-                          className="w-9 h-9 rounded-full bg-white/70 hover:bg-white text-slate-800 flex items-center justify-center text-base font-bold shadow-sm transition-all cursor-pointer"
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      {/* 4 Mode Presets (Strict / Alumni / OSS / Open) */}
-                      <div className="grid grid-cols-4 gap-2 my-3 pt-3 border-t border-slate-300/40">
-                        {[
-                          { l: 'Strict', s: 85 },
-                          { l: 'Alumni', s: 75 },
-                          { l: 'OSS', s: 64 },
-                          { l: 'Open', s: 50 },
-                        ].map((p) => (
-                          <button
-                            key={p.l}
-                            onClick={() => {
-                              setAutoAcceptThreshold(p.s);
-                              showToast(`Mode preset: ${p.l} (${p.s}%)`);
-                            }}
-                            className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                              autoAcceptThreshold === p.s
-                                ? 'bg-slate-900 text-white shadow-sm'
-                                : 'bg-white/60 text-slate-700 hover:bg-white'
-                            }`}
-                          >
-                            {p.l}
-                          </button>
-                        ))}
-                      </div>
                     </div>
 
-                    {/* Clean Status Footer (No fake music player!) */}
-                    <div className="pt-3 border-t border-slate-300/40 mt-2">
-                      <div className="flex items-center justify-between text-xs text-slate-600 mb-2">
-                        <span>AST Policy Filter</span>
-                        <span className="text-emerald-700 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Active</span>
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setActiveTab('auto-connect');
-                          showToast('Switched to Auto-Connect Policies');
-                        }}
-                        className="w-full py-2.5 px-3 rounded-2xl bg-white/60 hover:bg-white border border-white/80 text-xs font-bold text-slate-900 flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                      >
-                        <ShieldCheck className="w-3.5 h-3.5 text-[#E25C38]" />
-                        <span>Manage Auto-Connect Policies</span>
-                      </button>
-                    </div>
-
-                  </div>
-                </motion.div>
-              )}
-
-              {/* ─────────────────────────────────────────────────────────────
-                  TAB 2: CAREER TIME MACHINE
-                  ───────────────────────────────────────────────────────────── */}
-              {activeTab === 'time-machine' && (
-                <motion.div
-                  key="time-machine"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.18 }}
-                  className="flex flex-col gap-6"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-300/40 pb-4">
-                    <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Career Time Machine</h2>
-                      <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                        Backtested empirical trajectories and AST-verified skill progression benchmarks
-                      </p>
-                    </div>
-                    {/* Stage Selector Pills */}
-                    <div className="flex items-center gap-2">
-                      {MOCK_CAREER_MILESTONES.map((m, idx) => (
-                        <button
-                          key={m.id}
-                          onClick={() => setSelectedMilestoneIndex(idx)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                            selectedMilestoneIndex === idx
-                              ? 'bg-slate-900 text-white shadow-sm'
-                              : 'bg-white/60 text-slate-700 hover:bg-white'
-                          }`}
-                        >
-                          Stage {idx + 1}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Trajectory Details (7 cols) */}
-                    <div className="lg:col-span-7 rounded-3xl p-6 sm:p-7 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-sm flex flex-col justify-between">
+                    {/* Right Column (4 cols): Auto-Connect Controller */}
+                    <div className="lg:col-span-4 rounded-3xl p-6 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm flex flex-col justify-between transition-all">
                       <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-xs font-mono font-bold text-slate-600">
-                            {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].period}
-                          </span>
-                          <span className="px-3 py-1 rounded-full bg-[#E25C38]/15 text-[#E25C38] text-xs font-bold border border-[#E25C38]/20">
-                            {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].velocityScore}% Match Fit
-                          </span>
-                        </div>
-
-                        <h3 className="text-2xl font-black text-slate-900">
-                          {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].role}
-                        </h3>
-                        <p className="text-sm font-semibold text-slate-700 mt-1">
-                          {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].company} • {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].duration}
-                        </p>
-
-                        <div className="my-5 p-4 rounded-2xl bg-white/50 border border-white/70">
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                            Key Verified Achievement
-                          </span>
-                          <p className="text-xs text-slate-800 leading-relaxed font-medium">
-                            {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].keyAchievement}
-                          </p>
-                          <div className="mt-2 text-[11px] text-emerald-700 font-semibold flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Verified By: {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].verifiedBy}</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                            Acquired Technical Skills
-                          </span>
-                          <div className="flex flex-wrap gap-2">
-                            {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].acquiredSkills.map((skill) => (
-                              <span
-                                key={skill}
-                                className="px-3 py-1 rounded-full bg-white/70 border border-white/90 text-xs font-semibold text-slate-800 shadow-sm"
-                              >
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="pt-4 border-t border-slate-300/40 mt-6 flex items-center justify-between">
-                        <span className="text-xs text-slate-600 font-medium">Stage {selectedMilestoneIndex + 1} of 3</span>
-                        <div className="flex gap-2">
-                          <button
-                            disabled={selectedMilestoneIndex === 0}
-                            onClick={() => setSelectedMilestoneIndex((i) => Math.max(0, i - 1))}
-                            className="px-3 py-1.5 rounded-xl bg-white/60 hover:bg-white text-xs font-bold text-slate-800 disabled:opacity-40 cursor-pointer shadow-sm"
-                          >
-                            Previous Stage
-                          </button>
-                          <button
-                            disabled={selectedMilestoneIndex === MOCK_CAREER_MILESTONES.length - 1}
-                            onClick={() => setSelectedMilestoneIndex((i) => Math.min(MOCK_CAREER_MILESTONES.length - 1, i + 1))}
-                            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-xs font-bold text-white disabled:opacity-40 cursor-pointer shadow-sm"
-                          >
-                            Next Stage
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Skill Gap Analysis (5 cols) */}
-                    <div className="lg:col-span-5 rounded-3xl p-6 sm:p-7 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-sm flex flex-col justify-between">
-                      <div>
+                        {/* Header: Clock + Dial Toggle */}
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                            AST Skill Gap Analysis
-                          </span>
-                          <span className="text-xs font-bold text-[#E25C38]">{targetReadinessScore}% Ready</span>
-                        </div>
-
-                        <h4 className="text-base font-bold text-slate-900 mb-1">Target: {MOCK_SKILL_GAP.targetRole}</h4>
-                        <p className="text-xs text-slate-600 mb-4">
-                          Deterministic gap evaluation against 800+ AST-verified staff profiles
-                        </p>
-
-                        {/* Progress Bar */}
-                        <div className="w-full h-2.5 rounded-full bg-slate-200/80 overflow-hidden mb-5">
-                          <div
-                            style={{ width: `${targetReadinessScore}%` }}
-                            className="h-full bg-gradient-to-r from-[#0284c7] to-[#E25C38] rounded-full transition-all"
-                          />
-                        </div>
-
-                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                          Missing Skills Priority
-                        </span>
-                        <div className="flex flex-col gap-2">
-                          {MOCK_SKILL_GAP.missingSkills.map((skill) => (
-                            <div
-                              key={skill.name}
-                              className="p-2.5 rounded-xl bg-white/50 border border-white/70 flex items-center justify-between text-xs"
-                            >
-                              <span className="font-semibold text-slate-900">{skill.name}</span>
-                              <span
-                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                                  skill.priority === 'HIGH'
-                                    ? 'bg-red-100 text-red-700 border border-red-200'
-                                    : skill.priority === 'MEDIUM'
-                                    ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                                    : 'bg-slate-100 text-slate-700'
-                                }`}
-                              >
-                                {skill.priority}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          setTargetReadinessScore((s) => (s >= 90 ? 74 : s + 8));
-                          showToast('Simulated AST commit verification +8% readiness');
-                        }}
-                        className="w-full mt-5 py-2.5 rounded-2xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
-                      >
-                        Simulate Trajectory Shift
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* ─────────────────────────────────────────────────────────────
-                  TAB 3: SKILL BOUNTY NETWORK
-                  ───────────────────────────────────────────────────────────── */}
-              {activeTab === 'bounties' && (
-                <motion.div
-                  key="bounties"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.18 }}
-                  className="flex flex-col gap-6"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-300/40 pb-4">
-                    <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Skill Bounty Network</h2>
-                      <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                        Open challenges verified by deterministic AST test suites with automated USDC escrow
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="px-3.5 py-1.5 rounded-full bg-emerald-100/80 border border-emerald-300 text-emerald-800 text-xs font-bold shadow-sm">
-                        Total Escrow: $3,600 USDC
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {MOCK_BOUNTIES.map((bounty) => (
-                      <div
-                        key={bounty.id}
-                        className="rounded-3xl p-6 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-sm flex flex-col justify-between transition-all"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-xs font-bold text-slate-500">{bounty.organization}</span>
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                bounty.difficulty === 'EXPERT'
-                                  ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                                  : bounty.difficulty === 'HARD'
-                                  ? 'bg-red-100 text-red-700 border border-red-200'
-                                  : bounty.difficulty === 'MEDIUM'
-                                  ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                                  : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                              }`}
-                            >
-                              {bounty.difficulty}
-                            </span>
+                          <div className="text-sm font-mono font-bold text-slate-800 tracking-tight">
+                            {currentTime}
                           </div>
-
-                          <h3 className="text-base font-bold text-slate-900 leading-snug mb-2">
-                            {bounty.title}
-                          </h3>
-
-                          <div className="text-2xl font-black text-[#E25C38] my-2">
-                            ${bounty.rewardUsdc} USDC
-                          </div>
-
-                          <div className="flex flex-wrap gap-1.5 my-3">
-                            {bounty.requiredSkills.map((skill) => (
-                              <span
-                                key={skill}
-                                className="px-2.5 py-0.5 rounded-lg bg-white/60 border border-white/80 text-[11px] font-medium text-slate-700"
-                              >
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="pt-4 border-t border-slate-300/40 mt-3 flex items-center justify-between text-xs text-slate-600">
-                          <span>{bounty.submissionsCount} submissions • {bounty.deadline}</span>
-                          <button
-                            onClick={() => {
-                              setSelectedBounty(bounty);
-                              setSubmitPrModalOpen(true);
-                            }}
-                            className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold transition-all shadow-sm cursor-pointer"
-                          >
-                            Submit PR
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {/* ─────────────────────────────────────────────────────────────
-                  TAB 4: QUALIFICATION AUTO-CONNECT
-                  ───────────────────────────────────────────────────────────── */}
-              {activeTab === 'auto-connect' && (
-                <motion.div
-                  key="auto-connect"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.18 }}
-                  className="flex flex-col gap-6"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-300/40 pb-4">
-                    <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Qualification Auto-Connect</h2>
-                      <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                        Zero-resume, code-verified intent routing. Connect automatically when AST verification passes threshold
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Left: Cutoff Dial Controller (5 cols) */}
-                    <div className="lg:col-span-5 rounded-3xl p-6 sm:p-7 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-sm flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-mono font-bold text-slate-800">{currentTime}</span>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-slate-600">Auto-Accept</span>
+                            <span className="text-xs font-semibold text-slate-600">Auto-Connect</span>
                             <button
                               onClick={() => {
                                 setAutoAcceptEnabled(!autoAcceptEnabled);
-                                showToast(`Auto-accept ${!autoAcceptEnabled ? 'Active' : 'Paused'}`);
+                                showToast(`Auto-Connect: ${!autoAcceptEnabled ? 'Active' : 'Paused'}`);
                               }}
                               className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${
                                 autoAcceptEnabled ? 'bg-[#E25C38]' : 'bg-slate-300'
@@ -906,10 +526,10 @@ export default function KinGlassDashboard() {
                           </div>
                         </div>
 
-                        {/* Dial */}
+                        {/* Circular Arc Dial (64% Cutoff Dial) */}
                         <div className="relative w-44 h-44 mx-auto my-3 flex items-center justify-center">
                           <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
-                            <circle cx="50" cy="50" r="39" fill="none" stroke="rgba(203, 213, 225, 0.45)" strokeWidth="7" />
+                            <circle cx="50" cy="50" r="39" fill="none" stroke="rgba(203, 213, 225, 0.4)" strokeWidth="7" />
                             <circle
                               cx="50"
                               cy="50"
@@ -928,45 +548,45 @@ export default function KinGlassDashboard() {
                               {autoAcceptThreshold}%
                             </span>
                             <span className="text-xs text-slate-600 font-semibold mt-0.5">
-                              Cutoff Score
+                              Match Cutoff
                             </span>
                           </div>
                         </div>
 
-                        {/* Buttons */}
+                        {/* Minus & Plus Buttons */}
                         <div className="flex items-center justify-center gap-3 my-2">
                           <button
                             onClick={() => setAutoAcceptThreshold(Math.max(40, autoAcceptThreshold - 2))}
-                            className="w-9 h-9 rounded-full bg-white/70 hover:bg-white text-slate-800 flex items-center justify-center text-base font-bold shadow-sm transition-all cursor-pointer"
+                            className="w-9 h-9 rounded-full bg-white/70 hover:bg-white text-slate-800 flex items-center justify-center text-base font-bold shadow-xs transition-all cursor-pointer"
                           >
                             -
                           </button>
                           <button
                             onClick={() => setAutoAcceptThreshold(Math.min(98, autoAcceptThreshold + 2))}
-                            className="w-9 h-9 rounded-full bg-white/70 hover:bg-white text-slate-800 flex items-center justify-center text-base font-bold shadow-sm transition-all cursor-pointer"
+                            className="w-9 h-9 rounded-full bg-white/70 hover:bg-white text-slate-800 flex items-center justify-center text-base font-bold shadow-xs transition-all cursor-pointer"
                           >
                             +
                           </button>
                         </div>
 
-                        {/* Presets */}
-                        <div className="grid grid-cols-4 gap-2 my-3 pt-3 border-t border-slate-300/40">
+                        {/* 4 Mode Presets with clear names */}
+                        <div className="grid grid-cols-4 gap-2 my-3 pt-3 border-t border-slate-300/30">
                           {[
                             { l: 'Strict', s: 85 },
                             { l: 'Alumni', s: 75 },
-                            { l: 'OSS', s: 64 },
+                            { l: 'Open Source', s: 64 },
                             { l: 'Open', s: 50 },
                           ].map((p) => (
                             <button
                               key={p.l}
                               onClick={() => {
                                 setAutoAcceptThreshold(p.s);
-                                showToast(`Cutoff set to ${p.l} (${p.s}%)`);
+                                showToast(`Filter mode: ${p.l} (${p.s}%)`);
                               }}
-                              className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              className={`py-2 px-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer truncate ${
                                 autoAcceptThreshold === p.s
-                                  ? 'bg-slate-900 text-white shadow-sm'
-                                  : 'bg-white/60 text-slate-700 hover:bg-white'
+                                  ? 'bg-slate-900 text-white shadow-xs'
+                                  : 'bg-white/50 text-slate-700 hover:bg-white'
                               }`}
                             >
                               {p.l}
@@ -975,17 +595,399 @@ export default function KinGlassDashboard() {
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-slate-600 leading-relaxed pt-3 border-t border-slate-300/40">
-                        Inbound handshake requests with qualification score ≥ {autoAcceptThreshold}% bypass manual vetting.
+                      {/* Clean Status Footer */}
+                      <div className="pt-3 border-t border-slate-300/30 mt-2">
+                        <p className="text-[11px] text-slate-600 mb-2 leading-relaxed">
+                          Alumni and founders matching <strong>{autoAcceptThreshold}%+</strong> connect automatically without cold outreach.
+                        </p>
+                        <button
+                          onClick={() => {
+                            setActiveTab('auto-connect');
+                            showToast('Opening Auto-Connect Rules');
+                          }}
+                          className="w-full py-2.5 px-3 rounded-2xl bg-white/60 hover:bg-white border border-white/80 text-xs font-bold text-slate-900 flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 text-[#E25C38]" />
+                          <span>Manage Auto-Connect Rules</span>
+                        </button>
+                      </div>
+
+                    </div>
+
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ─────────────────────────────────────────────────────────────
+                  TAB 2: CAREER TIME MACHINE
+                  ───────────────────────────────────────────────────────────── */}
+              {activeTab === 'time-machine' && (
+                <motion.div
+                  key="time-machine"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex-1 flex flex-col justify-between gap-6"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-300/30 pb-3">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Career Journey</h2>
+                      <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+                        See how top alumni advanced to their roles, and discover the exact skills to learn next.
+                      </p>
+                    </div>
+                    {/* Stage Selector Pills */}
+                    <div className="flex items-center gap-2">
+                      {MOCK_CAREER_MILESTONES.map((m, idx) => (
+                        <button
+                          key={m.id}
+                          onClick={() => setSelectedMilestoneIndex(idx)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                            selectedMilestoneIndex === idx
+                              ? 'bg-slate-900 text-white shadow-xs'
+                              : 'bg-white/50 text-slate-700 hover:bg-white'
+                          }`}
+                        >
+                          Milestone {idx + 1}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+                    {/* Trajectory Details (7 cols) */}
+                    <div className="lg:col-span-7 rounded-3xl p-6 sm:p-7 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-mono font-bold text-slate-600">
+                            {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].period}
+                          </span>
+                          <span className="px-3 py-1 rounded-full bg-slate-900/5 text-slate-800 text-xs font-bold border border-slate-900/10">
+                            {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].velocityScore}% Match Fit
+                          </span>
+                        </div>
+
+                        <h3 className="text-2xl font-black text-slate-900">
+                          {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].role}
+                        </h3>
+                        <p className="text-sm font-semibold text-slate-700 mt-1">
+                          {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].company} • {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].duration}
+                        </p>
+
+                        <div className="my-5 p-4 rounded-2xl bg-white/40 border border-white/60">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                            Key Verified Project
+                          </span>
+                          <p className="text-xs text-slate-800 leading-relaxed font-medium">
+                            {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].keyAchievement}
+                          </p>
+                          <div className="mt-2 text-[11px] text-emerald-700 font-semibold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Verified in Network: {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].verifiedBy}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                            Skills Acquired in this Role
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {MOCK_CAREER_MILESTONES[selectedMilestoneIndex].acquiredSkills.map((skill) => (
+                              <span
+                                key={skill}
+                                className="px-3 py-1 rounded-full bg-white/60 border border-white/80 text-xs font-semibold text-slate-800 shadow-xs"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-slate-300/30 mt-6 flex items-center justify-between">
+                        <span className="text-xs text-slate-600 font-medium">Milestone {selectedMilestoneIndex + 1} of 3</span>
+                        <div className="flex gap-2">
+                          <button
+                            disabled={selectedMilestoneIndex === 0}
+                            onClick={() => setSelectedMilestoneIndex((i) => Math.max(0, i - 1))}
+                            className="px-3 py-1.5 rounded-xl bg-white/60 hover:bg-white text-xs font-bold text-slate-800 disabled:opacity-40 cursor-pointer shadow-xs"
+                          >
+                            Previous Milestone
+                          </button>
+                          <button
+                            disabled={selectedMilestoneIndex === MOCK_CAREER_MILESTONES.length - 1}
+                            onClick={() => setSelectedMilestoneIndex((i) => Math.min(MOCK_CAREER_MILESTONES.length - 1, i + 1))}
+                            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-xs font-bold text-white disabled:opacity-40 cursor-pointer shadow-xs"
+                          >
+                            Next Milestone
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Skill Gap Analysis (5 cols) */}
+                    <div className="lg:col-span-5 rounded-3xl p-6 sm:p-7 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                            Skills You Need Next
+                          </span>
+                          <span className="text-xs font-bold text-[#E25C38]">{targetReadinessScore}% Ready</span>
+                        </div>
+
+                        <h4 className="text-base font-bold text-slate-900 mb-1">Target Goal: {MOCK_SKILL_GAP.targetRole}</h4>
+                        <p className="text-xs text-slate-600 mb-4">
+                          Based on verified skill sets from 800+ senior engineering profiles
+                        </p>
+
+                        {/* Progress Bar */}
+                        <div className="w-full h-2 rounded-full bg-slate-200/80 overflow-hidden mb-5">
+                          <div
+                            style={{ width: `${targetReadinessScore}%` }}
+                            className="h-full bg-gradient-to-r from-[#0284c7] to-[#E25C38] rounded-full transition-all"
+                          />
+                        </div>
+
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                          Priority Skill Roadmap
+                        </span>
+                        <div className="flex flex-col gap-2">
+                          {MOCK_SKILL_GAP.missingSkills.map((skill) => (
+                            <div
+                              key={skill.name}
+                              className="p-2.5 rounded-xl bg-white/40 border border-white/60 flex items-center justify-between text-xs"
+                            >
+                              <span className="font-semibold text-slate-900">{skill.name}</span>
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-900/5 text-slate-800 border border-slate-900/10">
+                                {skill.priority === 'HIGH' ? 'Learn First' : skill.priority === 'MEDIUM' ? 'Next Up' : 'Optional'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setTargetReadinessScore((s) => (s >= 90 ? 74 : s + 8));
+                          showToast('Simulated completing a project: +8% readiness for target role!');
+                        }}
+                        className="w-full mt-5 py-2.5 rounded-2xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                      >
+                        Test My Next Career Move (+8%)
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ─────────────────────────────────────────────────────────────
+                  TAB 3: PAID CODING CHALLENGES (SKILL BOUNTY NETWORK)
+                  Clean minimalist tags, NO ugly pink badges!
+                  ───────────────────────────────────────────────────────────── */}
+              {activeTab === 'bounties' && (
+                <motion.div
+                  key="bounties"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex-1 flex flex-col justify-between gap-6"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-300/30 pb-3">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Paid Coding Challenges</h2>
+                      <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+                        Solve real technical challenges, submit your pull request, and earn instant rewards in USDC.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="px-3 py-1 rounded-full bg-white/50 border border-white/80 text-slate-900 text-xs font-bold shadow-xs">
+                        $3,600 USDC Available
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
+                    {MOCK_BOUNTIES.map((bounty) => (
+                      <div
+                        key={bounty.id}
+                        className="rounded-3xl p-6 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm flex flex-col justify-between transition-all"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-2.5">
+                            <span className="text-xs font-bold text-slate-500">{bounty.organization}</span>
+                            {/* Sleek, minimalist clean badge — NO ugly pink! */}
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-900/5 text-slate-800 border border-slate-900/10">
+                              Level: {bounty.difficulty.toLowerCase()}
+                            </span>
+                          </div>
+
+                          <h3 className="text-base font-bold text-slate-900 leading-snug mb-2">
+                            {bounty.title}
+                          </h3>
+
+                          <div className="text-2xl font-black text-[#E25C38] my-1.5">
+                            ${bounty.rewardUsdc} USDC
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 my-3">
+                            {bounty.requiredSkills.map((skill) => (
+                              <span
+                                key={skill}
+                                className="px-2.5 py-0.5 rounded-lg bg-white/50 border border-white/70 text-[11px] font-medium text-slate-700"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-300/30 mt-3 flex items-center justify-between text-xs text-slate-600">
+                          <span>{bounty.submissionsCount} submissions • {bounty.deadline}</span>
+                          <button
+                            onClick={() => {
+                              setSelectedBounty(bounty);
+                              setSubmitPrModalOpen(true);
+                            }}
+                            className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold transition-all shadow-xs cursor-pointer"
+                          >
+                            Submit Pull Request
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ─────────────────────────────────────────────────────────────
+                  TAB 4: SMART AUTO-CONNECT
+                  ───────────────────────────────────────────────────────────── */}
+              {activeTab === 'auto-connect' && (
+                <motion.div
+                  key="auto-connect"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex-1 flex flex-col justify-between gap-6"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-300/30 pb-3">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Smart Auto-Connect</h2>
+                      <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+                        No resumes or cold emails. Connect automatically when your match score beats your cutoff.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+                    {/* Left: Cutoff Dial Controller (5 cols) */}
+                    <div className="lg:col-span-5 rounded-3xl p-6 sm:p-7 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-mono font-bold text-slate-800">{currentTime}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-slate-600">Auto-Connect</span>
+                            <button
+                              onClick={() => {
+                                setAutoAcceptEnabled(!autoAcceptEnabled);
+                                showToast(`Auto-Connect: ${!autoAcceptEnabled ? 'Active' : 'Paused'}`);
+                              }}
+                              className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${
+                                autoAcceptEnabled ? 'bg-[#E25C38]' : 'bg-slate-300'
+                              }`}
+                            >
+                              <div
+                                className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                                  autoAcceptEnabled ? 'translate-x-4' : 'translate-x-0'
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Dial */}
+                        <div className="relative w-44 h-44 mx-auto my-3 flex items-center justify-center">
+                          <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="39" fill="none" stroke="rgba(203, 213, 225, 0.4)" strokeWidth="7" />
+                            <circle
+                              cx="50"
+                              cy="50"
+                              r="39"
+                              fill="none"
+                              stroke="#0284c7"
+                              strokeWidth="7"
+                              strokeDasharray="245"
+                              strokeDashoffset={245 - (245 * autoAcceptThreshold) / 100}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+
+                          <div className="absolute flex flex-col items-center">
+                            <span className="text-4xl font-black text-slate-900 tracking-tight">
+                              {autoAcceptThreshold}%
+                            </span>
+                            <span className="text-xs text-slate-600 font-semibold mt-0.5">
+                              Match Cutoff
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Buttons */}
+                        <div className="flex items-center justify-center gap-3 my-2">
+                          <button
+                            onClick={() => setAutoAcceptThreshold(Math.max(40, autoAcceptThreshold - 2))}
+                            className="w-9 h-9 rounded-full bg-white/70 hover:bg-white text-slate-800 flex items-center justify-center text-base font-bold shadow-xs transition-all cursor-pointer"
+                          >
+                            -
+                          </button>
+                          <button
+                            onClick={() => setAutoAcceptThreshold(Math.min(98, autoAcceptThreshold + 2))}
+                            className="w-9 h-9 rounded-full bg-white/70 hover:bg-white text-slate-800 flex items-center justify-center text-base font-bold shadow-xs transition-all cursor-pointer"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        {/* Presets */}
+                        <div className="grid grid-cols-4 gap-2 my-3 pt-3 border-t border-slate-300/30">
+                          {[
+                            { l: 'Strict', s: 85 },
+                            { l: 'Alumni', s: 75 },
+                            { l: 'Open Source', s: 64 },
+                            { l: 'Open', s: 50 },
+                          ].map((p) => (
+                            <button
+                              key={p.l}
+                              onClick={() => {
+                                setAutoAcceptThreshold(p.s);
+                                showToast(`Cutoff set to ${p.l} (${p.s}%)`);
+                              }}
+                              className={`py-2 px-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer truncate ${
+                                autoAcceptThreshold === p.s
+                                  ? 'bg-slate-900 text-white shadow-xs'
+                                  : 'bg-white/50 text-slate-700 hover:bg-white'
+                              }`}
+                            >
+                              {p.l}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-slate-600 leading-relaxed pt-3 border-t border-slate-300/30">
+                        Inbound connection requests with a qualification score of <strong>{autoAcceptThreshold}% or higher</strong> connect with you automatically.
                       </p>
                     </div>
 
-                    {/* Right: Active Policies List (7 cols) */}
+                    {/* Right: Active Rules List (7 cols) */}
                     <div className="lg:col-span-7 flex flex-col gap-4">
                       {policies.map((policy) => (
                         <div
                           key={policy.id}
-                          className="rounded-3xl p-6 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-sm transition-all"
+                          className="rounded-3xl p-6 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm transition-all"
                         >
                           <div className="flex items-center justify-between mb-3">
                             <h3 className="text-base font-bold text-slate-900">{policy.name}</h3>
@@ -997,25 +999,25 @@ export default function KinGlassDashboard() {
                                   : 'bg-slate-200 text-slate-600'
                               }`}
                             >
-                              {policy.autoAccept ? 'Auto-Accept ON' : 'Paused'}
+                              {policy.autoAccept ? 'Active' : 'Paused'}
                             </button>
                           </div>
 
                           <div className="grid grid-cols-2 gap-3 my-3 text-xs">
-                            <div className="p-3 rounded-xl bg-white/50 border border-white/70">
-                              <span className="text-[10px] text-slate-500 font-bold uppercase block">Min Commits</span>
+                            <div className="p-3 rounded-xl bg-white/40 border border-white/60">
+                              <span className="text-[10px] text-slate-500 font-bold uppercase block">Minimum Commits</span>
                               <span className="text-base font-bold text-slate-900">{policy.minCommits}+ Commits</span>
                             </div>
-                            <div className="p-3 rounded-xl bg-white/50 border border-white/70">
-                              <span className="text-[10px] text-slate-500 font-bold uppercase block">Min Threshold</span>
+                            <div className="p-3 rounded-xl bg-white/40 border border-white/60">
+                              <span className="text-[10px] text-slate-500 font-bold uppercase block">Minimum Score</span>
                               <span className="text-base font-bold text-[#E25C38]">{policy.qualificationScoreThreshold}%</span>
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between pt-3 border-t border-slate-300/40 text-xs text-slate-600">
-                            <span>{policy.activeRequestsCount} Inbound Handshakes Filtered</span>
+                          <div className="flex items-center justify-between pt-3 border-t border-slate-300/30 text-xs text-slate-600">
+                            <span>{policy.activeRequestsCount} Connections Approved Automatically</span>
                             <button
-                              onClick={() => showToast(`Simulated AST check for policy "${policy.name}"`)}
+                              onClick={() => showToast(`Simulated connection: Approved builder from ${policy.name}`)}
                               className="font-bold text-slate-900 hover:text-[#E25C38] transition-colors cursor-pointer"
                             >
                               Test Rule →
@@ -1025,11 +1027,11 @@ export default function KinGlassDashboard() {
                       ))}
 
                       <button
-                        onClick={() => showToast('Policy engine: ready to add custom rules')}
-                        className="py-3 rounded-2xl bg-white/60 hover:bg-white border border-white/80 text-xs font-bold text-slate-900 transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+                        onClick={() => showToast('Opening rule builder: Customize your auto-connect filters')}
+                        className="py-3 rounded-2xl bg-white/50 hover:bg-white border border-white/70 text-xs font-bold text-slate-900 transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                       >
                         <Plus className="w-4 h-4 text-[#E25C38]" />
-                        <span>Create Custom Qualification Policy</span>
+                        <span>Create Custom Connection Rule</span>
                       </button>
                     </div>
                   </div>
@@ -1037,7 +1039,7 @@ export default function KinGlassDashboard() {
               )}
 
               {/* ─────────────────────────────────────────────────────────────
-                  TAB 5: UNCLAIMED TALENT RADAR
+                  TAB 5: HIDDEN OPPORTUNITIES (UNCLAIMED TALENT RADAR)
                   ───────────────────────────────────────────────────────────── */}
               {activeTab === 'radar' && (
                 <motion.div
@@ -1046,35 +1048,35 @@ export default function KinGlassDashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.18 }}
-                  className="flex flex-col gap-6"
+                  className="flex-1 flex flex-col justify-between gap-6"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-300/40 pb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-300/30 pb-3">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Unclaimed Talent Radar</h2>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Hidden Career Opportunities</h2>
                       <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                        Cross-industry transfer bridges. High-leverage roles where your verified skills transfer across domains
+                        High-paying roles in other industries (Genomics, Robotics, Finance) where your existing skills are in high demand.
                       </p>
                     </div>
-                    <span className="px-3.5 py-1.5 rounded-full bg-purple-100/80 border border-purple-300 text-purple-900 text-xs font-bold shadow-sm">
-                      18 Discovered Bridges
+                    <span className="px-3 py-1 rounded-full bg-white/50 border border-white/80 text-slate-900 text-xs font-bold shadow-xs">
+                      18 Discovered Matches
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
                     {MOCK_RADAR_OPPORTUNITIES.map((opp) => (
                       <div
                         key={opp.id}
-                        className="rounded-3xl p-6 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-sm flex flex-col justify-between transition-all"
+                        className="rounded-3xl p-6 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm flex flex-col justify-between transition-all"
                       >
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-bold text-slate-500">{opp.industry}</span>
                             <div className="flex items-center gap-1.5">
-                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
+                              <span className="px-2.5 py-0.5 rounded-full bg-slate-900/5 text-slate-800 text-[11px] font-bold border border-slate-900/10">
                                 {opp.matchScore}% Match
                               </span>
-                              <span className="px-2.5 py-0.5 rounded-full bg-[#E25C38]/15 text-[#E25C38] text-[11px] font-bold">
-                                {opp.transferableBridgeScore}% Transfer
+                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-200">
+                                {opp.transferableBridgeScore}% Transferable
                               </span>
                             </div>
                           </div>
@@ -1086,11 +1088,11 @@ export default function KinGlassDashboard() {
                             {opp.organization}
                           </p>
 
-                          <div className="p-3.5 rounded-2xl bg-white/50 border border-white/70 my-3">
+                          <div className="p-3.5 rounded-2xl bg-white/40 border border-white/60 my-3">
                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                              Transferability Reasoning
+                              Why You're a Great Fit
                             </span>
-                            <p className="text-xs text-slate-800 leading-relaxed">
+                            <p className="text-xs text-slate-800 leading-relaxed font-normal">
                               {opp.reasoning}
                             </p>
                           </div>
@@ -1099,7 +1101,7 @@ export default function KinGlassDashboard() {
                             {opp.bridgeSkills.map((skill) => (
                               <span
                                 key={skill}
-                                className="px-2.5 py-0.5 rounded-lg bg-white/60 border border-white/80 text-[11px] font-medium text-slate-700"
+                                className="px-2.5 py-0.5 rounded-lg bg-white/50 border border-white/70 text-[11px] font-medium text-slate-700"
                               >
                                 {skill}
                               </span>
@@ -1107,13 +1109,13 @@ export default function KinGlassDashboard() {
                           </div>
                         </div>
 
-                        <div className="pt-4 border-t border-slate-300/40 mt-3 flex items-center justify-between text-xs">
+                        <div className="pt-3 border-t border-slate-300/30 mt-3 flex items-center justify-between text-xs">
                           <span className="text-slate-600 font-medium">Status: Discovered</span>
                           <button
-                            onClick={() => showToast(`1-Tap Interest expressed for ${opp.title}`)}
-                            className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold transition-all shadow-sm cursor-pointer"
+                            onClick={() => showToast(`1-Tap Interest sent for ${opp.title}!`)}
+                            className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold transition-all shadow-xs cursor-pointer"
                           >
-                            Bridge Gap & Apply
+                            Explore & Connect in 1 Tap
                           </button>
                         </div>
                       </div>
@@ -1123,7 +1125,7 @@ export default function KinGlassDashboard() {
               )}
 
               {/* ─────────────────────────────────────────────────────────────
-                  TAB 6: COMMUNITY FEED & SOCIAL VOUCHES
+                  TAB 6: ALUMNI & BUILDER NETWORK (COMMUNITY FEED)
                   ───────────────────────────────────────────────────────────── */}
               {activeTab === 'community' && (
                 <motion.div
@@ -1132,13 +1134,13 @@ export default function KinGlassDashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.18 }}
-                  className="flex flex-col gap-6"
+                  className="flex-1 flex flex-col justify-between gap-6"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-300/40 pb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-300/30 pb-3">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Community Feed</h2>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Alumni & Builder Network</h2>
                       <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                        Verified alumni updates, research breakthroughs, and peer endorsements
+                        Real updates from alumni working at Anthropic, Figma, and fast-growing startups.
                       </p>
                     </div>
                   </div>
@@ -1146,44 +1148,44 @@ export default function KinGlassDashboard() {
                   {/* New Post Publisher Box */}
                   <form
                     onSubmit={handlePublishPost}
-                    className="rounded-3xl p-5 bg-white/40 border border-white/70 backdrop-blur-2xl shadow-sm flex flex-col gap-3"
+                    className="rounded-3xl p-5 bg-white/30 border border-white/50 backdrop-blur-xl shadow-sm flex flex-col gap-3"
                   >
                     <textarea
                       value={newPostContent}
                       onChange={(e) => setNewPostContent(e.target.value)}
-                      placeholder="Share a project breakthrough, benchmark, or vouch for a peer..."
+                      placeholder="Share what you're working on, ask for advice, or vouch for a peer..."
                       rows={2}
-                      className="w-full px-4 py-3 rounded-2xl bg-white/70 border border-white/90 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E25C38] resize-none"
+                      className="w-full px-4 py-3 rounded-2xl bg-white/60 border border-white/80 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E25C38] resize-none"
                     />
                     <div className="flex justify-end">
                       <button
                         type="submit"
                         disabled={!newPostContent.trim()}
-                        className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold disabled:opacity-40 transition-all shadow-sm cursor-pointer"
+                        className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold disabled:opacity-40 transition-all shadow-xs cursor-pointer"
                       >
                         <Send className="w-3.5 h-3.5 text-[#E25C38]" />
-                        <span>Publish Update</span>
+                        <span>Post Update</span>
                       </button>
                     </div>
                   </form>
 
                   {/* Feed Items */}
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-4 flex-1">
                     {socialFeed.map((post) => (
                       <div
                         key={post.id}
-                        className="rounded-3xl p-6 bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-2xl shadow-sm transition-all"
+                        className="rounded-3xl p-6 bg-white/14 hover:bg-white/22 border border-white/25 backdrop-blur-md shadow-sm transition-all"
                       >
-                        <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-start justify-between gap-3 mb-2.5">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                            <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-xs">
                               {post.author.name.charAt(0)}
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-bold text-slate-900">{post.author.name}</span>
                                 {post.author.verified && (
-                                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                                  <span className="px-2 py-0.5 rounded-full bg-slate-900/5 text-slate-800 text-[10px] font-bold border border-slate-900/10">
                                     Verified Alumni
                                   </span>
                                 )}
@@ -1197,30 +1199,30 @@ export default function KinGlassDashboard() {
                             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                               post.connected
                                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                : 'bg-slate-900 hover:bg-black text-white shadow-sm'
+                                : 'bg-slate-900 hover:bg-black text-white shadow-xs'
                             }`}
                           >
-                            {post.connected ? 'Connected' : '1-Tap Handshake'}
+                            {post.connected ? 'Connected' : 'Connect in 1 Tap'}
                           </button>
                         </div>
 
-                        <p className="text-xs sm:text-sm text-slate-800 leading-relaxed my-3 font-normal">
+                        <p className="text-xs sm:text-sm text-slate-800 leading-relaxed my-2.5 font-normal">
                           {post.content}
                         </p>
 
-                        <div className="flex flex-wrap gap-1.5 my-3">
+                        <div className="flex flex-wrap gap-1.5 my-2.5">
                           {post.tags.map((tag) => (
                             <span
                               key={tag}
-                              className="px-2.5 py-0.5 rounded-lg bg-white/60 border border-white/80 text-[11px] font-medium text-slate-600"
+                              className="px-2.5 py-0.5 rounded-lg bg-white/50 border border-white/70 text-[11px] font-medium text-slate-600"
                             >
                               {tag}
                             </span>
                           ))}
                         </div>
 
-                        <div className="pt-3 border-t border-slate-300/40 flex items-center justify-between text-xs text-slate-600">
-                          <span>{post.mutualConnections} mutual vouches</span>
+                        <div className="pt-3 border-t border-slate-300/30 flex items-center justify-between text-xs text-slate-600">
+                          <span>{post.mutualConnections} mutual connections</span>
                           <button
                             onClick={() => handleLikePost(post.id)}
                             className="flex items-center gap-1.5 font-semibold text-slate-700 hover:text-red-600 transition-colors cursor-pointer"
@@ -1240,15 +1242,14 @@ export default function KinGlassDashboard() {
         </main>
 
         {/* ═══════════════════════════════════════════════════════════════
-            HORIZONTAL LIQUID FROSTED GLASS ICON DOCK (At Bottom)
-            Removed "KIN HOME" red dot button per user instruction!
-            Only the 6 clean feature icons + divider + user initial circle.
+            HORIZONTAL LIQUID FROSTED GLASS DOCK (At Bottom)
+            Profile avatar opens popup menu with settings, tour, and logout!
             ═══════════════════════════════════════════════════════════════ */}
         <nav
           aria-label="Dashboard Navigation"
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2.5 sm:gap-3 py-2 px-4 rounded-full bg-white/45 hover:bg-white/55 border border-white/75 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1),_inset_0_1.5px_2px_rgba(255,255,255,0.9)] transition-all"
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2.5 sm:gap-3 py-2 px-4 rounded-full bg-white/35 hover:bg-white/45 border border-white/60 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1),_inset_0_1.5px_2px_rgba(255,255,255,0.8)] transition-all"
         >
-          {/* The 6 Feature Icons */}
+          {/* 6 Feature Icons */}
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -1257,12 +1258,12 @@ export default function KinGlassDashboard() {
                 key={item.id}
                 onClick={() => {
                   setActiveTab(item.id);
-                  showToast(`Switched to ${item.label}`);
+                  showToast(`Opened ${item.label}`);
                 }}
                 className={`relative group flex items-center justify-center w-10 h-10 rounded-full transition-all cursor-pointer ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-md scale-105'
-                    : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
+                    : 'text-slate-700 hover:text-slate-900 hover:bg-white/50'
                 }`}
                 title={item.label}
               >
@@ -1276,29 +1277,268 @@ export default function KinGlassDashboard() {
           })}
 
           {/* Divider */}
-          <div className="w-[1px] h-6 bg-slate-300/60" />
+          <div className="w-[1px] h-6 bg-slate-300/40" />
 
-          {/* User Profile Avatar */}
-          {isLoggedIn ? (
+          {/* User Profile Avatar with Floating Menu */}
+          <div className="relative">
             <button
-              onClick={() => showToast(`Logged in as ${user?.name}`)}
-              title={`${user?.name} (${user?.email})`}
+              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              title={isLoggedIn ? `${user?.name} (${user?.email})` : 'Sign in / Profile'}
               className="w-10 h-10 rounded-full bg-slate-900 text-white font-black text-xs flex items-center justify-center shadow-md hover:scale-105 transition-all cursor-pointer border border-white/80"
             >
-              {userInitial}
+              {isLoggedIn ? userInitial : <User className="w-4 h-4 text-white" />}
             </button>
-          ) : (
-            <button
-              onClick={openAuthModal}
-              title="Get started / Sign In"
-              className="w-10 h-10 rounded-full bg-white/60 hover:bg-white text-slate-800 flex items-center justify-center shadow-sm hover:scale-105 transition-all cursor-pointer border border-white/80"
-            >
-              <User className="w-4 h-4 text-slate-700" />
-            </button>
-          )}
+
+            {/* Profile Popover Menu (Above the dock) */}
+            <AnimatePresence>
+              {profileMenuOpen && (
+                <>
+                  <div
+                    onClick={() => setProfileMenuOpen(false)}
+                    className="fixed inset-0 z-40 bg-black/5"
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute bottom-14 right-0 w-56 rounded-3xl p-3.5 bg-white/95 border border-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] backdrop-blur-3xl text-xs z-50 text-slate-900"
+                  >
+                  <div className="px-2 py-1">
+                    <span className="font-bold text-slate-900 text-sm block truncate">
+                      {user?.name || 'Verified Builder'}
+                    </span>
+                    <span className="text-[11px] text-slate-500 block truncate">
+                      {user?.email || 'builder@kin.ai'}
+                    </span>
+                    <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold mt-1.5">
+                      Verified Member
+                    </span>
+                  </div>
+
+                  <div className="w-full h-[1px] bg-slate-200/60 my-2" />
+
+                  <button
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      setShowMascotTour(true);
+                      setMascotStepIndex(0);
+                    }}
+                    className="w-full py-2 px-2 rounded-xl hover:bg-slate-100 flex items-center gap-2 font-semibold text-slate-700 transition-colors text-left cursor-pointer"
+                  >
+                    <HelpCircle className="w-4 h-4 text-[#E25C38]" />
+                    <span>Interactive Guide</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      setActiveTab('auto-connect');
+                      showToast('Opening Auto-Connect Settings');
+                    }}
+                    className="w-full py-2 px-2 rounded-xl hover:bg-slate-100 flex items-center gap-2 font-semibold text-slate-700 transition-colors text-left cursor-pointer"
+                  >
+                    <Sliders className="w-4 h-4 text-slate-600" />
+                    <span>Auto-Connect Settings</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      showToast('Profile & Notification preferences updated');
+                    }}
+                    className="w-full py-2 px-2 rounded-xl hover:bg-slate-100 flex items-center gap-2 font-semibold text-slate-700 transition-colors text-left cursor-pointer"
+                  >
+                    <Settings className="w-4 h-4 text-slate-600" />
+                    <span>Account Settings</span>
+                  </button>
+
+                  <div className="w-full h-[1px] bg-slate-200/60 my-2" />
+
+                  {isLoggedIn ? (
+                    <button
+                      onClick={() => {
+                        logout();
+                        setProfileMenuOpen(false);
+                        showToast('Signed out successfully');
+                      }}
+                      className="w-full py-2 px-2 rounded-xl hover:bg-red-50 text-red-600 font-semibold flex items-center gap-2 transition-colors text-left cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Log Out</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        openAuthModal();
+                      }}
+                      className="w-full py-2 px-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <span>Sign In / Sign Up</span>
+                    </button>
+                  )}
+                </motion.div>
+              </>
+            )}
+            </AnimatePresence>
+          </div>
         </nav>
 
       </div>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          INTERACTIVE MASCOT POPUP GUIDE (Robot from 3rd Image)
+          Pops up with smooth entrance animation and speech dialog bubble!
+          ═══════════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {showMascotTour && (
+          <div className="fixed bottom-24 right-5 sm:right-8 z-50 flex flex-col items-end pointer-events-none">
+            {/* Chat Dialog Speech Bubble */}
+            <motion.div
+              initial={{ opacity: 0, y: 15, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 15, scale: 0.9 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+              className="pointer-events-auto max-w-sm sm:max-w-md w-full rounded-3xl p-5 bg-white/95 border border-white shadow-[0_25px_60px_rgba(0,0,0,0.18)] backdrop-blur-3xl text-slate-900 mb-3 relative"
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => {
+                  setShowMascotTour(false);
+                  showToast('Guide closed. Click your profile anytime to reopen.');
+                }}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
+                title="Close Guide"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-[#E25C38]" />
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  KIN Campus Guide • Step {mascotStepIndex + 1} of {MASCOT_GUIDE_STEPS.length}
+                </span>
+              </div>
+
+              <h3 className="text-base font-bold text-slate-900 mb-1.5 pr-6">
+                {currentMascotStep.title}
+              </h3>
+
+              <p className="text-xs text-slate-700 leading-relaxed font-normal mb-3">
+                {currentMascotStep.description}
+              </p>
+
+              <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/60 text-[11px] text-amber-900 mb-4 font-medium flex items-start gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-[#E25C38] shrink-0 mt-0.5" />
+                <span><strong>Tip:</strong> {currentMascotStep.tip}</span>
+              </div>
+
+              {/* Step Navigation Controls */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                <div className="flex items-center gap-1.5">
+                  {MASCOT_GUIDE_STEPS.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setMascotStepIndex(idx);
+                        setActiveTab(MASCOT_GUIDE_STEPS[idx].tabId);
+                      }}
+                      className={`w-2 h-2 rounded-full transition-all cursor-pointer ${
+                        mascotStepIndex === idx ? 'w-5 bg-slate-900' : 'bg-slate-300 hover:bg-slate-400'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {mascotStepIndex > 0 && (
+                    <button
+                      onClick={prevMascotStep}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <ArrowLeft className="w-3 h-3" />
+                      <span>Back</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={nextMascotStep}
+                    className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                  >
+                    <span>{mascotStepIndex === MASCOT_GUIDE_STEPS.length - 1 ? 'Finish Tour' : 'Next'}</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Speech bubble downward pointer */}
+              <div className="absolute -bottom-2 right-12 w-4 h-4 bg-white/95 rotate-45 border-r border-b border-white shadow-sm" />
+            </motion.div>
+
+            {/* Mascot Robot Character with Hover/Bounce Animation */}
+            <motion.div
+              initial={{ y: 50, opacity: 0, scale: 0.8 }}
+              animate={{
+                y: [0, -6, 0],
+                opacity: 1,
+                scale: 1,
+              }}
+              transition={{
+                y: {
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: 'easeInOut'
+                },
+                opacity: { duration: 0.3 },
+                scale: { duration: 0.3 }
+              }}
+              className="pointer-events-auto mr-6 cursor-pointer group"
+              onClick={() => {
+                showToast("Hi! Click the 'Next' button above to tour each feature!");
+              }}
+              title="Click Kin to chat!"
+            >
+              <div className="relative w-20 h-20 sm:w-22 sm:h-22 rounded-full overflow-hidden shadow-[0_15px_35px_rgba(0,0,0,0.15)] border-2 border-white/95 bg-[#F9F7EF] group-hover:scale-105 transition-all">
+                <Image
+                  src="/images/kin_mascot.png"
+                  alt="Kin AI Mascot Guide"
+                  fill
+                  sizes="88px"
+                  className="object-contain p-2"
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Minimized Mascot Trigger */}
+      <AnimatePresence>
+        {!showMascotTour && (
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            onClick={() => {
+              setShowMascotTour(true);
+              setMascotStepIndex(0);
+              setActiveTab('overview');
+            }}
+            className="fixed bottom-5 right-5 sm:right-8 z-40 flex items-center gap-2 py-1.5 px-3 rounded-full bg-white/50 hover:bg-white/80 border border-white/80 shadow-lg backdrop-blur-2xl text-xs font-bold text-slate-800 transition-all hover:scale-105 cursor-pointer"
+            title="Open Kin Mascot Guide"
+          >
+            <div className="relative w-7 h-7 rounded-full overflow-hidden bg-[#F9F7EF] border border-white/80">
+              <Image
+                src="/images/kin_mascot.png"
+                alt="Kin Mascot"
+                fill
+                sizes="28px"
+                className="object-contain p-0.5"
+              />
+            </div>
+            <span>Guide</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* ─── Submit PR Modal ─── */}
       <AnimatePresence>
@@ -1311,7 +1551,7 @@ export default function KinGlassDashboard() {
               className="max-w-md w-full rounded-3xl bg-white/95 border border-white p-6 shadow-2xl backdrop-blur-3xl text-slate-900"
             >
               <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-mono text-[#E25C38] font-bold">AST PR Verification</span>
+                <span className="text-xs font-mono text-[#E25C38] font-bold">Automatic Code Verification</span>
                 <button
                   onClick={() => {
                     setSubmitPrModalOpen(false);
@@ -1324,7 +1564,7 @@ export default function KinGlassDashboard() {
               </div>
               <h3 className="text-base font-bold text-slate-900 mb-2">{selectedBounty.title}</h3>
               <p className="text-xs text-slate-600 mb-4">
-                Enter your GitHub Pull Request link. The automated AST runner will evaluate test coverage deterministically.
+                Paste your GitHub Pull Request link. Our automated test runner will test your code in seconds.
               </p>
               <input
                 type="text"
@@ -1347,9 +1587,9 @@ export default function KinGlassDashboard() {
                   onClick={() => {
                     setSubmitPrModalOpen(false);
                     setPrUrlInput('');
-                    showToast(`PR queued for AST verification on ${selectedBounty.title}`);
+                    showToast(`PR queued for automatic test verification on ${selectedBounty.title}`);
                   }}
-                  className="px-5 py-2 rounded-xl bg-[#E25C38] hover:bg-[#d04e2e] text-white text-xs font-bold shadow cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-[#E25C38] hover:bg-[#d04e2e] text-white text-xs font-bold shadow-xs cursor-pointer"
                 >
                   Submit PR
                 </button>
