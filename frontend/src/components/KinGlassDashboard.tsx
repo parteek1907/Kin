@@ -23,6 +23,7 @@ import {
   Sliders,
   Sparkles,
   ArrowRight,
+  ArrowLeft,
   TrendingUp,
   Award,
   DollarSign,
@@ -129,6 +130,16 @@ export default function KinGlassDashboard() {
   const [autoAcceptThreshold, setAutoAcceptThreshold] = useState(64);
   const [autoAcceptEnabled, setAutoAcceptEnabled] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      showToast('Signed out of KIN.');
+      router.push('/');
+    } catch {
+      router.push('/');
+    }
+  };
 
   // Profile Popover in Bottom Menu
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -429,23 +440,76 @@ export default function KinGlassDashboard() {
           ═══════════════════════════════════════════════════════════════ */}
       <div className="relative z-10 w-full flex-1 flex flex-col items-center px-3 sm:px-6 lg:px-8 pt-4 pb-24">
         
-        {/* ─── TOP MINIMAL HEADER BAR ─── */}
-        <header className="w-full max-w-[1360px] mb-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <span className="text-2xl font-black tracking-tight text-slate-900 hover:text-black transition-colors">
-              KIN
-            </span>
-          </Link>
+        {/* ─── TOP MINIMAL HEADER BAR (LOGO CENTERED) ─── */}
+        <header className="w-full max-w-[1360px] mb-4 grid grid-cols-3 items-center">
+          {/* Left: Home link and Node Badge */}
+          <div className="flex items-center gap-2 justify-self-start">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/85 hover:bg-white border border-slate-200/80 text-xs font-bold text-slate-700 hover:text-slate-900 transition-all shadow-xs"
+              title="Return to Home"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
+              <span>Home</span>
+            </Link>
+            <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/60 text-[10px] font-bold text-emerald-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>IIITD Node</span>
+            </div>
+          </div>
 
-          <div className="flex items-center gap-2.5">
-            {/* Upload CV / Resume Button */}
+          {/* Center: Exact Middle Brand with 3D metallic logo */}
+          <div className="flex items-center justify-center justify-self-center">
+            <Link
+              href="/"
+              className="group inline-flex items-center gap-2.5 px-4 py-1.5 rounded-2xl bg-white/90 backdrop-blur-md border border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.05)] hover:shadow-md transition-all cursor-pointer"
+            >
+              <Image
+                src="/images/kin_logo.png"
+                alt="KIN Logo"
+                width={32}
+                height={32}
+                priority
+                className="w-7 h-7 object-contain transition-transform duration-300 group-hover:scale-105 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.08)]"
+              />
+              <span className="text-xl font-black tracking-[0.2em] text-slate-900 uppercase leading-none select-none">
+                KIN
+              </span>
+            </Link>
+          </div>
+
+          {/* Right: Role indicator, Upload Resume & Profile/Logout */}
+          <div className="flex items-center justify-end gap-2 sm:gap-2.5 justify-self-end">
+            <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-full bg-white/80 border border-slate-200 text-[11px] font-bold text-slate-700 capitalize">
+              {networkRole === 'alumni' ? 'Alumni Hub' : 'Student Builder'}
+            </span>
+
             <button
               onClick={openUploadResumeModal}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 transition-all shadow-sm cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 transition-all shadow-xs cursor-pointer"
             >
               <UploadCloud className="w-3.5 h-3.5 text-[#E25C38]" />
-              <span>Upload Resume / CV</span>
+              <span className="hidden sm:inline">Upload Resume / CV</span>
+              <span className="sm:hidden">Upload</span>
             </button>
+
+            {isLoggedIn ? (
+              <button
+                onClick={handleLogout}
+                title="Sign Out / Switch Account"
+                className="p-1.5 rounded-full bg-white/80 hover:bg-rose-50 border border-slate-200 text-slate-600 hover:text-rose-600 transition-all shadow-xs cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                onClick={openAuthModal}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Log In</span>
+              </button>
+            )}
           </div>
         </header>
 

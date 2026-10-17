@@ -179,6 +179,28 @@ export default function WavePanel({ onExplore, onEnterNetwork }: WavePanelProps)
             A living network that connects proven expertise to real opportunities through trusted campus relationships.
           </p>
 
+          {/* 4. HERO CTA ACTIONS: START NETWORKING & HOW IT WORKS */}
+          <div id="hero-actions" className="mt-6 md:mt-8 flex flex-wrap items-center gap-3.5 sm:gap-4 pointer-events-auto">
+            <button
+              id="hero-start-networking-btn"
+              onClick={() => onEnterNetwork && onEnterNetwork()}
+              style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
+              className="group relative inline-flex items-center justify-center gap-3 px-7 sm:px-9 py-3.5 sm:py-4 rounded-full bg-[#11131A] text-[#FFFDF8] hover:bg-[#252833] font-bold text-[13px] sm:text-[14px] tracking-[0.14em] uppercase transition-all duration-300 shadow-[0_10px_30px_rgba(17,19,26,0.18)] hover:shadow-[0_15px_35px_rgba(17,19,26,0.25)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer select-none"
+            >
+              <span>START NETWORKING</span>
+              <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
+            <button
+              onClick={() => onExplore && onExplore()}
+              style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+              className="inline-flex items-center gap-2 px-6 sm:px-7 py-3.5 sm:py-4 rounded-full bg-black/5 hover:bg-black/10 text-[#11131A] font-bold text-[12px] sm:text-[13px] tracking-[0.1em] uppercase transition-colors cursor-pointer select-none"
+            >
+              <span>HOW IT WORKS</span>
+            </button>
+          </div>
         </div>
       </div>
     </>

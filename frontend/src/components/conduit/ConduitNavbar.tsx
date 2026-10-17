@@ -121,7 +121,7 @@ export default function ConduitNavbar({
         {/* =====================================================================
             ZONE 3: PRIMARY ACTION (ENTER NETWORK → Smooth blended borderless action, no pill boundary, no blur)
            ===================================================================== */}
-        <div className="flex items-center justify-self-end">
+        <div className="flex items-center gap-3 justify-self-end">
           <button
             id="nav-cta"
             onClick={() => {
@@ -132,7 +132,7 @@ export default function ConduitNavbar({
               }
             }}
             style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-            className="group hidden lg:inline-flex items-center h-[52px] text-[#11131A] font-bold text-[12px] tracking-[0.12em] uppercase transition-all duration-200 hover:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A]/30 whitespace-nowrap cursor-pointer select-none"
+            className="group inline-flex items-center px-3.5 py-1.5 sm:px-4 sm:py-2 lg:h-[52px] lg:px-0 text-[#11131A] font-bold text-[11px] sm:text-[12px] tracking-[0.12em] uppercase transition-all duration-200 hover:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A]/30 whitespace-nowrap cursor-pointer select-none"
           >
             <span>ENTER NETWORK</span>
           </button>
@@ -160,22 +160,40 @@ export default function ConduitNavbar({
           className="md:hidden bg-[#FFFDF8] border-b border-black/[0.06] px-6 py-5 shadow-lg flex flex-col space-y-4"
         >
           <button
-            onClick={() => handleScrollTo('how-to-use', onExplore)}
+            onClick={() => {
+              setMobileMenuOpen(false);
+              handleScrollTo('how-to-use', onExplore);
+            }}
             className="text-left font-semibold text-sm tracking-[0.10em] text-[#11131A] py-1 uppercase"
           >
             NETWORK
           </button>
           <button
-            onClick={() => handleScrollTo('how-to-use', onHowItWorks)}
+            onClick={() => {
+              setMobileMenuOpen(false);
+              handleScrollTo('how-to-use', onHowItWorks);
+            }}
             className="text-left font-semibold text-sm tracking-[0.10em] text-[#11131A] py-1 uppercase"
           >
             HOW IT WORKS
           </button>
           <button
-            onClick={() => handleScrollTo('pricing', onForInstitutions)}
+            onClick={() => {
+              setMobileMenuOpen(false);
+              handleScrollTo('pricing', onForInstitutions);
+            }}
             className="text-left font-semibold text-sm tracking-[0.10em] text-[#11131A] py-1 uppercase"
           >
             PRICING
+          </button>
+          <button
+            onClick={() => {
+              setMobileMenuOpen(false);
+              if (onEnterNetwork) onEnterNetwork();
+            }}
+            className="w-full text-center font-bold text-xs tracking-[0.12em] text-white bg-[#11131A] py-3 rounded-full uppercase shadow-sm cursor-pointer"
+          >
+            ENTER NETWORK
           </button>
         </motion.div>
       )}
