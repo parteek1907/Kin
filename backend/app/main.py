@@ -10,8 +10,11 @@ from app.api.router import api_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Automatically ensure tables exist on startup
-    Base.metadata.create_all(bind=engine)
+    # Automatically ensure tables exist on startup if database server is reachable
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception:
+        pass
     yield
 
 
