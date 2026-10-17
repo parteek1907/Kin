@@ -21,3 +21,6 @@ class User(Base):
     connection_policies = relationship("ConnectionPolicy", back_populates="owner", cascade="all, delete-orphan")
     sent_connection_requests = relationship("ConnectionRequest", foreign_keys="ConnectionRequest.sender_id", back_populates="sender", cascade="all, delete-orphan")
     received_connection_requests = relationship("ConnectionRequest", foreign_keys="ConnectionRequest.recipient_id", back_populates="recipient", cascade="all, delete-orphan")
+    blocked_users = relationship("UserBlock", foreign_keys="UserBlock.blocker_id", back_populates="blocker", cascade="all, delete-orphan")
+    blocked_by_users = relationship("UserBlock", foreign_keys="UserBlock.blocked_id", back_populates="blocked", cascade="all, delete-orphan")
+    notifications = relationship("Notification", foreign_keys="Notification.user_id", back_populates="recipient", cascade="all, delete-orphan")

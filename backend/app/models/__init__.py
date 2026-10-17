@@ -8,6 +8,7 @@ from app.features.qualification_connections.models import (
     Connection,
     PolicyEvaluationLog,
 )
+from app.features.social.models import UserBlock, Notification
 
 __all__ = [
     "Base",
@@ -22,4 +23,6 @@ __all__ = [
     "ConnectionRequest",
     "Connection",
     "PolicyEvaluationLog",
+    "UserBlock",
+    "Notification",
 ]
