@@ -11,18 +11,23 @@ model WhatsappContact {
   id                String                     @id @default(cuid())
   userId            String?                    @map("user_id")
   phoneE164         String                     @unique @map("phone_e164")
+  name              String?
+  institution       String?
+  batch             String?
   verifiedAt        DateTime?                  @map("verified_at")
   optedInAt         DateTime?                  @map("opted_in_at")
   optedOutAt        DateTime?                  @map("opted_out_at")
+  consentGivenAt    DateTime?                  @map("consent_given_at")
   lastInboundAt     DateTime?                  @map("last_inbound_at")
-  language          String                     @default("en")
-  preferences       String                     @default("{}") // JSON string for cross-database compatibility (SQLite & Postgres)
+  language          String                     @default("en") // "en" | "hi" | "hinglish"
+  preferences       String                     @default("{}") // JSON string
   createdAt         DateTime                   @default(now()) @map("created_at")
   updatedAt         DateTime                   @updatedAt @map("updated_at")
 
   messages          WhatsappMessage[]
   otps              WhatsappOtp[]
   conversationState WhatsappConversationState?
+  requirements      KinRequirement[]
 
   @@index([phoneE164])
   @@map("whatsapp_contacts")
@@ -66,9 +71,9 @@ model WhatsappConversationState {
   id              String          @id @default(cuid())
   contactId       String          @unique @map("contact_id")
   contact         WhatsappContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  flow            String          // "IDLE" | "POST_INTENT" | "TRUST_REQUEST"
-  step            String          // "INIT", "WAITING_TITLE", "WAITING_CATEGORY", "WAITING_DESC", "CONFIRM"
-  data            String          @default("{}") // JSON string
+  flow            String          // "IDLE" | "ONBOARDING" | "EXTRACTING" | "CLARIFYING" | "CONFIRMING" | "REQUIREMENT_MENU"
+  step            String          // "INIT", "AWAITING_NAME", "AWAITING_INSTITUTION", "AWAITING_BATCH", "AWAITING_CONSENT", "AWAITING_CLARIFICATION", "AWAITING_CONFIRMATION"
+  data            String          @default("{}") // JSON string containing requirement in progress or onboard state
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
   @@index([contactId])
@@ -84,4 +89,150 @@ model WebhookEvent {
   createdAt       DateTime        @default(now()) @map("created_at")
 
   @@map("webhook_events")
+}
+
+// ----------------------------------------------------
+// KIN Core Models: Alumni, Candidates, Requirements, Matches
+// ----------------------------------------------------
+
+model Alumni {
+  id              String          @id @default(cuid())
+  name            String
+  phoneE164       String          @unique @map("phone_e164")
+  institution     String          // e.g. "IIIT Delhi", "IIT Delhi", "BITS Pilani"
+  batch           String          // e.g. "2020", "2023"
+  email           String?
+  isVerified      Boolean         @default(true) @map("is_verified")
+  consentGivenAt  DateTime?       @map("consent_given_at")
+  notes           String?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  requirements    KinRequirement[]
+
+  @@index([phoneE164])
+  @@index([institution])
+  @@map("alumni")
+}
+
+model Candidate {
+  id              String          @id @default(cuid())
+  name            String
+  headline        String
+  phoneE164       String          @unique @map("phone_e164")
+  email           String?
+  institution     String          // e.g. "IIIT Delhi"
+  batch           String          // e.g. "2024"
+  location        String          // e.g. "Delhi", "Bengaluru", "Remote"
+  isRemote        Boolean         @default(true) @map("is_remote")
+  discoverable    Boolean         @default(true) // Candidate opt-in to be discovered
+  available       Boolean         @default(true) // Currently open to opportunities
+  skills          String          @default("[]") // JSON string: string[] e.g. ["React", "TypeScript", "Node.js"]
+  experienceYears Float           @default(1.0) @map("experience_years")
+  bio             String?
+  verifiedNode    Boolean         @default(true) @map("verified_node")
+  trustScore      Float           @default(85.0) @map("trust_score")
+  activityScore   Float           @default(90.0) @map("activity_score")
+  lastActiveAt    DateTime        @default(now()) @map("last_active_at")
+  consentGivenAt  DateTime?       @map("consent_given_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  matches         RequirementMatch[]
+
+  @@index([phoneE164])
+  @@index([institution])
+  @@index([discoverable, available])
+  @@map("candidates")
+}
+
+model KinRequirement {
+  id                  String             @id @default(cuid())
+  contactId           String             @map("contact_id")
+  contact             WhatsappContact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  alumnusId           String?            @map("alumnus_id")
+  alumnus             Alumni?            @relation(fields: [alumnusId], references: [id], onDelete: SetNull)
+  rawInput            String             @map("raw_input")
+  title               String
+  type                String             // "hire" | "intern" | "mentor" | "collaborator" | "freelance"
+  mustHaveSkills      String             @default("[]") @map("must_have_skills") // JSON array of strings
+  niceToHaveSkills    String             @default("[]") @map("nice_to_have_skills") // JSON array of strings
+  experienceLevel     String             @default("any") @map("experience_level") // "junior" | "mid" | "senior" | "any"
+  locationOrRemote    String             @default("remote") @map("location_or_remote")
+  headcount           Int                @default(1)
+  urgency             String             @default("flexible") // "immediate" | "this_month" | "next_month" | "flexible"
+  summary             String
+  detectedLanguage    String             @default("en") @map("detected_language") // "en" | "hi" | "hinglish"
+  status              String             @default("draft") // "draft" | "open" | "filled" | "closed"
+  clarificationCount  Int                @default(0) @map("clarification_count")
+  accuracyFlag        String?            @map("accuracy_flag") // "accurate" | "needs_review" | "inaccurate"
+  expiresAt           DateTime?          @map("expires_at")
+  closedAt            DateTime?          @map("closed_at")
+  lastFollowedUpAt    DateTime?          @map("last_followed_up_at")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  matches             RequirementMatch[]
+
+  @@index([contactId])
+  @@index([status])
+  @@map("kin_requirements")
+}
+
+model RequirementMatch {
+  id                    String                @id @default(cuid())
+  requirementId         String                @map("requirement_id")
+  requirement           KinRequirement        @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  candidateId           String                @map("candidate_id")
+  candidate             Candidate             @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  score                 Float                 // 0 - 100
+  reasons               String                @default("[]") // JSON string of reasons
+  rank                  Int                   @default(1)
+  status                String                @default("suggested") // "suggested" | "intro_requested" | "intro_accepted" | "intro_declined" | "expired" | "saved" | "skipped"
+  introRequestedAt      DateTime?             @map("intro_requested_at")
+  candidateRespondedAt  DateTime?             @map("candidate_responded_at")
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+
+  introRequest          IntroductionRequest?
+
+  @@unique([requirementId, candidateId])
+  @@index([requirementId])
+  @@index([candidateId])
+  @@index([status])
+  @@map("requirement_matches")
+}
+
+model IntroductionRequest {
+  id              String            @id @default(cuid())
+  matchId         String            @unique @map("match_id")
+  match           RequirementMatch  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  alumnusPhone    String            @map("alumnus_phone")
+  candidatePhone  String            @map("candidate_phone")
+  status          String            @default("pending") // "pending" | "accepted" | "declined" | "expired"
+  requestedAt     DateTime          @default(now()) @map("requested_at")
+  expiresAt       DateTime          @map("expires_at") // 48h deadline
+  respondedAt     DateTime?         @map("responded_at")
+
+  @@index([alumnusPhone])
+  @@index([candidatePhone])
+  @@index([status])
+  @@map("introduction_requests")
+}
+
+model BackgroundJob {
+  id              String            @id @default(cuid())
+  jobType         String            @map("job_type") // "transcription" | "extraction" | "matching" | "intro_dispatch" | "followup"
+  payload         String            // JSON string
+  status          String            @default("pending") // "pending" | "processing" | "completed" | "failed" | "dead_letter"
+  attempts        Int               @default(0)
+  maxAttempts     Int               @default(3) @map("max_attempts")
+  lastError       String?           @map("last_error")
+  runAt           DateTime          @default(now()) @map("run_at")
+  processedAt     DateTime?         @map("processed_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  @@index([status, runAt])
+  @@map("background_jobs")
 }

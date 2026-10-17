@@ -3,6 +3,7 @@
 import React from 'react';
 import ConduitHero from '@/components/conduit/ConduitHero';
 import { Feature } from '@/components/ui/feature-section-with-bento-grid';
+import WhatsAppRequirementSection from '@/components/kin/WhatsAppRequirementSection';
 import PricingSection3 from '@/components/ui/pricing-section-3';
 import KinFooter from '@/components/kin/KinFooter';
 import ToastAlert from '@/components/ToastAlert';
@@ -28,11 +29,15 @@ export default function Home() {
       {/* 2. HOW TO USE KIN • BENTO GRID FEATURE SECTION */}
       <Feature />
 
-      {/* 3. NUMBERFLOW INTERACTIVE PRICING SECTION */}
+      {/* 3. ZERO-APP WHATSAPP FLOW (VOICE NOTE, EXTRACTION, CANDIDATE MATCHES) */}
+      <WhatsAppRequirementSection />
+
+      {/* 4. NUMBERFLOW INTERACTIVE PRICING SECTION */}
       <PricingSection3 />
 
-      {/* 4. EDITORIAL CHARCOAL FOOTER */}
+      {/* 5. EDITORIAL CHARCOAL FOOTER */}
       <KinFooter />
+
 
       {/* Ambient Toast Alerts */}
       <ToastAlert />

@@ -1,23 +1,28 @@
 import { prisma } from '../prisma';
 import { waClient } from './client';
-import { TEMPLATES } from './templates';
+import {
+  TEMPLATES,
+  KinNewCandidateTemplateParams,
+  KinIntroRequestTemplateParams,
+  KinIntroAcceptedTemplateParams,
+  KinFollowupTemplateParams,
+  KinOtpTemplateParams,
+} from './templates';
 import { maskPhone } from './phone';
 
 export interface NotificationPreferences {
-  newMatch?: boolean;
-  trustRequest?: boolean;
-  nodeVerified?: boolean;
-  intentUpdate?: boolean;
-  weeklyDigest?: boolean;
+  newCandidate?: boolean;
+  introRequest?: boolean;
+  introAccepted?: boolean;
+  followup?: boolean;
 }
 
 export class WhatsAppNotificationService {
   /**
    * Helper to verify if contact is eligible to receive notifications:
-   * 1. Must be verified
-   * 2. Must be opted in
-   * 3. Must not be opted out
-   * 4. Must have the specific notification preference enabled
+   * 1. Must be opted in
+   * 2. Must not be opted out
+   * 3. Must have the specific notification preference enabled
    */
   private async getEligibleContact(
     identifier: { userId?: string; phoneE164?: string },
@@ -34,10 +39,10 @@ export class WhatsAppNotificationService {
 
     if (!contact) return null;
 
-    // Check verification & opt-in status
-    if (!contact.verifiedAt || !contact.optedInAt || contact.optedOutAt) {
+    // Check opt-out status
+    if (contact.optedOutAt) {
       console.log(
-        `[WhatsApp Notification Skipped] ${maskPhone(contact.phoneE164)} is not opted-in or has opted out.`
+        `[WhatsApp Notification Skipped] ${maskPhone(contact.phoneE164)} has opted out.`
       );
       return null;
     }
@@ -59,145 +64,119 @@ export class WhatsAppNotificationService {
   }
 
   /**
-   * Dispatches a match notification via conduit_new_match
+   * Event: New matching candidate joined or updated skills (max 1/day)
    */
-  async notifyNewMatch(params: {
-    userId?: string;
-    phoneE164?: string;
-    intentTitle: string;
-    matchName: string;
-    fitPercentage: number;
-  }) {
-    const contact = await this.getEligibleContact(params, 'newMatch');
-    if (!contact) return null;
+  async notifyNewCandidate(
+    identifier: { userId?: string; phoneE164?: string },
+    params: KinNewCandidateTemplateParams
+  ): Promise<boolean> {
+    const contact = await this.getEligibleContact(identifier, 'newCandidate');
+    if (!contact) return false;
 
-    const templateDef = TEMPLATES.conduit_new_match;
-    const validated = templateDef.schema.parse({
-      intentTitle: params.intentTitle,
-      matchName: params.matchName,
-      fitPercentage: params.fitPercentage,
-    });
-
+    const templateDef = TEMPLATES.kin_new_candidate;
+    const validated = templateDef.schema.parse(params);
     const components = templateDef.buildComponents(validated);
-    return waClient.sendTemplate(
+
+    await waClient.sendTemplate(
       contact.phoneE164,
-      templateDef.name,
+      'kin_new_candidate',
       templateDef.language,
       components,
       { contactId: contact.id }
     );
+    return true;
   }
 
   /**
-   * Dispatches a trust edge request notification via conduit_trust_request
+   * Event: Double opt-in introduction request sent to candidate
    */
-  async notifyTrustRequest(params: {
-    userId?: string;
-    phoneE164?: string;
-    requesterName: string;
-    requestId: string;
-  }) {
-    const contact = await this.getEligibleContact(params, 'trustRequest');
-    if (!contact) return null;
+  async notifyIntroRequest(
+    identifier: { userId?: string; phoneE164?: string },
+    params: KinIntroRequestTemplateParams
+  ): Promise<boolean> {
+    const contact = await this.getEligibleContact(identifier, 'introRequest');
+    if (!contact) return false;
 
-    const templateDef = TEMPLATES.conduit_trust_request;
-    const validated = templateDef.schema.parse({
-      requesterName: params.requesterName,
-      requestId: params.requestId,
-    });
-
+    const templateDef = TEMPLATES.kin_intro_request;
+    const validated = templateDef.schema.parse(params);
     const components = templateDef.buildComponents(validated);
-    return waClient.sendTemplate(
+
+    await waClient.sendTemplate(
       contact.phoneE164,
-      templateDef.name,
+      'kin_intro_request',
       templateDef.language,
       components,
       { contactId: contact.id }
     );
+    return true;
   }
 
   /**
-   * Dispatches a node verification event via conduit_node_verified
+   * Event: Introduction request accepted by candidate (contact link shared)
    */
-  async notifyNodeVerified(params: {
-    userId?: string;
-    phoneE164?: string;
-    nodeTitle: string;
-  }) {
-    const contact = await this.getEligibleContact(params, 'nodeVerified');
-    if (!contact) return null;
+  async notifyIntroAccepted(
+    identifier: { userId?: string; phoneE164?: string },
+    params: KinIntroAcceptedTemplateParams
+  ): Promise<boolean> {
+    const contact = await this.getEligibleContact(identifier, 'introAccepted');
+    if (!contact) return false;
 
-    const templateDef = TEMPLATES.conduit_node_verified;
-    const validated = templateDef.schema.parse({
-      nodeTitle: params.nodeTitle,
-    });
-
+    const templateDef = TEMPLATES.kin_intro_accepted;
+    const validated = templateDef.schema.parse(params);
     const components = templateDef.buildComponents(validated);
-    return waClient.sendTemplate(
+
+    await waClient.sendTemplate(
       contact.phoneE164,
-      templateDef.name,
+      'kin_intro_accepted',
       templateDef.language,
       components,
       { contactId: contact.id }
     );
+    return true;
   }
 
   /**
-   * Dispatches intent status change notification via conduit_intent_update
+   * Event: 3-day follow up for open requirement
    */
-  async notifyIntentUpdate(params: {
-    userId?: string;
-    phoneE164?: string;
-    intentTitle: string;
-    statusText: string;
-  }) {
-    const contact = await this.getEligibleContact(params, 'intentUpdate');
-    if (!contact) return null;
+  async notifyFollowup(
+    identifier: { userId?: string; phoneE164?: string },
+    params: KinFollowupTemplateParams
+  ): Promise<boolean> {
+    const contact = await this.getEligibleContact(identifier, 'followup');
+    if (!contact) return false;
 
-    const templateDef = TEMPLATES.conduit_intent_update;
-    const validated = templateDef.schema.parse({
-      intentTitle: params.intentTitle,
-      statusText: params.statusText,
-    });
-
+    const templateDef = TEMPLATES.kin_followup;
+    const validated = templateDef.schema.parse(params);
     const components = templateDef.buildComponents(validated);
-    return waClient.sendTemplate(
+
+    await waClient.sendTemplate(
       contact.phoneE164,
-      templateDef.name,
+      'kin_followup',
       templateDef.language,
       components,
       { contactId: contact.id }
     );
+    return true;
   }
 
   /**
-   * Dispatches weekly digest summary via conduit_weekly_digest
+   * Event: Authentication / data deletion OTP
    */
-  async notifyWeeklyDigest(params: {
-    userId?: string;
-    phoneE164?: string;
-    activeNodes: number | string;
-    newEdges: number | string;
-    matchCount: number | string;
-  }) {
-    const contact = await this.getEligibleContact(params, 'weeklyDigest');
-    if (!contact) return null;
-
-    const templateDef = TEMPLATES.conduit_weekly_digest;
-    const validated = templateDef.schema.parse({
-      activeNodes: params.activeNodes,
-      newEdges: params.newEdges,
-      matchCount: params.matchCount,
-    });
-
+  async notifyOtp(
+    toPhone: string,
+    params: KinOtpTemplateParams
+  ): Promise<boolean> {
+    const templateDef = TEMPLATES.kin_otp;
+    const validated = templateDef.schema.parse(params);
     const components = templateDef.buildComponents(validated);
-    return waClient.sendTemplate(
-      contact.phoneE164,
-      templateDef.name,
+
+    await waClient.sendTemplate(
+      toPhone,
+      'kin_otp',
       templateDef.language,
-      components,
-      { contactId: contact.id }
+      components
     );
+    return true;
   }
 }
 

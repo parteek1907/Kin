@@ -361,6 +361,71 @@ export class WhatsAppClient {
   async sendTypingIndicator(messageId: string): Promise<void> {
     await this.markAsRead(messageId);
   }
+
+  /**
+   * Fetches media metadata from Meta Graph API
+   */
+  async getMediaMetadata(mediaId: string): Promise<{ url: string; mimeType: string; fileSize?: number }> {
+    if (process.env.WA_MOCK_CLIENT === 'true' || waConfig.accessToken === 'mock_wa_access_token') {
+      return {
+        url: `https://mock.graph.facebook.com/media/${mediaId}`,
+        mimeType: 'audio/ogg; codecs=opus',
+        fileSize: 48000,
+      };
+    }
+
+    const url = `https://graph.facebook.com/${waConfig.graphVersion}/${mediaId}`;
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${waConfig.accessToken}`,
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch media metadata for ${mediaId}: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    return {
+      url: data.url,
+      mimeType: data.mime_type,
+      fileSize: data.file_size,
+    };
+  }
+
+  /**
+   * Downloads binary media content using Bearer token authorization
+   */
+  async downloadMedia(mediaId: string): Promise<{ buffer: Buffer; mimeType: string; fileSize: number }> {
+    if (process.env.WA_MOCK_CLIENT === 'true' || waConfig.accessToken === 'mock_wa_access_token') {
+      const mockAudio = Buffer.from('RIFF mock audio buffer ogg opus voice note', 'utf-8');
+      return {
+        buffer: mockAudio,
+        mimeType: 'audio/ogg; codecs=opus',
+        fileSize: mockAudio.length,
+      };
+    }
+
+    const meta = await this.getMediaMetadata(mediaId);
+    const res = await fetch(meta.url, {
+      headers: {
+        Authorization: `Bearer ${waConfig.accessToken}`,
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to download media content from Meta: ${res.statusText}`);
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    return {
+      buffer,
+      mimeType: meta.mimeType,
+      fileSize: buffer.length,
+    };
+  }
 }
 
 export const waClient = new WhatsAppClient();
+

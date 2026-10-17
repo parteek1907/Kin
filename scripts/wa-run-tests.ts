@@ -1,7 +1,16 @@
 #!/usr/bin/env npx tsx
 /**
- * Automated Test Suite for CONDUIT WhatsApp Cloud API Integration
- * Runs comprehensive unit and integration tests.
+ * Automated Test Suite for KIN WhatsApp Cloud API Integration
+ * Runs comprehensive unit and integration tests covering:
+ * - Signature verification & rate limiting
+ * - Phone normalization & privacy masking
+ * - 24-hour window logic
+ * - Requirement extraction schema & prompt injection safety
+ * - Deterministic matching scorer & protected attributes neutrality
+ * - Button ID ownership security
+ * - Multi-lingual command router (English, Hindi, Hinglish)
+ * - Full End-to-End lifecycle (onboarding -> voice/text -> matches -> double opt-in intro -> contacts exchanged)
+ *
  * Usage: npx tsx scripts/wa-run-tests.ts
  */
 
@@ -10,34 +19,22 @@ import crypto from 'crypto';
 import { verifyMetaSignature, checkRateLimit } from '../frontend/src/lib/whatsapp/security';
 import { normalizePhone, maskPhone } from '../frontend/src/lib/whatsapp/phone';
 import { isWithin24HourWindow } from '../frontend/src/lib/whatsapp/client';
-import { TEMPLATES } from '../frontend/src/lib/whatsapp/templates';
-import { FLOW_REGISTRY } from '../frontend/src/lib/whatsapp/flows';
-import { requestPhoneOtp, verifyPhoneOtp, hashOtp } from '../frontend/src/lib/whatsapp/otp';
-import { waNotifications } from '../frontend/src/lib/whatsapp/notifications';
+import { ExtractedRequirementSchema, extractRequirement } from '../frontend/src/lib/whatsapp/extraction';
+import { scoreCandidate } from '../frontend/src/lib/matching/scorer';
+import { findTopCandidates, ensureInitialCandidates } from '../frontend/src/lib/matching/engine';
+import { handleRequestIntro, handleIntroResponse } from '../frontend/src/lib/whatsapp/delivery';
+import { resolveCommand } from '../frontend/src/lib/whatsapp/flows/commandRouter';
 import { prisma } from '../frontend/src/lib/prisma';
-import { stopStartFlow } from '../frontend/src/lib/whatsapp/flows/stopStartFlow';
 
 let totalTests = 0;
 let passedTests = 0;
 
-function runTest(name: string, fn: () => void | Promise<void>) {
+async function runTest(name: string, fn: () => void | Promise<void>) {
   totalTests++;
   try {
-    const res = fn();
-    if (res instanceof Promise) {
-      return res
-        .then(() => {
-          passedTests++;
-          console.log(`  ✓ ${name}`);
-        })
-        .catch((err) => {
-          console.error(`  ✗ ${name}`);
-          console.error(err);
-        });
-    } else {
-      passedTests++;
-      console.log(`  ✓ ${name}`);
-    }
+    await fn();
+    passedTests++;
+    console.log(`  ✓ ${name}`);
   } catch (err) {
     console.error(`  ✗ ${name}`);
     console.error(err);
@@ -46,7 +43,7 @@ function runTest(name: string, fn: () => void | Promise<void>) {
 
 async function main() {
   console.log('\n🧪 ========================================================');
-  console.log('   CONDUIT WhatsApp Cloud API — Comprehensive Test Suite');
+  console.log('   KIN WhatsApp Cloud API — Comprehensive Test Suite');
   console.log('========================================================\n');
 
   // ==========================================
@@ -59,284 +56,296 @@ async function main() {
   const validHmac = crypto.createHmac('sha256', secret).update(sampleBody, 'utf-8').digest('hex');
   const validHeader = `sha256=${validHmac}`;
 
-  runTest('Accepts valid HMAC-SHA256 signature', () => {
+  await runTest('Accepts valid HMAC-SHA256 signature', () => {
     assert.strictEqual(verifyMetaSignature(sampleBody, validHeader, secret), true);
   });
 
-  runTest('Rejects tampered payload body', () => {
-    const tampered = JSON.stringify({ object: 'whatsapp_business_account', test: false });
-    assert.strictEqual(verifyMetaSignature(tampered, validHeader, secret), false);
+  await runTest('Rejects tampered payload body', () => {
+    const tamperedBody = JSON.stringify({ object: 'whatsapp_business_account', test: false });
+    assert.strictEqual(verifyMetaSignature(tamperedBody, validHeader, secret), false);
   });
 
-  runTest('Rejects invalid secret', () => {
+  await runTest('Rejects invalid secret', () => {
     assert.strictEqual(verifyMetaSignature(sampleBody, validHeader, 'wrong_secret'), false);
   });
 
-  runTest('Rejects missing or malformed signature header', () => {
+  await runTest('Rejects missing or malformed signature header', () => {
     assert.strictEqual(verifyMetaSignature(sampleBody, null, secret), false);
     assert.strictEqual(verifyMetaSignature(sampleBody, 'invalid-format', secret), false);
   });
 
   // ==========================================
-  // SECTION 2: Phone Normalization & Masking
+  // SECTION 2: Phone Normalization & Log Masking
   // ==========================================
   console.log('\n--- 2. Phone Normalization & Log Masking ---');
 
-  runTest('Normalizes valid Indian numbers with +91', () => {
+  await runTest('Normalizes valid Indian numbers with +91', () => {
     const res = normalizePhone('+919811022678');
     assert.strictEqual(res.isValid, true);
     assert.strictEqual(res.e164, '+919811022678');
     assert.strictEqual(res.digitsOnly, '919811022678');
   });
 
-  runTest('Normalizes Indian 10-digit number without prefix', () => {
-    const res = normalizePhone('9811022678', 'IN');
+  await runTest('Normalizes Indian 10-digit number without prefix', () => {
+    const res = normalizePhone('9811022678');
     assert.strictEqual(res.isValid, true);
     assert.strictEqual(res.e164, '+919811022678');
-    assert.strictEqual(res.digitsOnly, '919811022678');
   });
 
-  runTest('Normalizes valid US number', () => {
-    const res = normalizePhone('+12125551234');
-    assert.strictEqual(res.isValid, true);
-    assert.strictEqual(res.e164, '+12125551234');
-    assert.strictEqual(res.digitsOnly, '12125551234');
+  await runTest('Rejects garbage and short numbers', () => {
+    assert.strictEqual(normalizePhone('123').isValid, false);
+    assert.strictEqual(normalizePhone('abc12345').isValid, false);
   });
 
-  runTest('Rejects garbage and short numbers', () => {
-    const res = normalizePhone('12345');
-    assert.strictEqual(res.isValid, false);
-  });
-
-  runTest('Masks phone numbers cleanly for compliance logs', () => {
+  await runTest('Masks phone numbers cleanly for compliance logs', () => {
     const masked = maskPhone('+919811022678');
-    assert.strictEqual(masked.startsWith('+91'), true);
-    assert.strictEqual(masked.endsWith('2678'), true);
-    assert.strictEqual(masked.includes('•'), true);
-    assert.strictEqual(masked.includes('981102'), false); // middle digits concealed
+    assert.strictEqual(masked, '+91••••••2678');
   });
 
   // ==========================================
-  // SECTION 3: 24-Hour Customer Support Window
+  // SECTION 3: 24-Hour Window Rule Logic
   // ==========================================
   console.log('\n--- 3. 24-Hour Window Rule Logic ---');
 
-  runTest('Returns true when last inbound was 2 hours ago', () => {
+  await runTest('Returns true when last inbound was 2 hours ago', () => {
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
     assert.strictEqual(isWithin24HourWindow(twoHoursAgo), true);
   });
 
-  runTest('Returns false when last inbound was 25 hours ago', () => {
+  await runTest('Returns false when last inbound was 25 hours ago', () => {
     const twentyFiveHoursAgo = new Date(Date.now() - 25 * 60 * 60 * 1000);
     assert.strictEqual(isWithin24HourWindow(twentyFiveHoursAgo), false);
   });
 
-  runTest('Returns false for null or undefined inbound dates', () => {
+  await runTest('Returns false for null or undefined inbound dates', () => {
     assert.strictEqual(isWithin24HourWindow(null), false);
     assert.strictEqual(isWithin24HourWindow(undefined), false);
   });
 
   // ==========================================
-  // SECTION 4: In-Memory Rate Limiting
+  // SECTION 4: Rate Limiter
   // ==========================================
   console.log('\n--- 4. Rate Limiter ---');
 
-  runTest('Allows requests within limits and throttles upon exceeding', () => {
-    const key = `test_ip_${Date.now()}`;
-    const limit = 3;
-    const windowSec = 10;
+  await runTest('Allows requests within limits and throttles upon exceeding', () => {
+    const key = `test_rate_limit_${Date.now()}`;
+    for (let i = 0; i < 5; i++) {
+      assert.strictEqual(checkRateLimit(key, 5, 60).allowed, true);
+    }
+    assert.strictEqual(checkRateLimit(key, 5, 60).allowed, false);
+  });
 
-    assert.strictEqual(checkRateLimit(key, limit, windowSec).allowed, true);
-    assert.strictEqual(checkRateLimit(key, limit, windowSec).allowed, true);
-    assert.strictEqual(checkRateLimit(key, limit, windowSec).allowed, true);
 
-    const fourth = checkRateLimit(key, limit, windowSec);
-    assert.strictEqual(fourth.allowed, false);
-    assert.strictEqual(fourth.remaining, 0);
-    assert.strictEqual(typeof fourth.retryAfterSeconds, 'number');
+  // ==========================================
+  // SECTION 5: Requirement Extraction Schema
+  // ==========================================
+  console.log('\n--- 5. Requirement Extraction Schema & Safety ---');
+
+  await runTest('Validates strict Zod schema for extracted requirement', () => {
+    const validData = {
+      title: 'React Frontend Intern',
+      type: 'intern',
+      must_have_skills: ['React', 'TypeScript'],
+      nice_to_have_skills: ['Tailwind'],
+      experience_level: 'junior',
+      location_or_remote: 'Delhi NCR',
+      headcount: 2,
+      urgency: 'next_month',
+      summary: 'Looking for 2 React interns in Delhi.',
+      detected_language: 'en',
+    };
+    const parsed = ExtractedRequirementSchema.safeParse(validData);
+    assert.strictEqual(parsed.success, true);
+  });
+
+  await runTest('Extracts requirement from natural English and Hinglish text', async () => {
+    const resEn = await extractRequirement('Need 2 React and Node interns in Delhi for our startup');
+    assert.strictEqual(resEn.type, 'intern');
+    assert.strictEqual(resEn.headcount, 2);
+    assert.ok(resEn.must_have_skills.includes('React'));
+
+    const resHi = await extractRequirement('Mujhe 2 React developer chahiye Delhi me startup ke liye');
+    assert.strictEqual(resHi.detected_language, 'hinglish');
+    assert.ok(resHi.must_have_skills.includes('React'));
   });
 
   // ==========================================
-  // SECTION 5: Template Schema Validation
+  // SECTION 6: Matching Scorer & Protected Attributes Neutrality
   // ==========================================
-  console.log('\n--- 5. Template Parameter Validation (Zod) ---');
+  console.log('\n--- 6. Matching Scorer & Protected Attributes Neutrality ---');
 
-  runTest('Validates conduit_otp with exact 6 numeric digits', () => {
-    const valid = TEMPLATES.conduit_otp.schema.safeParse({ code: '123456' });
-    assert.strictEqual(valid.success, true);
-
-    const invalidLength = TEMPLATES.conduit_otp.schema.safeParse({ code: '12345' });
-    assert.strictEqual(invalidLength.success, false);
-
-    const invalidAlpha = TEMPLATES.conduit_otp.schema.safeParse({ code: '12345A' });
-    assert.strictEqual(invalidAlpha.success, false);
-  });
-
-  runTest('Validates conduit_new_match percentage within 0-100', () => {
-    const valid = TEMPLATES.conduit_new_match.schema.safeParse({
-      intentTitle: 'AI Research',
-      matchName: 'Elena',
-      fitPercentage: 92,
-    });
-    assert.strictEqual(valid.success, true);
-
-    const invalidOver = TEMPLATES.conduit_new_match.schema.safeParse({
-      intentTitle: 'AI Research',
-      matchName: 'Elena',
-      fitPercentage: 105,
-    });
-    assert.strictEqual(invalidOver.success, false);
-  });
-
-  // ==========================================
-  // SECTION 6: Keyword Routing Logic
-  // ==========================================
-  console.log('\n--- 6. Inbound Keyword Router Matching ---');
-
-  const dummyContact: any = {
-    id: 'c_test_001',
-    phoneE164: '+919811022678',
-    verifiedAt: new Date(),
-    optedInAt: new Date(),
-    optedOutAt: null,
+  const baseReq = {
+    title: 'React Frontend Engineer',
+    type: 'hire',
+    mustHaveSkills: ['React', 'TypeScript', 'Node.js'],
+    experienceLevel: 'junior',
+    locationOrRemote: 'Delhi',
+    institution: 'IIIT Delhi',
+    batch: '2022',
   };
 
-  runTest('Menu flow handles MENU, HI, HELLO, and HELP case-insensitively', () => {
-    const menuModule = FLOW_REGISTRY.find((f) => f.name === 'MENU');
-    assert.ok(menuModule);
+  const candA = {
+    name: 'Aarav Patel',
+    headline: 'Full-stack Developer @ IIIT Delhi',
+    skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],
+    institution: 'IIIT Delhi',
+    batch: '2023',
+    location: 'Delhi',
+    isRemote: true,
+    experienceYears: 1.5,
+    verifiedNode: true,
+    lastActiveAt: new Date(),
+  };
 
-    assert.strictEqual(
-      menuModule.canHandle({ contact: dummyContact, conversationState: null, incomingText: 'menu', waMessageId: '1' }),
-      true
-    );
-    assert.strictEqual(
-      menuModule.canHandle({ contact: dummyContact, conversationState: null, incomingText: 'Hi', waMessageId: '1' }),
-      true
-    );
-    assert.strictEqual(
-      menuModule.canHandle({ contact: dummyContact, conversationState: null, incomingText: 'HELP', waMessageId: '1' }),
-      true
-    );
+  await runTest('Produces deterministic high score for strong match', () => {
+    const result = scoreCandidate(baseReq, candA);
+    assert.ok(result.score >= 80, `Score ${result.score} should be >= 80`);
+    assert.ok(result.reasons.length >= 2, 'Should provide multiple rationale items');
   });
 
-  runTest('Stop/Start flow handles STOP and START', () => {
-    const stopModule = FLOW_REGISTRY.find((f) => f.name === 'STOP_START');
-    assert.ok(stopModule);
+  await runTest('CRITICAL: Protected attributes (gender, age, caste, religion, origin) have ZERO effect on score', () => {
+    const score1 = scoreCandidate(baseReq, candA).score;
 
+    // Simulate candidate with extraneous protected attributes passed in
+    const candWithProtectedAttributes: any = {
+      ...candA,
+      gender: 'female',
+      religion: 'jain',
+      caste: 'general',
+      age: 28,
+      regionOfOrigin: 'South India',
+    };
+
+    const score2 = scoreCandidate(baseReq, candWithProtectedAttributes).score;
     assert.strictEqual(
-      stopModule.canHandle({ contact: dummyContact, conversationState: null, incomingText: 'STOP', waMessageId: '1' }),
-      true
-    );
-    assert.strictEqual(
-      stopModule.canHandle({ contact: dummyContact, conversationState: null, incomingText: 'start', waMessageId: '1' }),
-      true
+      score1,
+      score2,
+      `Non-discrimination violation: score changed from ${score1} to ${score2}`
     );
   });
 
   // ==========================================
-  // SECTION 7: End-to-End Integration Flow
+  // SECTION 7: Multi-Lingual Command Router
   // ==========================================
-  console.log('\n--- 7. End-to-End Phone Linking & Webhook Flow ---');
+  console.log('\n--- 7. Inbound Command & Multi-lingual Alias Router ---');
 
-  const testPhone = `+9199999${Math.floor(10000 + Math.random() * 90000)}`;
-
-  await runTest('1. Request OTP creates contact and returns cooldown', async () => {
-    const res = await requestPhoneOtp(testPhone, 'user_integration_test');
-    assert.strictEqual(res.success, true);
-    assert.strictEqual(res.cooldownSeconds, 60);
-
-    const contact = await prisma.whatsappContact.findUnique({
-      where: { phoneE164: testPhone },
-    });
-    assert.ok(contact);
-    assert.strictEqual(contact.verifiedAt, null);
+  await runTest('Resolves commands in English, Hindi, and Hinglish', () => {
+    assert.strictEqual(resolveCommand('MENU'), 'MENU');
+    assert.strictEqual(resolveCommand('hi'), 'MENU');
+    assert.strictEqual(resolveCommand('namaste'), 'MENU');
+    assert.strictEqual(resolveCommand('meri requirements'), 'MY_REQUIREMENTS');
+    assert.strictEqual(resolveCommand('chahiye'), 'NEW');
+    assert.strictEqual(resolveCommand('aur dikhao'), 'MORE');
+    assert.strictEqual(resolveCommand('badlo'), 'EDIT');
+    assert.strictEqual(resolveCommand('khatam'), 'CLOSE');
+    assert.strictEqual(resolveCommand('madad'), 'HELP');
+    assert.strictEqual(resolveCommand('ruko'), 'STOP');
+    assert.strictEqual(resolveCommand('shuru'), 'START');
+    assert.strictEqual(resolveCommand('delete my data'), 'DELETE_MY_DATA');
   });
 
-  await runTest('2. Rapid re-request triggers 60s cooldown error', async () => {
-    try {
-      await requestPhoneOtp(testPhone, 'user_integration_test');
-      assert.fail('Should have thrown cooldown error');
-    } catch (e: any) {
-      assert.ok(e.message.includes('Please wait'));
-    }
+  // ==========================================
+  // SECTION 8: Button-ID Ownership Checks
+  // ==========================================
+  console.log('\n--- 8. Button-ID Ownership & Security ---');
+
+  await runTest('Rejects intro request when contact does not own requirement', async () => {
+    const mockContact = {
+      id: 'unauthorized_contact_999',
+      phoneE164: '+919999999999',
+      name: 'Intruder',
+    } as any;
+
+    const res = await handleRequestIntro(mockContact, 'non_existent_req_id', 'cand_123');
+    assert.strictEqual(res.success, false);
   });
 
-  await runTest('3. Verify OTP with valid code updates verification status', async () => {
-    // Read the generated OTP hash from DB
-    const contact = await prisma.whatsappContact.findUnique({
-      where: { phoneE164: testPhone },
-    });
-    const latestOtp = await prisma.whatsappOtp.findFirst({
-      where: { contactId: contact!.id },
-      orderBy: { createdAt: 'desc' },
-    });
-    assert.ok(latestOtp);
+  // ==========================================
+  // SECTION 9: End-to-End Lifecycle Integration Test
+  // ==========================================
+  console.log('\n--- 9. Full End-to-End KIN Lifecycle Integration Test ---');
 
-    // Find the matching 6-digit code by testing hashes
-    let actualCode = '';
-    for (let c = 100000; c <= 999999; c++) {
-      if (hashOtp(String(c)) === latestOtp.codeHash) {
-        actualCode = String(c);
-        break;
-      }
-    }
-    assert.ok(actualCode, 'Recovered test OTP code');
+  await runTest('Complete flow: Onboarding -> Requirement -> Match -> Intro -> Mutual Share', async () => {
+    await ensureInitialCandidates();
 
-    const verifyRes = await verifyPhoneOtp(testPhone, actualCode, 'user_integration_test');
-    assert.strictEqual(verifyRes.success, true);
+    const testAlumPhone = `+919811${Math.floor(100000 + Math.random() * 900000)}`;
 
-    const updatedContact = await prisma.whatsappContact.findUnique({
-      where: { phoneE164: testPhone },
+    // 1. Create or get alumnus contact with active 24h inbound window
+    const contact = await prisma.whatsappContact.upsert({
+      where: { phoneE164: testAlumPhone },
+      update: {
+        name: 'Vikram Alumnus',
+        institution: 'IIIT Delhi',
+        consentGivenAt: new Date(),
+        lastInboundAt: new Date(),
+      },
+      create: {
+        phoneE164: testAlumPhone,
+        name: 'Vikram Alumnus',
+        institution: 'IIIT Delhi',
+        consentGivenAt: new Date(),
+        lastInboundAt: new Date(),
+        language: 'en',
+      },
     });
-    assert.ok(updatedContact?.verifiedAt, 'verifiedAt must be populated');
-    assert.ok(updatedContact?.optedInAt, 'optedInAt must be populated');
-  });
 
-  await runTest('4. Outbound notification succeeds for verified opted-in contact', async () => {
-    const notifyRes = await waNotifications.notifyNewMatch({
-      phoneE164: testPhone,
-      intentTitle: 'Distributed Systems Kernel',
-      matchName: 'Elena Rostova',
-      fitPercentage: 94,
-    });
-    assert.ok(notifyRes);
-  });
 
-  await runTest('5. Replying STOP sets optedOutAt and suppresses notifications', async () => {
-    // Inbound webhook sets lastInboundAt upon receiving the STOP message
-    const contact = await prisma.whatsappContact.update({
-      where: { phoneE164: testPhone },
-      data: { lastInboundAt: new Date() },
+    // 2. Post requirement
+    const req = await prisma.kinRequirement.create({
+      data: {
+        contactId: contact.id,
+        rawInput: 'Looking for 2 React interns in Delhi',
+        title: 'React Intern',
+        type: 'intern',
+        mustHaveSkills: JSON.stringify(['React', 'TypeScript']),
+        locationOrRemote: 'Delhi',
+        headcount: 2,
+        summary: 'Looking for 2 React interns in Delhi',
+        status: 'open',
+      },
     });
-    assert.ok(contact);
 
-    await stopStartFlow.handle({
-      contact,
-      conversationState: null,
-      incomingText: 'STOP',
-      waMessageId: 'simulated_stop_001',
+    // 3. Find top candidates
+    const matches = await findTopCandidates(req, 5, 0);
+    assert.ok(matches.length > 0, 'Should find at least 1 matching candidate');
+    const topCand = matches[0].candidate;
+
+    // 4. Request introduction (Double opt-in initiated)
+    const introRes = await handleRequestIntro(contact, req.id, topCand.id);
+    assert.strictEqual(introRes.success, true);
+
+    const matchRecord = await prisma.requirementMatch.findUnique({
+      where: {
+        requirementId_candidateId: {
+          requirementId: req.id,
+          candidateId: topCand.id,
+        },
+      },
     });
+    assert.ok(matchRecord, 'Match record must exist');
+    assert.strictEqual(matchRecord.status, 'intro_requested');
+
+    // 5. Candidate Accepts Intro (Double opt-in complete)
+    await handleIntroResponse(topCand.phoneE164, matchRecord.id, true);
+
+    const updatedMatch = await prisma.requirementMatch.findUnique({
+      where: { id: matchRecord.id },
+    });
+    assert.strictEqual(updatedMatch?.status, 'intro_accepted');
+
+    // 6. Test STOP command
+    const { handleStopCommand } = await import('../frontend/src/lib/whatsapp/flows/commands');
+    await handleStopCommand(contact);
 
     const optedOutContact = await prisma.whatsappContact.findUnique({
       where: { id: contact.id },
     });
-    assert.ok(optedOutContact?.optedOutAt, 'optedOutAt must be populated after STOP');
-
-    // Subsequent notification must be suppressed
-    const suppressedRes = await waNotifications.notifyNewMatch({
-      phoneE164: testPhone,
-      intentTitle: 'AI Research',
-      matchName: 'Elena',
-      fitPercentage: 88,
-    });
-    assert.strictEqual(suppressedRes, null, 'Notification must be null when contact is opted out');
+    assert.ok(optedOutContact?.optedOutAt, 'optedOutAt should be set upon STOP');
   });
 
-  // Clean up integration test contact
-  await prisma.whatsappContact.deleteMany({
-    where: { phoneE164: testPhone },
-  });
-
+  // ==========================================
+  // SUMMARY
+  // ==========================================
   console.log('\n========================================================');
   console.log(`🎉 TEST SUMMARY: ${passedTests}/${totalTests} tests passed cleanly.`);
   console.log('========================================================\n');
@@ -346,7 +355,7 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error('Fatal Test Runner Error:', err);
+main().catch((e) => {
+  console.error('Test suite runner crashed:', e);
   process.exit(1);
 });

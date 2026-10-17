@@ -10,7 +10,8 @@ export default function FloatingWhatsAppButton() {
   const shouldReduceMotion = useReducedMotion();
 
   const businessNumber = process.env.NEXT_PUBLIC_WA_BUSINESS_NUMBER || '919811022678';
-  const waUrl = `https://wa.me/${businessNumber}?text=Hi%20CONDUIT`;
+  const waUrl = `https://wa.me/${businessNumber}?text=${encodeURIComponent('Hi KIN, I need…')}`;
+
 
   useEffect(() => {
     const handleScroll = () => {

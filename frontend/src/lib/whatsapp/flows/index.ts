@@ -1,110 +1,111 @@
-import { FlowModule, FlowContext, FlowResult } from './types';
-import { stopStartFlow } from './stopStartFlow';
-import { menuFlow } from './menuFlow';
-import { postIntentFlow } from './postIntentFlow';
-import { trustFlow } from './trustFlow';
-import { myIntentsFlow } from './myIntentsFlow';
-import { myMatchesFlow } from './myMatchesFlow';
 import { prisma } from '../../prisma';
+import { FlowContext, FlowResult } from './types';
+import { checkOrStartOnboarding } from './onboardingFlow';
+import { handleButtonOrListReply } from './buttonRouter';
+import { enqueueJob } from '../queue';
 import { waClient } from '../client';
+import { resolveCommand } from './commandRouter';
 
-export const FLOW_REGISTRY: FlowModule[] = [
-  stopStartFlow,
-  postIntentFlow,
-  trustFlow,
-  myIntentsFlow,
-  myMatchesFlow,
-  menuFlow,
-];
+export async function processInboundFlow(ctx: FlowContext): Promise<FlowResult> {
+  const phone = ctx.contact.phoneE164;
 
-export async function processInboundFlow(ctx: FlowContext): Promise<void> {
-  // 1. Handle unverified contact
-  if (!ctx.contact.verifiedAt) {
-    await waClient.sendText(
-      ctx.contact.phoneE164,
-      '🔒 *CONDUIT — Unverified Phone Number*\n\nYour number has not yet been linked to an active CONDUIT account.\n\nPlease visit the website settings page to link and verify your phone number to access automated matches and trust updates.'
-    );
-    return;
-  }
-
-  // 2. Handle incoming media messages (voice, image, document)
-  if (ctx.mediaType && ctx.mediaType !== 'text') {
-    await waClient.sendText(
-      ctx.contact.phoneE164,
-      '📎 Thanks for sharing. We received your attachment, but the CONDUIT automated assistant currently only accepts text messages and button selections.\n\nPlease type *MENU* to see available options.'
-    );
-    return;
-  }
-
-  // 3. STOP must immediately execute regardless of ongoing flow state
-  const rawText = (ctx.incomingText || '').trim().toUpperCase();
-  if (rawText === 'STOP' || rawText === 'UNSUBSCRIBE') {
-    await stopStartFlow.handle(ctx);
-    await prisma.whatsappConversationState.deleteMany({
-      where: { contactId: ctx.contact.id },
-    });
-    return;
-  }
-
-  // 4. Try ongoing active conversation flow first (if in multi-step flow)
-  if (ctx.conversationState && ctx.conversationState.flow === 'POST_INTENT') {
-    const result = await postIntentFlow.handle(ctx);
-    if (result.handled) {
-      await updateConversationState(ctx.contact.id, result);
-      return;
+  // 1. If Contact has opted out, only allow START
+  if (ctx.contact.optedOutAt) {
+    const cmd = resolveCommand(ctx.incomingText);
+    if (cmd === 'START') {
+      const { handleStartCommand } = await import('./commands');
+      await handleStartCommand(ctx.contact);
+      return { handled: true };
     }
+    // Suppress all processing when opted out
+    return { handled: true };
   }
 
-  // 5. Try registry flows
-  for (const flow of FLOW_REGISTRY) {
-    if (flow.canHandle(ctx)) {
-      const result = await flow.handle(ctx);
-      if (result.handled) {
-        await updateConversationState(ctx.contact.id, result);
-        return;
+  // 2. Handle Interactive Replies (Buttons / List selections)
+  if (ctx.buttonId || ctx.listRowId) {
+    const buttonResult = await handleButtonOrListReply(ctx);
+    if (buttonResult.handled) {
+      if (buttonResult.clearState) {
+        await prisma.whatsappConversationState.deleteMany({
+          where: { contactId: ctx.contact.id },
+        });
+      } else if (buttonResult.nextFlow) {
+        await prisma.whatsappConversationState.upsert({
+          where: { contactId: ctx.contact.id },
+          update: {
+            flow: buttonResult.nextFlow,
+            step: buttonResult.nextStep || 'INIT',
+            data: JSON.stringify(buttonResult.data || {}),
+          },
+          create: {
+            contactId: ctx.contact.id,
+            flow: buttonResult.nextFlow,
+            step: buttonResult.nextStep || 'INIT',
+            data: JSON.stringify(buttonResult.data || {}),
+          },
+        });
       }
+      return buttonResult;
     }
   }
 
-  // 6. Unknown input fallback with Menu button
-  try {
-    await waClient.sendInteractiveButtons(
-      ctx.contact.phoneE164,
-      `I didn't quite catch that ("${(ctx.incomingText || '').slice(0, 30)}").\n\nYou can select *Open Menu* below or type *HELP* to view supported commands.`,
-      [{ id: 'ACTION_MENU', title: 'Open Menu' }],
-      { footerText: 'CONDUIT Campus Proof Network' }
-    );
-  } catch {
-    await waClient.sendText(
-      ctx.contact.phoneE164,
-      `I didn't quite catch that.\n\nReply *MENU* to view your options, or *HELP* to see supported commands.`
-    );
+  // 3. Handle First-Time Alumni Onboarding & Consent
+  const onboardingResult = await checkOrStartOnboarding(ctx);
+  if (onboardingResult && onboardingResult.handled) {
+    if (onboardingResult.clearState) {
+      await prisma.whatsappConversationState.deleteMany({
+        where: { contactId: ctx.contact.id },
+      });
+    } else if (onboardingResult.nextFlow) {
+      await prisma.whatsappConversationState.upsert({
+        where: { contactId: ctx.contact.id },
+        update: {
+          flow: onboardingResult.nextFlow,
+          step: onboardingResult.nextStep || 'INIT',
+          data: JSON.stringify(onboardingResult.data || {}),
+        },
+        create: {
+          contactId: ctx.contact.id,
+          flow: onboardingResult.nextFlow,
+          step: onboardingResult.nextStep || 'INIT',
+          data: JSON.stringify(onboardingResult.data || {}),
+        },
+      });
+    }
+    return onboardingResult;
   }
-}
 
-async function updateConversationState(contactId: string, result: FlowResult) {
-  if (result.clearState) {
-    await prisma.whatsappConversationState.deleteMany({
-      where: { contactId },
-    });
-    return;
+  // 4. Handle Voice Note Media
+  if (ctx.mediaType === 'audio') {
+    // Extract media ID from state or context extra if passed
+    const mediaId = (ctx as any).mediaId;
+    if (mediaId) {
+      await enqueueJob('process_inbound_voice', {
+        contactId: ctx.contact.id,
+        phoneE164: phone,
+        waMessageId: ctx.waMessageId,
+        mediaId,
+      });
+      return { handled: true };
+    }
   }
 
-  if (result.nextFlow && result.nextStep) {
-    const dataString = JSON.stringify(result.data || {});
-    await prisma.whatsappConversationState.upsert({
-      where: { contactId },
-      create: {
-        contactId,
-        flow: result.nextFlow,
-        step: result.nextStep,
-        data: dataString,
-      },
-      update: {
-        flow: result.nextFlow,
-        step: result.nextStep,
-        data: dataString,
-      },
+  // 5. Handle Inbound Text Requirement or Command
+  if (ctx.incomingText) {
+    await enqueueJob('process_inbound_text', {
+      contactId: ctx.contact.id,
+      phoneE164: phone,
+      waMessageId: ctx.waMessageId,
+      text: ctx.incomingText,
     });
+    return { handled: true };
   }
+
+  // 6. Unknown Media or Fallback
+  await waClient.sendText(
+    phone,
+    `KIN supports voice notes and text messages to find campus hires, interns, and collaborators.\n\nReply "MENU" to see all options.`
+  );
+
+  return { handled: true };
 }

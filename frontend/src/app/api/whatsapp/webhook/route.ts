@@ -157,6 +157,7 @@ async function processWebhookPayload(rawBody: string): Promise<void> {
           let bodyText = '';
           let buttonId: string | undefined;
           let listRowId: string | undefined;
+          let mediaId: string | undefined;
           const msgType = msg.type;
 
           if (msgType === 'text') {
@@ -169,6 +170,11 @@ async function processWebhookPayload(rawBody: string): Promise<void> {
               listRowId = msg.interactive.list_reply?.id;
               bodyText = msg.interactive.list_reply?.title || '';
             }
+          } else if (msgType === 'audio') {
+            mediaId = msg.audio?.id;
+            bodyText = '[Voice Note]';
+          } else {
+            bodyText = `[Media: ${msgType}]`;
           }
 
           // Persist inbound message
@@ -178,7 +184,7 @@ async function processWebhookPayload(rawBody: string): Promise<void> {
               contactId: contact.id,
               direction: 'inbound',
               type: msgType,
-              body: bodyText || `[${msgType}]`,
+              body: bodyText,
               status: 'received',
             },
           });
@@ -195,14 +201,16 @@ async function processWebhookPayload(rawBody: string): Promise<void> {
           await processInboundFlow({
             contact,
             conversationState,
-            incomingText: bodyText,
+            incomingText: bodyText !== '[Voice Note]' && !bodyText.startsWith('[Media') ? bodyText : undefined,
             buttonId,
             listRowId,
-            mediaType: msgType !== 'text' && msgType !== 'interactive' ? msgType : undefined,
+            mediaType: msgType,
             waMessageId,
-          });
+            ...(mediaId ? { mediaId } : {}),
+          } as any);
         }
       }
     }
   }
 }
+
