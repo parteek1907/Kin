@@ -18,3 +18,6 @@ class User(Base):
     # Relationships
     profile = relationship("Profile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     career_journeys = relationship("CareerJourney", back_populates="user", cascade="all, delete-orphan")
+    connection_policies = relationship("ConnectionPolicy", back_populates="owner", cascade="all, delete-orphan")
+    sent_connection_requests = relationship("ConnectionRequest", foreign_keys="ConnectionRequest.sender_id", back_populates="sender", cascade="all, delete-orphan")
+    received_connection_requests = relationship("ConnectionRequest", foreign_keys="ConnectionRequest.recipient_id", back_populates="recipient", cascade="all, delete-orphan")

@@ -6,15 +6,23 @@ A high-performance, modular backend built with FastAPI, PostgreSQL, SQLAlchemy 2
 
 ## 1. Overview & Vision
 
-**Conduit** bridges the gap between university students and alumni. Rather than relying on static profiles or generic advice, Conduit introduces empirical, data-driven career navigation powered by authentic alumni career journeys.
+**Conduit** bridges the gap between university students and alumni. Rather than relying on static profiles or generic advice, Conduit introduces empirical, data-driven career navigation and intelligent, qualification-based professional networking.
 
-### First Differentiating Feature: Career Time Machine
+### Major Feature 1: Career Time Machine
 The **Career Time Machine** enables students to explore real historical career pathways submitted by alumni and professionals.
 - **Authentic Journeys**: Real records with dates, companies, skills used, projects, and career transition notes.
 - **Chronological Timelines**: Explore complete stage-by-stage transitions (e.g. Intern -> Junior Dev -> Senior ML Engineer).
 - **Deterministic Skill-Gap Analysis**: Compares a student's current skill profile against real alumni who actually hold the target role, computing objective priority rankings and empirical learning evidence.
 - **Grounded Insights**: Transparently distinguishes *observed historical facts* from *inferred progression patterns* without AI hallucination or fabricated guarantees.
 - **AI-Ready Architecture**: Built with an `AIServiceInterface` protocol and deterministic fallback, ready for future LLM integration without code rewrites.
+
+### Major Feature 2: Qualification-Based Auto Connections
+The **Qualification-Based Auto Connections** module allows alumni, recruiters, founders, and professionals to configure customizable acceptance policies for incoming connection requests.
+- **Deterministic Evaluation Engine**: Evaluates incoming requests against mandatory skills, preferred skills, domain alignment, project counts, years of experience, and degrees.
+- **Explicit Auto-Acceptance Control**: Automatic acceptance must always be explicitly enabled by the recipient (`auto_accept_enabled`). It is disabled by default. An AI or heuristic model is never permitted to auto-connect without explicit recipient authorization.
+- **Explainable Transparent Breakdowns**: Returns transparent match scores, criteria satisfied vs not satisfied, missing candidate data, and human-readable decision summaries.
+- **Pending Queue & Manual Review**: Qualifying requests under disabled auto-acceptance or requests requiring subjective evaluation remain cleanly queued for manual review.
+- **Transaction & Concurrency Safety**: Enforces database-level constraints preventing duplicate connection requests, self-requests, and duplicate established connections.
 
 ---
 
@@ -36,57 +44,68 @@ The **Career Time Machine** enables students to explore real historical career p
 
 ## 3. Project Architecture
 
-The backend lives entirely inside `backend/` and follows a domain-driven, modular structure designed to accommodate 4 additional major features in subsequent phases:
+The backend lives entirely inside `backend/` and follows a domain-driven, modular structure:
 
 ```text
 backend/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                      # FastAPI application entry point, CORS, health check
+│   ├── main.py                                      # FastAPI application entry point, CORS, health check
 │   ├── api/
 │   │   ├── __init__.py
-│   │   ├── auth.py                  # Register, login, /me, profile management routes
-│   │   └── router.py                # Central API v1 router mounting all features
+│   │   ├── auth.py                                  # Register, login, /me, profile management routes
+│   │   └── router.py                                # Central API v1 router mounting all features
 │   ├── core/
 │   │   ├── __init__.py
-│   │   ├── config.py                # Centralized settings via pydantic-settings
-│   │   ├── database.py              # SQLAlchemy 2.x engine, SessionLocal, get_db dependency
-│   │   └── security.py              # bcrypt password hashing, JWT creation & verification
+│   │   ├── config.py                                # Centralized settings via pydantic-settings
+│   │   ├── database.py                              # SQLAlchemy 2.x engine, SessionLocal, get_db dependency
+│   │   └── security.py                              # bcrypt password hashing, JWT creation & verification
 │   ├── models/
-│   │   ├── __init__.py              # Central declarative models export
-│   │   ├── user.py                  # User account model
-│   │   └── profile.py               # User profile & PlatformRole enums
+│   │   ├── __init__.py                              # Central declarative models export
+│   │   ├── user.py                                  # User account model & connection relationships
+│   │   └── profile.py                               # User profile & PlatformRole enums
 │   ├── schemas/
 │   │   ├── __init__.py
-│   │   ├── auth.py                  # Auth request/response schemas
-│   │   └── profile.py               # Profile request/response schemas
+│   │   ├── auth.py                                  # Auth request/response schemas
+│   │   └── profile.py                               # Profile request/response schemas
 │   ├── services/
-│   │   └── __init__.py              # Cross-cutting service abstractions
+│   │   └── __init__.py                              # Cross-cutting service abstractions
 │   └── features/
-│       └── career_time_machine/     # Feature Module: Career Time Machine
+│       ├── career_time_machine/                     # FEATURE 1: Career Time Machine
+│       │   ├── __init__.py
+│       │   ├── models.py                            # CareerJourney database model & enums
+│       │   ├── schemas.py                           # Journey, Timeline, SkillGap, Insights schemas
+│       │   ├── repository.py                        # Database queries, visibility filters, pagination
+│       │   ├── service.py                           # Domain logic, ownership auth, skill gap engine
+│       │   └── insights.py                          # Empirical facts vs inferred patterns, AI-ready interface
+│       └── qualification_connections/               # FEATURE 2: Qualification-Based Auto Connections
 │           ├── __init__.py
-│           ├── models.py            # CareerJourney database model & enums
-│           ├── schemas.py           # Journey, Timeline, SkillGap, Insights schemas
-│           ├── repository.py        # Database queries, visibility filters, pagination
-│           ├── service.py           # Domain logic, ownership auth, skill gap engine
-│           └── insights.py          # Empirical facts vs inferred patterns, AI-ready interface
+│           ├── models.py                            # ConnectionPolicy, ConnectionRequest, Connection, EvaluationLog
+│           ├── schemas.py                           # Policy, Request, Evaluation, Connection schemas
+│           ├── repository.py                        # DB queries, policy lookups & connection transactions
+│           ├── service.py                           # Request workflow, auto-acceptance & manual review logic
+│           ├── evaluator.py                         # Deterministic rule-based evaluation engine
+│           ├── permissions.py                       # Ownership, authorization & duplicate checks
+│           └── router.py                            # REST endpoints for policies, evaluations, requests
 ├── alembic/
-│   ├── env.py                       # Alembic migration environment
-│   ├── script.py.mako               # Migration template
+│   ├── env.py                                       # Alembic migration environment
+│   ├── script.py.mako                               # Migration template
 │   └── versions/
-│       └── 0001_initial_schema.py   # Baseline migration for users, profiles, career_journeys
+│       ├── 0001_initial_schema.py                   # Migration 1: users, profiles, career_journeys
+│       └── 0002_qualification_connections.py       # Migration 2: policies, requests, connections, logs
 ├── tests/
 │   ├── __init__.py
-│   ├── conftest.py                  # Pytest fixtures & isolated in-memory test database
-│   ├── test_auth.py                 # Registration, login, duplicate email, JWT, profile tests
-│   ├── test_career_time_machine.py  # 11 comprehensive tests for Career Time Machine
-│   └── test_health.py               # Health check and root discovery tests
-├── .env.example                     # Environment variable template
-├── .gitignore                       # Git ignore rules for Python, virtualenv, and IDE files
-├── alembic.ini                      # Alembic CLI configuration
-├── docker-compose.yml               # Optional local PostgreSQL container
-├── requirements.txt                 # Pinned, tested dependencies
-└── README.md                        # Documentation
+│   ├── conftest.py                                  # Pytest fixtures & isolated in-memory test database
+│   ├── test_health.py                               # Health check and root discovery tests
+│   ├── test_auth.py                                 # Registration, login, duplicate email, JWT, profile tests
+│   ├── test_career_time_machine.py                  # 11 tests for Career Time Machine
+│   └── test_qualification_connections.py           # 11 tests for Qualification-Based Auto Connections
+├── .env.example                                     # Environment variable template
+├── .gitignore                                       # Git ignore rules for Python, virtualenv, and IDE files
+├── alembic.ini                                      # Alembic CLI configuration
+├── docker-compose.yml                               # Optional local PostgreSQL container
+├── requirements.txt                                 # Pinned, tested dependencies
+└── README.md                                        # Documentation
 ```
 
 ---
@@ -94,26 +113,14 @@ backend/
 ## 4. Local Development Setup
 
 ### Step 1: Create and Activate Virtual Environment
-Open a terminal in the project root:
-
 ```bash
 cd backend
 python -m venv .venv
 ```
 
-Activate the virtual environment:
-- **Windows (PowerShell)**:
-  ```powershell
-  .venv\Scripts\Activate.ps1
-  ```
-- **Windows (CMD)**:
-  ```cmd
-  .venv\Scripts\activate.bat
-  ```
-- **Linux / macOS**:
-  ```bash
-  source .venv/bin/activate
-  ```
+Activate:
+- **Windows (PowerShell)**: `.venv\Scripts\Activate.ps1`
+- **Linux / macOS**: `source .venv/bin/activate`
 
 ### Step 2: Install Dependencies
 ```bash
@@ -121,8 +128,6 @@ pip install -r requirements.txt
 ```
 
 ### Step 3: Configure Environment Variables
-Copy the example environment configuration:
-
 ```bash
 cp .env.example .env
 ```
@@ -141,33 +146,25 @@ CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
 
 ### Step 4: Database Setup (PostgreSQL)
 
-You have two options to run PostgreSQL:
-
-#### Option A: Docker (Quickest)
-If you have Docker installed, start the local PostgreSQL container:
+#### Option A: Docker Compose (Quickest)
 ```bash
 docker compose up -d
 ```
-This spins up PostgreSQL 16 on port `5432` with user `postgres` and database `alumni_network`.
+Spins up PostgreSQL 16 on port `5432` with database `alumni_network`.
 
 #### Option B: Native PostgreSQL Installation
-1. Start your local PostgreSQL server service.
-2. Open `psql` or pgAdmin and create the database:
+1. Start PostgreSQL server.
+2. Create the database:
    ```sql
    CREATE DATABASE alumni_network;
    ```
-3. Update `DATABASE_URL` in `.env` to match your local credentials.
+3. Update `DATABASE_URL` in `.env`.
 
 ### Step 5: Run Database Migrations
-Apply the initial schema to PostgreSQL using Alembic:
+Apply migrations to PostgreSQL using Alembic:
 
 ```bash
 alembic upgrade head
-```
-
-To roll back a migration:
-```bash
-alembic downgrade -1
 ```
 
 ### Step 6: Start the Development Server
@@ -175,7 +172,6 @@ alembic downgrade -1
 uvicorn app.main:app --reload
 ```
 
-The server will be available at:
 - **Interactive Swagger Documentation**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - **ReDoc Documentation**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 - **Health Check**: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
@@ -184,37 +180,32 @@ The server will be available at:
 
 ## 5. Running Automated Tests
 
-The test suite runs against an isolated in-memory SQLite database and requires **zero external services or AI API keys**.
+The automated test suite runs against an isolated in-memory SQLite database and requires **zero external services or AI API keys**.
 
-Run all tests:
+Run all 32 tests:
 ```bash
 python -m pytest -v
 ```
 
-Run tests with test summary:
-```bash
-python -m pytest -v --tb=short
-```
-
 ---
 
-## 6. API Reference & Examples
+## 6. Complete API Reference
 
 ### Health & Discovery
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | `GET` | `/health` | None | Service health check |
-| `GET` | `/` | None | API root discovery with links |
+| `GET` | `/` | None | API root discovery |
 
 ### Authentication & Profile
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `POST` | `/api/v1/auth/register` | None | Register account (Student, Alumni, Faculty, Founder, Recruiter) |
+| `POST` | `/api/v1/auth/register` | None | Register account (`Student`, `Alumni`, `Faculty`, `Founder`, `Recruiter`) |
 | `POST` | `/api/v1/auth/login` | None | Authenticate with email/password; returns JWT token |
 | `GET` | `/api/v1/auth/me` | Bearer JWT | Fetch authenticated user details and profile |
 | `PATCH` | `/api/v1/auth/profile` | Bearer JWT | Update authenticated user profile |
 
-### Career Time Machine
+### Feature 1: Career Time Machine
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | `POST` | `/api/v1/career-time-machine/journeys` | Bearer JWT | Create a new career journey stage |
@@ -227,237 +218,130 @@ python -m pytest -v --tb=short
 | `POST` | `/api/v1/career-time-machine/skill-gap` | None | Deterministic skill-gap analysis backed by real records |
 | `GET` | `/api/v1/career-time-machine/insights` | None | Empirical progression trends, facts vs inferences |
 
+### Feature 2: Qualification-Based Auto Connections
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/qualification-connections/policies` | Bearer JWT | Create connection acceptance policy (auto_accept disabled by default) |
+| `GET` | `/api/v1/qualification-connections/policies/me` | Bearer JWT | List current user's policies |
+| `GET` | `/api/v1/qualification-connections/policies/{id}` | Bearer JWT | Get policy details (owner only) |
+| `PATCH` | `/api/v1/qualification-connections/policies/{id}` | Bearer JWT | Update policy criteria or toggle auto-accept (owner only) |
+| `DELETE` | `/api/v1/qualification-connections/policies/{id}` | Bearer JWT | Delete policy (owner only) |
+| `POST` | `/api/v1/qualification-connections/evaluate` | Bearer JWT | Evaluate a candidate profile against policy criteria |
+| `GET` | `/api/v1/qualification-connections/evaluations/me` | Bearer JWT | View evaluation logs for current user |
+| `POST` | `/api/v1/qualification-connections/requests` | Bearer JWT | Send connection request with auto evaluation & acceptance |
+| `GET` | `/api/v1/qualification-connections/requests/received` | Bearer JWT | List received connection requests with evaluation breakdowns |
+| `GET` | `/api/v1/qualification-connections/requests/sent` | Bearer JWT | List sent connection requests |
+| `POST` | `/api/v1/qualification-connections/requests/{id}/respond` | Bearer JWT | Manually accept or reject a pending request (recipient only) |
+| `GET` | `/api/v1/qualification-connections/connections/me` | Bearer JWT | List active established connections |
+
 ---
 
-## 7. Request & Response Examples
+## 7. Request & Response Examples: Qualification Connections
 
-### A. Register User (`POST /api/v1/auth/register`)
+### A. Create Connection Acceptance Policy (`POST /api/v1/qualification-connections/policies`)
+*Recipient configures their criteria. `auto_accept_enabled` defaults to `false` and must be explicitly enabled.*
+
 **Request:**
 ```json
 {
-  "email": "priya.nair@iiitd.ac.in",
-  "password": "SecurePassword123!",
-  "full_name": "Priya Nair",
-  "role": "Alumni",
-  "headline": "Senior Machine Learning Engineer at Anthropic",
-  "skills": ["Python", "PyTorch", "Kubernetes", "Transformers", "MLOps"],
-  "industry": "Artificial Intelligence"
+  "policy_name": "ML Mentorship & Connections Policy",
+  "required_skills": ["Python", "Machine Learning"],
+  "preferred_skills": ["PyTorch", "MLOps"],
+  "relevant_industries": ["Artificial Intelligence"],
+  "min_project_count": 2,
+  "min_years_experience": 1.0,
+  "qualification_requirements": ["B.Tech", "M.S."],
+  "auto_accept_enabled": true,
+  "is_active": true
 }
 ```
+
 **Response (`201 Created`):**
 ```json
 {
   "id": 1,
-  "email": "priya.nair@iiitd.ac.in",
+  "user_id": 2,
+  "policy_name": "ML Mentorship & Connections Policy",
+  "required_skills": ["Python", "Machine Learning"],
+  "preferred_skills": ["PyTorch", "MLOps"],
+  "relevant_industries": ["Artificial Intelligence"],
+  "min_project_count": 2,
+  "min_years_experience": 1.0,
+  "qualification_requirements": ["B.Tech", "M.S."],
+  "auto_accept_enabled": true,
   "is_active": true,
-  "created_at": "2026-10-17T10:30:00Z",
-  "profile": {
-    "id": 1,
-    "user_id": 1,
-    "full_name": "Priya Nair",
-    "role": "Alumni",
-    "headline": "Senior Machine Learning Engineer at Anthropic",
-    "skills": ["Python", "PyTorch", "Kubernetes", "Transformers", "MLOps"],
-    "industry": "Artificial Intelligence",
-    "years_of_experience": 0.0,
-    "visibility": "public"
-  }
+  "created_at": "2026-10-17T11:00:00Z",
+  "updated_at": "2026-10-17T11:00:00Z"
 }
 ```
 
-### B. User Login (`POST /api/v1/auth/login`)
+### B. Evaluate Candidate Against Policy (`POST /api/v1/qualification-connections/evaluate`)
 **Request:**
 ```json
 {
-  "email": "priya.nair@iiitd.ac.in",
-  "password": "SecurePassword123!"
+  "policy_id": 1,
+  "candidate_user_id": 1
 }
 ```
+
 **Response (`200 OK`):**
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer",
-  "user": {
-    "id": 1,
-    "email": "priya.nair@iiitd.ac.in",
-    "is_active": true,
-    "profile": { ... }
-  }
+  "policy_id": 1,
+  "policy_name": "ML Mentorship & Connections Policy",
+  "evaluator_user_id": 2,
+  "candidate_user_id": 1,
+  "eligibility_status": "qualified",
+  "auto_accept_eligible": true,
+  "manual_review_required": false,
+  "match_score": 90.0,
+  "criteria_satisfied": [
+    "Required skill 'Python' verified.",
+    "Required skill 'Machine Learning' verified.",
+    "Preferred skill 'PyTorch' matched (+bonus).",
+    "Domain alignment verified: 'Artificial Intelligence'.",
+    "Project criterion met: 2 project(s) documented (minimum: 2).",
+    "Experience criterion met: 1.5 years (minimum: 1.0).",
+    "Qualification verified: 'B.Tech'."
+  ],
+  "criteria_not_satisfied": [],
+  "missing_information": [],
+  "explanation": "Policy Evaluation for 'ML Mentorship & Connections Policy' (Score: 90.0/100.0):\n- Status: QUALIFIED\n- Decision: Automatically accepted (all mandatory criteria satisfied and recipient explicitly enabled auto-acceptance).",
+  "disclaimer": "Policy evaluations are empirical matching assessments and do not constitute job offers or referrals."
 }
 ```
 
-### C. Create Career Journey (`POST /api/v1/career-time-machine/journeys`)
-*Requires `Authorization: Bearer <TOKEN>` header.*
+### C. Send Request with Automatic Acceptance (`POST /api/v1/qualification-connections/requests`)
+*When all mandatory criteria are satisfied and the recipient enabled `auto_accept_enabled`, the connection request is accepted immediately and added to mutual connections.*
 
 **Request:**
 ```json
 {
-  "job_title": "Machine Learning Engineer",
-  "company": "Anthropic",
-  "industry": "Artificial Intelligence",
-  "start_date": "2023-01-15",
-  "end_date": null,
-  "is_current": true,
-  "description": "Leading model evaluation and fine-tuning pipelines.",
-  "skills_used": ["Python", "PyTorch", "Kubernetes", "Transformers", "MLOps"],
-  "projects_or_achievements": [
-    "Optimized inference throughput by 35% using TensorRT",
-    "Built automated continuous evaluation pipeline"
-  ],
-  "career_transition_notes": "Transitioned from Software Engineer by mastering PyTorch and distributed training.",
-  "visibility": "public"
+  "recipient_id": 2,
+  "message": "Hi Priya, I'd love to connect and learn about your distributed training work at Anthropic!"
 }
 ```
+
 **Response (`201 Created`):**
 ```json
 {
   "id": 1,
-  "user_id": 1,
-  "job_title": "Machine Learning Engineer",
-  "company": "Anthropic",
-  "industry": "Artificial Intelligence",
-  "start_date": "2023-01-15",
-  "end_date": null,
-  "is_current": true,
-  "skills_used": ["Python", "PyTorch", "Kubernetes", "Transformers", "MLOps"],
-  "projects_or_achievements": [
-    "Optimized inference throughput by 35% using TensorRT",
-    "Built automated continuous evaluation pipeline"
-  ],
-  "career_transition_notes": "Transitioned from Software Engineer by mastering PyTorch and distributed training.",
-  "visibility": "public",
-  "verification_status": "unverified",
-  "author_name": "Priya Nair",
-  "author_role": "Alumni",
-  "author_headline": "Senior Machine Learning Engineer at Anthropic"
-}
-```
-
-### D. Chronological Timeline (`GET /api/v1/career-time-machine/journeys/1/timeline`)
-**Response (`200 OK`):**
-```json
-{
-  "user_id": 1,
-  "professional_name": "Priya Nair",
-  "professional_headline": "Senior Machine Learning Engineer at Anthropic",
-  "current_role": "Machine Learning Engineer at Anthropic",
-  "total_stages": 2,
-  "stages": [
-    {
-      "stage_number": 1,
-      "journey_id": 2,
-      "job_title": "Software Development Intern",
-      "company": "StartUp Labs",
-      "industry": "Software Engineering",
-      "start_date": "2021-06-01",
-      "end_date": "2022-12-31",
-      "is_current": false,
-      "duration_months": 18,
-      "skills_used": ["Python", "Django", "SQL"],
-      "projects_or_achievements": ["Built customer analytics dashboard"],
-      "career_transition_notes": "First professional engineering role during college.",
-      "verification_status": "unverified"
-    },
-    {
-      "stage_number": 2,
-      "journey_id": 1,
-      "job_title": "Machine Learning Engineer",
-      "company": "Anthropic",
-      "industry": "Artificial Intelligence",
-      "start_date": "2023-01-15",
-      "end_date": null,
-      "is_current": true,
-      "duration_months": 45,
-      "skills_used": ["Python", "PyTorch", "Kubernetes", "Transformers", "MLOps"],
-      "projects_or_achievements": [
-        "Optimized inference throughput by 35% using TensorRT"
-      ],
-      "career_transition_notes": "Transitioned from Software Engineer by mastering PyTorch and distributed training.",
-      "verification_status": "unverified"
-    }
-  ]
-}
-```
-
-### E. Deterministic Skill Gap Analysis (`POST /api/v1/career-time-machine/skill-gap`)
-**Request:**
-```json
-{
-  "target_role": "Machine Learning Engineer",
-  "current_skills": ["Python", "SQL"]
-}
-```
-**Response (`200 OK`):**
-```json
-{
-  "target_role": "Machine Learning Engineer",
-  "current_skills": ["Python", "SQL"],
-  "matching_skills": ["Python"],
-  "potential_skill_gaps": ["PyTorch", "Transformers", "Kubernetes", "MLOps"],
-  "suggested_priorities": [
-    {
-      "skill": "PyTorch",
-      "priority": "High",
-      "reason": "Essential core skill observed in 100.0% (1/1) of alumni records in this role.",
-      "frequency_in_target_records": 1,
-      "percentage_of_profiles": 100.0
-    },
-    {
-      "skill": "Transformers",
-      "priority": "High",
-      "reason": "Essential core skill observed in 100.0% (1/1) of alumni records in this role.",
-      "frequency_in_target_records": 1,
-      "percentage_of_profiles": 100.0
-    }
-  ],
-  "relevant_projects_or_experiences": [
-    {
-      "project_or_achievement": "Optimized inference throughput by 35% using TensorRT",
-      "context_role": "Machine Learning Engineer",
-      "context_company": "Anthropic"
-    }
-  ],
-  "observed_transition_notes": [
-    "Transitioned from Software Engineer by mastering PyTorch and distributed training."
-  ],
-  "analyzed_records_count": 1,
-  "disclaimer": "Analysis derived from 1 verified or alumni-submitted record(s) matching 'Machine Learning Engineer'. These suggestions highlight observed historical trends and are not guarantees of career outcomes."
-}
-```
-
-### F. Career Insights (`GET /api/v1/career-time-machine/insights?query=Machine Learning`)
-**Response (`200 OK`):**
-```json
-{
-  "target_query": "Machine Learning",
-  "total_journeys_analyzed": 1,
-  "common_entry_roles": ["Software Development Intern"],
-  "common_transitions": [
-    {
-      "from_role": "Software Development Intern",
-      "to_role": "Machine Learning Engineer",
-      "frequency": 1
-    }
-  ],
-  "in_demand_skills": [
-    { "skill": "Python", "count": 2, "prevalence_percentage": 100.0 },
-    { "skill": "PyTorch", "count": 1, "prevalence_percentage": 50.0 },
-    { "skill": "Transformers", "count": 1, "prevalence_percentage": 50.0 }
-  ],
-  "average_duration_per_stage_months": 31.5,
-  "observed_facts": [
-    "Analyzed 1 historical record(s) matching 'Machine Learning' across 1 distinct professional profile(s).",
-    "Most frequent entry-level stepping stone observed: 'Software Development Intern' (1 alumni started here).",
-    "Top observed skill across associated roles is 'Python' appearing in 2 career stages."
-  ],
-  "inferred_patterns": [
-    "Empirical progression indicates a pathway from 'Software Development Intern' to 'Machine Learning Engineer' observed 1 times.",
-    "Professionals spend an average of 31.5 months in a given career stage before advancing or pivoting."
-  ],
-  "methodology": "Empirical Bayesian aggregation over stored PostgreSQL career journey records.",
-  "ai_enhanced": false,
-  "disclaimer": "All conclusions are derived strictly from actual platform records and do not guarantee personal outcomes."
+  "sender_id": 1,
+  "recipient_id": 2,
+  "policy_id": 1,
+  "status": "accepted",
+  "auto_accepted": true,
+  "message": "Hi Priya, I'd love to connect and learn about your distributed training work at Anthropic!",
+  "evaluation_summary": {
+    "eligibility_status": "qualified",
+    "auto_accept_eligible": true,
+    "match_score": 90.0
+  },
+  "created_at": "2026-10-17T11:05:00Z",
+  "updated_at": "2026-10-17T11:05:00Z",
+  "sender_name": "Aarav Sharma",
+  "sender_headline": "Junior year CS student at IIITD",
+  "recipient_name": "Priya Nair"
 }
 ```
 
@@ -465,13 +349,12 @@ python -m pytest -v --tb=short
 
 ## 8. Current Limitations & Roadmap
 
-### Current Version (v1.0.0)
-- **Data Grounding**: All insights and skill gap analyses are strictly backed by records in the database. If no alumni have submitted records for a specific role, the system returns an honest empty result.
-- **AI Integration**: AI Provider interface is scaffolded and tested; default operation is 100% deterministic and requires no external API keys.
+### Current Version (v1.1.0)
+- **Deterministic Transparency**: Qualification decisions are based entirely on verifiable profile entries, documented projects, and historical career journeys.
+- **Safety First**: AI models are never allowed to override human policy settings or auto-accept requests without human consent.
 
 ### Upcoming Features Roadmap
-The backend architecture is structured to support 4 upcoming major feature modules in subsequent iterations:
-1. **Module 2: Mentorship Matching & Session Booking** (`app/features/mentorship/`)
-2. **Module 3: Mock Technical Interviews & Feedback Loop** (`app/features/mock_interviews/`)
-3. **Module 4: Verified Alumni Directory & Referral Board** (`app/features/alumni_directory/`)
-4. **Module 5: University Chapters & Networking Events** (`app/features/networking_events/`)
+The backend architecture is structured to support the remaining major feature modules:
+1. **Module 3: Mentorship Matching & Session Booking** (`app/features/mentorship/`)
+2. **Module 4: Mock Technical Interviews & Feedback Loop** (`app/features/mock_interviews/`)
+3. **Module 5: University Chapters & Networking Events** (`app/features/networking_events/`)
