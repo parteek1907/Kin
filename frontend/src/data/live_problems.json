@@ -1,13 +1,13 @@
 [
   {
-    "id": "prob-1792270041110",
-    "category": "Healthcare",
-    "cardVariant": "blue",
-    "question": "Build a system to track duplicacy in medical records",
-    "alumniName": "Aarav Sharma",
-    "alumniTitle": "Senior Engineering Architect",
+    "id": "prob-1792274121776",
+    "category": "Career",
+    "cardVariant": "charcoal",
+    "question": "build a system to track attendance",
+    "alumniName": "NIPUN DHIMAN",
+    "alumniTitle": "Student at NMIMS",
     "alumniCompany": "Google Health Core",
-    "bountyReward": "₹25,000 / $300 USDC",
+    "bountyReward": "₹15000",
     "rewardType": "USDC",
     "requiredTech": [
       "Next.js",
@@ -18,7 +18,7 @@
     "context": "Real production problem statement requiring AST-verified architecture.",
     "starterRepoUrl": "https://github.com/company/starter-template",
     "deadline": "7 days left",
-    "testCasesCount": 17,
+    "testCasesCount": 28,
     "status": "open"
   }
 ]
