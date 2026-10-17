@@ -79,7 +79,7 @@ export async function handleMyRequirementsCommand(contact: WhatsappContact): Pro
 
   for (const req of requirements) {
     const statusEmoji = req.status === 'open' ? '🟢' : req.status === 'filled' ? '✅' : '⚪';
-    const introCount = req.matches.filter((m) => m.status === 'intro_requested' || m.status === 'intro_accepted').length;
+    const introCount = req.matches.filter((m: any) => m.status === 'intro_requested' || m.status === 'intro_accepted').length;
 
     lines.push(
       `${statusEmoji} *${req.title}* (${req.type})`,

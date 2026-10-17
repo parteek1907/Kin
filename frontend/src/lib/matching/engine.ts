@@ -53,7 +53,7 @@ export async function findTopCandidates(
     requirement.locationOrRemote === 'any';
 
   // Apply location compatibility hard filter
-  const locationCompatible = candidateRecords.filter((cand) => {
+  const locationCompatible = candidateRecords.filter((cand: any) => {
     if (isReqRemote) return true;
     if (cand.isRemote) return true;
     if (cand.location.toLowerCase().includes(requirement.locationOrRemote.toLowerCase())) {
@@ -63,7 +63,7 @@ export async function findTopCandidates(
   });
 
   // 2. Score candidates
-  const scored = locationCompatible.map((cand) => {
+  const scored = locationCompatible.map((cand: any) => {
     const candSkills: string[] = safeJsonParse(cand.skills, []);
     const candInput: ScorerCandidateInput = {
       name: cand.name,
@@ -90,7 +90,7 @@ export async function findTopCandidates(
   });
 
   // Sort descending by score
-  scored.sort((a, b) => b.score - a.score);
+  scored.sort((a: any, b: any) => b.score - a.score);
 
   const paginated = scored.slice(offset, offset + limit);
 

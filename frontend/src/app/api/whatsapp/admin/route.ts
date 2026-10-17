@@ -56,10 +56,10 @@ export async function GET(req: NextRequest) {
     ]);
 
     // Format requirements with match quality metrics & masked phones
-    const formattedRequirements = requirements.map((req) => {
+    const formattedRequirements = requirements.map((req: any) => {
       const avgScore =
         req.matches.length > 0
-          ? Math.round(req.matches.reduce((sum, m) => sum + m.score, 0) / req.matches.length)
+          ? Math.round(req.matches.reduce((sum: number, m: any) => sum + m.score, 0) / req.matches.length)
           : 0;
 
       return {
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
         matchCount: req.matches.length,
         avgMatchScore: avgScore,
         createdAt: req.createdAt,
-        matches: req.matches.map((m) => ({
+        matches: req.matches.map((m: any) => ({
           candidateName: m.candidate.name,
           score: m.score,
           status: m.status,
@@ -92,9 +92,9 @@ export async function GET(req: NextRequest) {
           totalRequirements > 0 ? Math.round((introsAccepted / totalRequirements) * 100) : 0,
       },
       candidatesCount,
-      institutions: institutions.map((i) => ({ name: i.institution, count: i._count.id })),
+      institutions: institutions.map((i: any) => ({ name: i.institution, count: i._count.id })),
       requirements: formattedRequirements,
-      failedJobs: failedJobs.map((j) => ({
+      failedJobs: failedJobs.map((j: any) => ({
         id: j.id,
         jobType: j.jobType,
         status: j.status,

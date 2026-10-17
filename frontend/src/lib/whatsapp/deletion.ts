@@ -55,7 +55,7 @@ export async function executePermanentDataDeletion(
     messagesCount = contact.messages.length;
 
     // 1. Delete all requirements & cascading matches
-    const reqIds = contact.requirements.map((r) => r.id);
+    const reqIds = contact.requirements.map((r: any) => r.id);
     if (reqIds.length > 0) {
       await prisma.kinRequirement.deleteMany({
         where: { id: { in: reqIds } },
