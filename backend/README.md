@@ -62,6 +62,19 @@ The **Kin Reputation Engine** provides an immutable, auditable, contribution-bas
 - **Audited Moderator Review**: When abuse, threats, harassment, or doxxing are reported, platform moderators can inspect content. Identity de-anonymization requires a mandatory, documented business reason and is permanently recorded in `ghost_audit_logs`.
 - **Persona Rotation & Member Controls**: Members can rotate their persona at will to start fresh discussions without connecting prior posts, and can locally mute abusive personas without exposing identities.
 
+### Major Feature 8: Wisdom Capsule - 90-Second Mock Interviews
+The **Wisdom Capsule** engine facilitates micro-coaching interactions where alumni interviewers deliver rapid, laser-focused mock interview feedback on curated and AI-assisted questions.
+
+### Major Feature 9: Kin 20-Minute Doorway — Verified Paid Expert Access
+The **Kin 20-Minute Doorway** implements a secure, human-led marketplace where students access focused, 20-minute paid consultations with qualified, human-verified alumni:
+- **Human-Reviewed Expert Eligibility**: Explicit verification workflow vetting credentials, professional employment evidence, and institutional alumni affiliation. Self-promotion and self-verification are strictly prohibited.
+- **Server-Side Trusted Pricing & Exact 50/50 Financial Split**: The server calculates payable amounts and commission strictly from trusted listing configurations in integer minor currency units. Alumni earn 50% and the platform earns 50% with zero floating-point math and deterministic odd-remainder handling.
+- **Validated Booking Lifecycle State Machine**: Full lifecycle tracking (`CREATED` -> `PAYMENT_PENDING` -> `PAID` -> `CONFIRMED` -> `IN_PROGRESS` -> `COMPLETED` -> `SETTLEMENT_PENDING` -> `SETTLED`), plus complete alternative states (`PAYMENT_FAILED`, `EXPIRED`, `CANCELLED`, `REFUND_PENDING`, `PARTIALLY_REFUNDED`, `REFUNDED`, `DISPUTED`, `PAYOUT_FAILED`).
+- **Payment Provider Abstraction & Webhook Idempotency**: Order intent creation, HMAC-SHA256 signature verification (`X-Kin-Signature`), idempotent webhook event deduplication, and reconciliation without storing sensitive cardholder data.
+- **Durable Financial Ledger & Anti-Double-Settlement**: Immutable audit trail in `doorway_financial_ledger` computing SHA-256 integrity hashes on creation. Unique database constraints prevent duplicate settlement or payouts.
+- **Alumni Settlement Payouts**: Strict pre-payout verification checklist (confirmed payment, completed session evidence, approved expert, zero blocking disputes/refunds). Out-of-transaction external transfer execution ensures retry-safety without transaction rollback hazards.
+- **Anti-AI-Slop Governance & Value Guarantee**: Consultations are human-led. Structured student reviews with dedicated AI-slop reporting flags; 2+ complaints trigger automated suspension and administrative review.
+- **Seamless Kin Reputation Integration**: Completed, payment-verified sessions automatically award verified contribution points in the Kin Reputation Engine (`record_twenty_minute_doorway`).
 
 ---
 
@@ -1031,4 +1044,106 @@ Mounted at `/api/v1/ghost/`:
 | `DELETE` | `/api/v1/ghost/personas/{handle}/mute` | Authenticated | Unmute a previously muted persona |
 | `POST` | `/api/v1/ghost/moderation/posts/{post_id}/action` | Moderator | Moderate post (`flagged`, `hidden`, `pinned`, `archived`) |
 | `POST` | `/api/v1/ghost/moderation/audit-reveal` | Moderator | **Audited identity reveal**; requires documented business justification |
+
+---
+
+## 13. Kin 20-Minute Doorway — Verified Paid Expert Access
+
+The **Kin 20-Minute Doorway** is a secure, human-led consultation marketplace within the Kin alumni platform. Students can book and pay for high-signal, 20-minute direct interactions with verified alumni experts for career navigation, CV reviews, technical project reviews, startup feedback, and interview preparation.
+
+### 13.1 Exact 50/50 Revenue Split & Financial Integrity
+
+The platform and alumnus split the eligible service fee exactly 50/50:
+- **Eligible Service Fee** = Base amount defined in the expert's published listing.
+- **Alumni Share** = Exactly 50% of eligible service fee.
+- **Platform Share** = Exactly 50% of eligible service fee.
+- **Zero Floating-Point Math**: All financial records, calculations, and ledger allocations use exact integer minor currency units (e.g., 5000 paise / cents = 50.00).
+- **Documented Odd-Remainder Policy**: If the gross minor unit is odd (e.g., 5001 paise), `alumni_share = 5001 // 2 = 2500` and `platform_share = 5001 - 2500 = 2501`. The ledger always balances exactly to the minor unit with zero leak.
+- **Client Tamper-Proofing**: The server never trusts client-supplied prices, commission percentages, or payout amounts. Booking amounts are resolved strictly from the database-backed listing.
+
+### 13.2 Booking Lifecycle State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> CREATED: Student Books Slot
+    CREATED --> PAYMENT_PENDING: Server Creates Payment Intent
+    PAYMENT_PENDING --> PAID: Payment Verified (Webhook or Gateway)
+    PAYMENT_PENDING --> PAYMENT_FAILED: Payment Declined / Expired
+    PAID --> CONFIRMED: Expert Confirms Scheduled Time
+    CONFIRMED --> IN_PROGRESS: Session Started
+    IN_PROGRESS --> COMPLETED: Dual / Expert Completion Confirmed
+    COMPLETED --> SETTLEMENT_PENDING: Financial Ledger Verified
+    SETTLEMENT_PENDING --> SETTLED: Alumni Payout Disbursed
+    
+    PAID --> CANCELLED: Cancelled with Refund
+    CONFIRMED --> CANCELLED: Cancelled with Refund
+    CANCELLED --> REFUNDED: Provider Refund Executed
+    
+    CONFIRMED --> DISPUTED: No-Show or Dispute Raised
+    IN_PROGRESS --> DISPUTED: Quality / Incomplete Dispute
+    COMPLETED --> DISPUTED: AI Slop / Scope Dispute
+    DISPUTED --> REFUNDED: Admin Resolves with Full Refund
+    DISPUTED --> PARTIALLY_REFUNDED: Admin Resolves with Partial Refund
+    DISPUTED --> SETTLEMENT_PENDING: Admin Dismisses Dispute
+    
+    SETTLEMENT_PENDING --> PAYOUT_FAILED: Payout Transfer Temporary Error
+    PAYOUT_FAILED --> SETTLED: Payout Retried Idempotently
+```
+
+### 13.3 Settlement & Payout Pre-Condition Checklist
+
+Before an alumnus payout transfer is authorized, the system strictly validates:
+1. **Confirmed Payment**: Payment order is marked `succeeded` and verified via trusted provider integration.
+2. **Completed Session Evidence**: Session is marked completed with completion timestamps recorded.
+3. **Eligible Expert Account**: Alumnus profile is in `approved` status and `is_active == True` (never suspended or revoked).
+4. **No Active Disputes**: No open or under-review disputes exist on the booking.
+5. **No Blocking Refunds**: Net alumni ledger balance must be strictly positive.
+6. **Anti-Double-Settlement**: A unique database constraint on `doorway_alumni_payouts.booking_id` prevents duplicate transfers.
+7. **Out-of-Transaction Transfers**: The external gateway transfer runs outside database transaction blocks to prevent rollback discrepancies.
+
+### 13.4 Anti-AI-Slop Governance & Human Expertise Guarantee
+
+- **Responsible Human Expert**: Every paid consultation identifies the approved alumnus personally responsible for the session.
+- **Anti-Self-Booking**: Experts are strictly forbidden from booking their own services or creating fake reviews.
+- **Mandatory AI Assistance Disclosure**: If an alumnus utilizes AI tools for research or preparation notes, it must be explicitly declared (`ai_assistance_used: true`, `ai_assistance_summary: string`) and cannot substitute for the expert's human presence and analysis.
+- **Structured Student Review**: Post-session ratings (1–5) and usefulness scores with an explicit `ai_slop_complaint` flag.
+- **Automated Quality Governance**: 2 or more quality/AI-slop complaints trigger automated suspension and administrative review.
+- **Privacy by Default**: Sessions are not recorded by default. If recorded, explicit bidirectional consent (`recording_consent: true`) is required.
+
+### 13.5 Endpoints Reference
+
+Mounted at `/api/v1/doorway/`:
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/doorway/experts` | Public | List verified experts with category and keyword search |
+| `GET` | `/api/v1/doorway/experts/{expert_id}` | Public | Get expert profile and verified credibility indicators |
+| `POST` | `/api/v1/doorway/experts/apply` | Authenticated | Alumnus applies for expert eligibility with evidence links |
+| `GET` | `/api/v1/doorway/experts/me` | Authenticated | Retrieve authenticated user's expert profile |
+| `PATCH` | `/api/v1/doorway/experts/me` | Expert | Update headline, bio, categories, and availability slots |
+| `GET` | `/api/v1/doorway/experts/me/earnings` | Expert | View complete earnings summary, pending settlements, and payouts |
+| `GET` | `/api/v1/doorway/listings` | Public | Browse active 20-minute consultation listings |
+| `GET` | `/api/v1/doorway/listings/{listing_id}` | Public | Get consultation listing details, deliverables, and scope |
+| `GET` | `/api/v1/doorway/listings/{listing_id}/availability` | Public | Inspect listing availability slots and booking constraints |
+| `POST` | `/api/v1/doorway/listings` | Approved Expert | Create consultation listing with server-enforced pricing |
+| `PATCH` | `/api/v1/doorway/listings/{listing_id}` | Owner Expert | Update or toggle consultation listing active status |
+| `POST` | `/api/v1/doorway/bookings` | Student | Create booking for a future slot (checks collisions & self-booking) |
+| `GET` | `/api/v1/doorway/bookings/my` | Authenticated | List current user's bookings as student or expert |
+| `GET` | `/api/v1/doorway/bookings/{booking_id}` | Participant | Retrieve booking details (enforces strict IDOR protection) |
+| `POST` | `/api/v1/doorway/bookings/{booking_id}/payment-intent` | Student | Generate server payment order intent |
+| `POST` | `/api/v1/doorway/bookings/{booking_id}/verify-payment` | Student | Verify payment with gateway, transition to PAID, create 50/50 ledger entry |
+| `POST` | `/api/v1/doorway/webhooks/payment` | Gateway | Idempotent payment webhook with HMAC-SHA256 signature verification |
+| `POST` | `/api/v1/doorway/bookings/{booking_id}/confirm` | Expert | Confirm booking slot |
+| `POST` | `/api/v1/doorway/bookings/{booking_id}/start` | Participant | Mark consultation session in progress |
+| `POST` | `/api/v1/doorway/bookings/{booking_id}/complete` | Participant | Record session completion and reward Kin reputation points |
+| `POST` | `/api/v1/doorway/bookings/{booking_id}/no-show` | Participant | Report participant no-show, immediately halting settlement |
+| `POST` | `/api/v1/doorway/bookings/{booking_id}/cancel` | Participant | Cancel booking (triggers automated provider refund if paid) |
+| `POST` | `/api/v1/doorway/bookings/{booking_id}/review` | Student | Submit structured feedback and AI-slop reporting |
+| `POST` | `/api/v1/doorway/bookings/{booking_id}/disputes` | Participant | Raise dispute, immediately blocking settlement payout |
+| `GET` | `/api/v1/doorway/bookings/{booking_id}/disputes` | Participant | View dispute status and history |
+| `GET` | `/api/v1/doorway/admin/experts/pending` | Administrator | Review pending expert applications |
+| `POST` | `/api/v1/doorway/admin/experts/{expert_id}/verify` | Administrator | Human-reviewed expert approval, suspension, or revocation |
+| `GET` | `/api/v1/doorway/admin/settlements/pending` | Administrator | List completed sessions ready for payout |
+| `POST` | `/api/v1/doorway/admin/settlements/{booking_id}/disburse` | Administrator | Execute alumni 50% payout transfer |
+| `POST` | `/api/v1/doorway/admin/disputes/{dispute_id}/resolve` | Administrator | Resolve dispute with full refund, partial refund, or dismissal |
 

@@ -36,3 +36,7 @@ class User(Base):
     interviewer_profile = relationship("InterviewerProfile", foreign_keys="[InterviewerProfile.user_id]", back_populates="user", uselist=False, cascade="all, delete-orphan")
     conducted_sessions = relationship("InterviewSession", foreign_keys="[InterviewSession.interviewer_id]", back_populates="interviewer", cascade="all, delete-orphan")
     attended_sessions = relationship("InterviewSession", foreign_keys="[InterviewSession.student_id]", back_populates="student", cascade="all, delete-orphan")
+    doorway_expert_profile = relationship("DoorwayExpertProfile", foreign_keys="[DoorwayExpertProfile.user_id]", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    doorway_bookings_as_student = relationship("DoorwayBooking", foreign_keys="[DoorwayBooking.student_id]", back_populates="student", cascade="all, delete-orphan")
+    doorway_bookings_as_expert = relationship("DoorwayBooking", foreign_keys="[DoorwayBooking.expert_user_id]", back_populates="expert_user", cascade="all, delete-orphan")
+    doorway_payouts = relationship("DoorwayAlumniPayout", foreign_keys="[DoorwayAlumniPayout.expert_user_id]", back_populates="expert_user", cascade="all, delete-orphan")
