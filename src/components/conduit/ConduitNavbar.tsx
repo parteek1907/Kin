@@ -55,27 +55,19 @@ export default function ConduitNavbar({
       <div className="w-full h-full px-[var(--gutter)] flex lg:grid lg:grid-cols-[1fr_auto_1fr] items-center justify-between">
         
         {/* =====================================================================
-            ZONE 1: BRAND (Lightweight geometric sans, thin ring accent on 'O', no tagline)
+            ZONE 1: BRAND (KIN - Minimalist geometric luxury editorial branding)
            ===================================================================== */}
         <div id="nav-logo" className="flex items-center justify-self-start">
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="group flex items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B6E64A] rounded"
-            aria-label="Conduit Home"
+            className="group flex items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A] rounded"
+            aria-label="Kin Home"
           >
             <span 
               style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-              className="inline-flex items-center text-[22px] font-light tracking-[0.22em] text-[#11131A] uppercase transition-opacity group-hover:opacity-80 select-none leading-none"
+              className="inline-flex items-center text-[24px] font-bold tracking-[0.24em] text-[#11131A] uppercase transition-opacity group-hover:opacity-80 select-none leading-none"
             >
-              C
-              <span className="relative inline-flex items-center justify-center mx-[3px]">
-                <span className="font-light">O</span>
-                <span 
-                  className="absolute -inset-[3.5px] rounded-full border border-[#11131A]/40 pointer-events-none" 
-                  aria-hidden="true" 
-                />
-              </span>
-              NDUIT
+              KIN
             </span>
           </button>
         </div>
@@ -92,35 +84,35 @@ export default function ConduitNavbar({
         >
           <button
             onClick={() => handleScrollTo('living-graph', onExplore)}
-            className="hover:text-[#11131A] transition-colors py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B6E64A] rounded whitespace-nowrap"
+            className="hover:text-[#11131A] transition-colors py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A] rounded whitespace-nowrap"
           >
             NETWORK
           </button>
           
           <button
             onClick={() => handleScrollTo('for-universities', onHowItWorks)}
-            className="hover:text-[#11131A] transition-colors py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B6E64A] rounded whitespace-nowrap"
+            className="hover:text-[#11131A] transition-colors py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A] rounded whitespace-nowrap"
           >
             HOW IT WORKS
           </button>
           
           <button
             onClick={() => handleScrollTo('institution-radar', onForInstitutions)}
-            className="hover:text-[#11131A] transition-colors py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B6E64A] rounded whitespace-nowrap"
+            className="hover:text-[#11131A] transition-colors py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A] rounded whitespace-nowrap"
           >
             FOR INSTITUTIONS
           </button>
         </nav>
 
         {/* =====================================================================
-            ZONE 3: PRIMARY ACTION (ENTER NETWORK → Blended Glass Pill on desktop, Hamburger on mobile)
+            ZONE 3: PRIMARY ACTION (ENTER NETWORK → Smooth blended borderless action, no pill boundary, no blur)
            ===================================================================== */}
         <div className="flex items-center justify-self-end">
           <button
             id="nav-cta"
             onClick={() => handleScrollTo('living-graph', onExplore)}
             style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-            className="group hidden lg:inline-flex items-center space-x-2.5 h-[52px] px-7 rounded-full bg-black/[0.035] hover:bg-black/[0.07] backdrop-blur-md text-[#11131A] font-bold text-[12px] tracking-[0.10em] uppercase border border-[#11131A]/15 hover:border-[#11131A]/35 shadow-[0_2px_10px_rgba(30,15,10,0.03)] hover:shadow-[0_4px_18px_rgba(30,15,10,0.08)] transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A]/40 whitespace-nowrap"
+            className="group hidden lg:inline-flex items-center space-x-2.5 h-[52px] text-[#11131A] font-bold text-[12px] tracking-[0.12em] uppercase transition-all duration-200 hover:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A]/30 whitespace-nowrap cursor-pointer select-none"
           >
             <span>ENTER NETWORK</span>
             <ArrowRight className="w-4 h-4 stroke-[2.2] transition-transform duration-200 group-hover:translate-x-1" />

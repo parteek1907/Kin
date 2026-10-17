@@ -50,7 +50,7 @@ export default function MicroAuditModal() {
         id: 2,
         text: 'C. Rejects all offline transactions until an active 5G/Wi-Fi WebSocket connection is established.',
         correct: false,
-        critique: '❌ Incorrect. Conduit proof-of-work verifies zero-connectivity offline-first operation.'
+        critique: '❌ Incorrect. Kin proof-of-work verifies zero-connectivity offline-first operation.'
       }
     ]
   };

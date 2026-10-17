@@ -7,11 +7,11 @@ export async function GET(req: NextRequest) {
   const hubChallenge = searchParams.get('hub.challenge');
   const hubVerifyToken = searchParams.get('hub.verify_token');
 
-  if (hubMode === 'subscribe' && hubVerifyToken === 'conduit_campus_secret') {
+  if (hubMode === 'subscribe' && hubVerifyToken === 'kin_campus_secret') {
     return new NextResponse(hubChallenge, { status: 200 });
   }
 
-  return NextResponse.json({ status: 'Conduit WhatsApp Gateway Live' });
+  return NextResponse.json({ status: 'Kin WhatsApp Gateway Live' });
 }
 
 export async function POST(req: NextRequest) {

@@ -82,8 +82,8 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     {
       id: 'msg-init-1',
       sender: 'ai',
-      senderName: 'Conduit Campus AI Bridge',
-      text: '⚡ Conduit Zero-Login WhatsApp Gateway active. Send voice notes or text prompts here to broadcast campus intent capsules or vouch for students.',
+      senderName: 'Kin Campus AI Bridge',
+      text: '⚡ Kin Zero-Login WhatsApp Gateway active. Send voice notes or text prompts here to broadcast campus intent capsules or vouch for students.',
       timestamp: '14:40',
       isSystemNotice: true
     }
@@ -180,8 +180,8 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     const newMsg: WhatsAppMessage = {
       id: `vouch-req-${Date.now()}`,
       sender: 'ai',
-      senderName: 'Conduit Trust Bridge',
-      text: `🔔 *Conduit Warm Trust Bridge Request*\n\nAlumnus Founder *${requester?.name || 'Rohan Mehta'}* wants to connect with your student *${target?.name || 'Parteek Garg'}* (${target?.proofOfWork.verifiedImpactScore}% Impact Score: \`${target?.proofOfWork.repos[0]?.name || 'repo'}\`) for an urgent Fintech sprint.\n\n*Do you vouch for ${target?.name}'s engineering proof-of-work?*`,
+      senderName: 'Kin Trust Bridge',
+      text: `🔔 *Kin Warm Trust Bridge Request*\n\nAlumnus Founder *${requester?.name || 'Rohan Mehta'}* wants to connect with your student *${target?.name || 'Parteek Garg'}* (${target?.proofOfWork.verifiedImpactScore}% Impact Score: \`${target?.proofOfWork.repos[0]?.name || 'repo'}\`) for an urgent Fintech sprint.\n\n*Do you vouch for ${target?.name}'s engineering proof-of-work?*`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       interactiveButtons: [
         {
@@ -275,7 +275,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     const groupMsg: WhatsAppMessage = {
       id: `group-created-${Date.now()}`,
       sender: 'ai',
-      senderName: 'Conduit Campus AI Bridge',
+      senderName: 'Kin Campus AI Bridge',
       text: `🎉 *3-Person WhatsApp Group Created!*\n*Participants:* ${requester.name} + ${bridge.name} + ${target.name}\n\n📋 *Automated Context Brief:*\n• *Target Opportunity:* ${activeIntent?.query || 'Fintech Offline-First Core Protocol Sprint'}\n• *Verified Proof:* \`${target.proofOfWork.repos[0]?.name}\` (Commit: \`${target.proofOfWork.repos[0]?.recentCommitHash}\`)\n• *Bridge Verified:* ${bridge.name} confirmed laboratory and codebase competency.\n\nYou may now converse freely!`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isSystemNotice: true
@@ -375,7 +375,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       id: `voice-${Date.now()}`,
       sender: 'user',
       senderName: 'Rohan Mehta (YC Alum)',
-      text: `🎤 Voice note recorded (${duration}): "Hey Conduit, I'm an alumnus founder. Need a student who has actually built a RAG pipeline with vector search for an urgent sprint."`,
+      text: `🎤 Voice note recorded (${duration}): "Hey Kin, I'm an alumnus founder. Need a student who has actually built a RAG pipeline with vector search for an urgent sprint."`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isVoice: true,
       audioDuration: duration
@@ -405,7 +405,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       const aiReply: WhatsAppMessage = {
         id: `ai-reply-${Date.now()}`,
         sender: 'ai',
-        senderName: 'Conduit Campus AI Bridge',
+        senderName: 'Kin Campus AI Bridge',
         text: `⚡ *Voice Intent Processed & Matched!* Broadcasted live capsule to campus graph.\n\nFound 2 student nodes with verified production commits matching your voice prompt:`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         cards: topStudents,
@@ -456,7 +456,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       const reply: WhatsAppMessage = {
         id: `reply-${Date.now()}`,
         sender: 'ai',
-        senderName: 'Conduit Campus AI Bridge',
+        senderName: 'Kin Campus AI Bridge',
         text: `⚡ Ingested intent: "${text}". Found ${matches.length} verified nodes with code evidence:`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         cards: topMatches

@@ -3,7 +3,7 @@ import './globals.css';
 import { NetworkProvider } from '@/context/NetworkContext';
 
 export const metadata: Metadata = {
-  title: 'CONDUIT — Living Campus Proof & Intent Network',
+  title: 'KIN',
   description: 'A living network that connects proven expertise to real opportunities and trusted campus relationships.',
 };
 
