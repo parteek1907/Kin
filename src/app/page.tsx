@@ -1,36 +1,40 @@
 'use client';
 
 import React from 'react';
-import FullAlmasLandingPage from '@/components/FullAlmasLandingPage';
-import WhatsAppBridgeDrawer from '@/components/WhatsAppBridgeDrawer';
-import IngestArtifactModal from '@/components/IngestArtifactModal';
-import InstitutionRadarModal from '@/components/InstitutionRadarModal';
-import MicroAuditModal from '@/components/MicroAuditModal';
+import ConduitHero from '@/components/conduit/ConduitHero';
+import KinNetworkSection from '@/components/kin/KinNetworkSection';
+import KinPricingSection from '@/components/kin/KinPricingSection';
+import KinFooter from '@/components/kin/KinFooter';
 import ToastAlert from '@/components/ToastAlert';
-import NodeEvidenceDrawer from '@/components/NodeEvidenceDrawer';
 
 export default function Home() {
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      const top = el.getBoundingClientRect().top + window.scrollY - 104;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
+  };
+
   return (
-    <main className="relative w-full min-h-screen bg-[#F0F3F7]">
-      {/* 1. Full-Size Vertical Scrollable Landing Page with Exact CONDUIT Hero */}
-      <FullAlmasLandingPage />
+    <main className="relative w-full min-h-screen bg-[#FFFDF8] text-[#11131A] overflow-x-hidden selection:bg-[#EAD8C6] selection:text-[#11131A]">
+      {/* 1. HERO SECTION (INTACT, EXACT LUXURY DESIGN SPECIFICATION) */}
+      <ConduitHero
+        onExplore={() => scrollToSection('network')}
+        onHowItWorks={() => scrollToSection('network')}
+        onForInstitutions={() => scrollToSection('pricing')}
+      />
 
-      {/* 2. Interactive Right Floating Evidence Drawer (when node selected in graph) */}
-      <NodeEvidenceDrawer />
+      {/* 2. HOW KIN WORKS / THE LIVING GRAPH SECTION */}
+      <KinNetworkSection />
 
-      {/* 3. The Killer Feature: Interactive WhatsApp Action Bridge Smartphone Simulator */}
-      <WhatsAppBridgeDrawer />
+      {/* 3. PRICING & MEMBERSHIP TIERS SECTION */}
+      <KinPricingSection />
 
-      {/* 4. Zero-Form Artifact Ingestion Modal */}
-      <IngestArtifactModal />
+      {/* 4. EDITORIAL CHARCOAL FOOTER */}
+      <KinFooter />
 
-      {/* 5. Institutional Opportunity & Skill-Gap Radar Modal */}
-      <InstitutionRadarModal />
-
-      {/* 6. 60-Second Technical Micro-Audit Modal */}
-      <MicroAuditModal />
-
-      {/* 7. Real-Time Celebration Toasts */}
+      {/* Ambient Toast Alerts */}
       <ToastAlert />
     </main>
   );
