@@ -32,6 +32,7 @@ import {
   UploadCloud,
   Github,
   Linkedin,
+  Globe,
   ExternalLink,
   Code2,
   GitBranch,
@@ -216,7 +217,7 @@ export default function KinGlassDashboard() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlRole = params.get('role');
-      if (params.get('setup') === 'true' || params.get('profile') === 'true') {
+      if (params.get('setup') === 'true' || params.get('profile') === 'true' || params.has('step')) {
         setLocalProfileModalOpen(true);
       }
       if (urlRole === 'alumni' || activeRole === 'Alumni') {
@@ -777,6 +778,17 @@ export default function KinGlassDashboard() {
                   >
                     <Linkedin className="w-3.5 h-3.5" />
                     <span>LinkedIn</span>
+                  </a>
+                )}
+                {activePortfolioUrl && (
+                  <a
+                    href={activePortfolioUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900"
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>Portfolio</span>
                   </a>
                 )}
               </div>

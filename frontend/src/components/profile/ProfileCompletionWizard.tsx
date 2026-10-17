@@ -126,8 +126,15 @@ export default function ProfileCompletionWizard({
     user?.officeHours || '1 hour bi-weekly via WhatsApp / Zoom'
   );
 
-  // Pre-fill from current user when modal opens
+  // Pre-fill from current user when modal opens or step query param is provided
   useEffect(() => {
+    if (typeof window !== 'undefined' && isOpen) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const stepParam = parseInt(urlParams.get('step') || '', 10);
+      if (stepParam >= 1 && stepParam <= 4) {
+        setCurrentStep(stepParam);
+      }
+    }
     if (user) {
       if (user.name) setName(user.name);
       if (user.institution) setInstitution(user.institution);
@@ -275,16 +282,22 @@ export default function ProfileCompletionWizard({
             {/* Step Indicators */}
             <div className="flex items-center gap-1.5 mr-8">
               {[1, 2, 3, 4].map((s) => (
-                <div
+                <button
                   key={s}
-                  className={`h-2 rounded-full transition-all duration-300 ${
+                  type="button"
+                  id={`wizard-tab-step-${s}`}
+                  onClick={() => setCurrentStep(s)}
+                  title={`Jump to Step ${s}`}
+                  className={`flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer text-[10px] font-bold ${
                     s === currentStep
-                      ? 'w-7 bg-[#E25C38]'
+                      ? 'w-7 h-6 bg-[#E25C38] text-white shadow-sm ring-2 ring-[#E25C38]/20'
                       : s < currentStep
-                      ? 'w-2.5 bg-emerald-500'
-                      : 'w-2.5 bg-slate-200'
+                      ? 'w-6 h-6 bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                      : 'w-6 h-6 bg-slate-100 text-slate-500 hover:bg-slate-200'
                   }`}
-                />
+                >
+                  {s}
+                </button>
               ))}
             </div>
           </div>
@@ -430,6 +443,7 @@ export default function ProfileCompletionWizard({
                   </span>
                   {linkedinUrl && (
                     <a
+                      id="wizard-link-test-linkedin"
                       href={cleanUrl(linkedinUrl, 'linkedin')}
                       target="_blank"
                       rel="noreferrer"
@@ -441,6 +455,7 @@ export default function ProfileCompletionWizard({
                   )}
                 </label>
                 <input
+                  id="wizard-input-linkedin"
                   type="text"
                   value={linkedinUrl}
                   onChange={(e) => setLinkedinUrl(e.target.value)}
@@ -457,6 +472,7 @@ export default function ProfileCompletionWizard({
                   </span>
                   {githubUrl && (
                     <a
+                      id="wizard-link-test-github"
                       href={cleanUrl(githubUrl, 'github')}
                       target="_blank"
                       rel="noreferrer"
@@ -468,6 +484,7 @@ export default function ProfileCompletionWizard({
                   )}
                 </label>
                 <input
+                  id="wizard-input-github"
                   type="text"
                   value={githubUrl}
                   onChange={(e) => setGithubUrl(e.target.value)}
@@ -484,6 +501,7 @@ export default function ProfileCompletionWizard({
                   </span>
                   {portfolioUrl && (
                     <a
+                      id="wizard-link-test-portfolio"
                       href={cleanUrl(portfolioUrl)}
                       target="_blank"
                       rel="noreferrer"
@@ -495,6 +513,7 @@ export default function ProfileCompletionWizard({
                   )}
                 </label>
                 <input
+                  id="wizard-input-portfolio"
                   type="text"
                   value={portfolioUrl}
                   onChange={(e) => setPortfolioUrl(e.target.value)}
@@ -740,6 +759,7 @@ export default function ProfileCompletionWizard({
           <div className="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between">
             {currentStep > 1 ? (
               <button
+                id="wizard-prev-btn"
                 type="button"
                 onClick={handlePrev}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all cursor-pointer flex items-center gap-1.5"
