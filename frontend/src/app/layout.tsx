@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { NetworkProvider } from '@/context/NetworkContext';
+import { AuthProvider } from '@/context/AuthContext';
+import AuthModal from '@/components/AuthModal';
 
 export const metadata: Metadata = {
   title: 'KIN — Campus Trust Network',
@@ -23,9 +25,12 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full w-full bg-[#F7F5F0] text-[#141815] antialiased selection:bg-[#E25C38] selection:text-white overflow-x-hidden overflow-y-auto">
-        <NetworkProvider>
-          {children}
-        </NetworkProvider>
+        <AuthProvider>
+          <NetworkProvider>
+            {children}
+            <AuthModal />
+          </NetworkProvider>
+        </AuthProvider>
       </body>
     </html>
   );

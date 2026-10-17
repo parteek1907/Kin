@@ -17,8 +17,10 @@ import {
   Users,
   MessageCircle,
   ChevronDown,
-  LayoutDashboard
+  LayoutDashboard,
+  UserPlus
 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 // Dynamic import for the architecture kinetic stack
 const ConnoisseurStackInteractor = dynamic(
@@ -167,6 +169,7 @@ export default function NexusLandingPage() {
     nodes,
     toggleWhatsApp
   } = useNetwork();
+  const { user, isLoggedIn, userInitial, openAuthModal, logout } = useAuth();
 
   const [heroSearchInput, setHeroSearchInput] = useState('');
   const [navVisible, setNavVisible] = useState(true);
@@ -260,15 +263,52 @@ export default function NexusLandingPage() {
               ))}
             </div>
 
-            {/* Right Action: Dashboard Button */}
-            <div className="flex items-center gap-2">
+            {/* Right Action: Get started / User Initial + Dashboard */}
+            <div className="flex items-center gap-2.5">
               <Link
                 href="/dashboard"
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#141815] hover:bg-[#2A2A2A] text-white text-[13px] font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_4px_14px_rgba(0,0,0,0.12)] cursor-pointer"
+                className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-zinc-600 hover:text-black hover:bg-black/[0.04] text-[13px] font-semibold transition-all cursor-pointer"
               >
                 <LayoutDashboard className="w-3.5 h-3.5 text-[#E25C38]" />
                 <span>Dashboard</span>
               </Link>
+
+              {isLoggedIn ? (
+                <div className="relative group">
+                  <button
+                    onClick={openAuthModal}
+                    title={`Logged in as ${user?.name}`}
+                    className="w-9 h-9 rounded-full bg-slate-900 text-white font-black text-sm flex items-center justify-center hover:scale-105 transition-all shadow-md cursor-pointer border border-black/10"
+                  >
+                    {userInitial}
+                  </button>
+                  <div className="absolute right-0 top-11 hidden group-hover:flex flex-col p-3 rounded-2xl bg-white border border-black/[0.08] shadow-xl w-48 text-xs z-50">
+                    <span className="font-bold text-slate-900 truncate">{user?.name}</span>
+                    <span className="text-[10px] text-zinc-500 truncate mb-2">{user?.email}</span>
+                    <div className="w-full h-[1px] bg-slate-100 my-1" />
+                    <Link
+                      href="/dashboard"
+                      className="w-full py-1.5 rounded-lg hover:bg-slate-50 font-semibold transition-colors text-left px-2 text-slate-800"
+                    >
+                      Go to Dashboard
+                    </Link>
+                    <button
+                      onClick={logout}
+                      className="w-full py-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 font-semibold transition-colors text-left px-2 text-slate-600 cursor-pointer"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={openAuthModal}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#141815] hover:bg-[#2A2A2A] text-white text-[13px] font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_4px_14px_rgba(0,0,0,0.12)] cursor-pointer"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-[#E25C38]" />
+                  <span>Get started</span>
+                </button>
+              )}
             </div>
           </nav>
         </div>
