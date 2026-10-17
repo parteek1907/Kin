@@ -282,7 +282,7 @@ export default function NexusLandingPage() {
                     : 'bg-white/80 hover:bg-white border-black/[0.06] text-zinc-700'
                 }`}
               >
-                {intent.role}: "{intent.query.slice(0, 32)}..."
+                {intent.authorRole || intent.category}: "{intent.query.slice(0, 32)}..."
               </button>
             ))}
           </div>

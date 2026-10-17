@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
-import ExactConduitHero from '@/components/ExactConduitHero';
+import ConduitHero from '@/components/conduit/ConduitHero';
 
 // Dynamic import of living canvas for embedded section
 const LivingNetworkCanvas = dynamic(
@@ -95,7 +95,7 @@ export default function FullAlmasLandingPage() {
       {/* =========================================================================
           1. EXACT HERO SECTION (MATCHING USER REFERENCE IMAGE 1:1)
          ========================================================================= */}
-      <ExactConduitHero
+      <ConduitHero
         onExplore={() => scrollToSection('living-graph')}
         onHowItWorks={() => scrollToSection('for-universities')}
         onForInstitutions={() => setIsRadarModalOpen(true)}

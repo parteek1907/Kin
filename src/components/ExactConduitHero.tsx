@@ -215,7 +215,7 @@ export default function ExactConduitHero({
 
         {/* Hotspot: 18 Active Intents */}
         <button
-          onClick={toggleWhatsApp}
+          onClick={() => toggleWhatsApp(true, 'intent-drop')}
           onMouseEnter={() => setActiveTooltip('intents')}
           onMouseLeave={() => setActiveTooltip(null)}
           className="absolute left-[40.0%] top-[84.5%] w-[12.5%] h-[10.5%] cursor-pointer rounded-xl hover:bg-slate-900/5 transition-all text-left group"

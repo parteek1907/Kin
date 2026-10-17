@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import NexusLandingPage from '@/components/NexusLandingPage';
+import FullAlmasLandingPage from '@/components/FullAlmasLandingPage';
 import WhatsAppBridgeDrawer from '@/components/WhatsAppBridgeDrawer';
 import IngestArtifactModal from '@/components/IngestArtifactModal';
 import InstitutionRadarModal from '@/components/InstitutionRadarModal';
@@ -11,9 +11,9 @@ import NodeEvidenceDrawer from '@/components/NodeEvidenceDrawer';
 
 export default function Home() {
   return (
-    <main className="relative w-full min-h-screen bg-[#F7F5F0] text-[#141815] selection:bg-[#E25C38]/20 selection:text-[#E25C38]">
-      {/* 1. Kinetic Nexus Landing Page */}
-      <NexusLandingPage />
+    <main className="relative w-full min-h-screen bg-[#F0F3F7]">
+      {/* 1. Full-Size Vertical Scrollable Landing Page with Exact CONDUIT Hero */}
+      <FullAlmasLandingPage />
 
       {/* 2. Interactive Right Floating Evidence Drawer (when node selected in graph) */}
       <NodeEvidenceDrawer />

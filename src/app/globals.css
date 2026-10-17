@@ -4,7 +4,8 @@
 
 @layer base {
   :root {
-    --background: #F7F5F0;
+    --gutter: clamp(24px, 7.3vw, 140px);
+    --background: #FFFDF8;
     --surface: #FFFFFF;
     --surface-warm: #EFECE6;
     --foreground: #141815;
@@ -19,6 +20,14 @@
     overflow-y: auto;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+}
+
+.font-headline {
+  font-family: 'Plus Jakarta Sans', 'Outfit', system-ui, sans-serif;
+}
+
+.font-body {
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 /* Custom tactile scrollbar */

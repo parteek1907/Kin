@@ -32,8 +32,10 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        mono: ["var(--font-mono)", "JetBrains Mono", "monospace"],
+        sans: ["'Plus Jakarta Sans'", "'Outfit'", "'Inter'", "'DejaVu Sans'", "'Liberation Sans'", "system-ui", "sans-serif"],
+        headline: ["'Plus Jakarta Sans'", "'Outfit'", "'Inter'", "'DejaVu Sans'", "sans-serif"],
+        body: ["'Inter'", "'Plus Jakarta Sans'", "system-ui", "sans-serif"],
+        mono: ["'JetBrains Mono'", "monospace"],
       },
       boxShadow: {
         "glow-cyan": "0 0 25px -5px rgba(6, 182, 212, 0.5)",

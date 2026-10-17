@@ -53,6 +53,7 @@ interface NetworkContextType {
   setIsMicroAuditModalOpen: (open: boolean) => void;
   clearToast: () => void;
   resetIntentFilter: () => void;
+  searchIntentsByText: (queryText: string) => void;
 }
 
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
@@ -64,8 +65,8 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   
   const [activePersonaFilter, setActivePersonaFilter] = useState<PersonaType | 'all' | 'institution-radar'>('all');
   const [activeIntentId, setActiveIntentId] = useState<string | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>('node-parteek');
-  const [targetVouchNodeId, setTargetVouchNodeId] = useState<string | null>('node-parteek');
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [targetVouchNodeId, setTargetVouchNodeId] = useState<string | null>(null);
 
   // Modals & Panels
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
@@ -128,6 +129,23 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
 
   const resetIntentFilter = () => {
     setActiveIntentId(null);
+  };
+
+  const searchIntentsByText = (queryText: string) => {
+    if (!queryText.trim()) {
+      setActiveIntentId(null);
+      return;
+    }
+    const q = queryText.toLowerCase();
+    const match = intents.find(
+      i =>
+        i.query.toLowerCase().includes(q) ||
+        (i.authorRole && i.authorRole.toLowerCase().includes(q)) ||
+        i.category.toLowerCase().includes(q)
+    );
+    if (match) {
+      selectIntent(match.id);
+    }
   };
 
   const setPersonaFilter = (filter: PersonaType | 'all' | 'institution-radar') => {
@@ -485,7 +503,8 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
         setIsRadarModalOpen,
         setIsMicroAuditModalOpen,
         clearToast,
-        resetIntentFilter
+        resetIntentFilter,
+        searchIntentsByText
       }}
     >
       {children}
