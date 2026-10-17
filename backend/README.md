@@ -846,6 +846,8 @@ Migrations are managed with Alembic. The migration history is strictly linear:
 5. `0005_skill_bounty_network`: Challenges, Submissions, Reviews, and Outcomes.
 6. `0006_kin_reputation_engine`: Points Policies, Reputation Summaries, Immutable Ledger Entries, and Abuse Audit Logs.
 7. `0007_kin_ghost_mode`: Ghost Entitlements, Personas, Identity Mappings, Posts, Replies, Reactions, Reports, Mutes, and Audit Logs.
+8. `0008_mock_interviews`: Interviewer Profiles, Slots, Mock Bookings, Evaluations, and Feedback Rubrics.
+9. `0009_firebase_auth_verification`: Firebase Auth UID, student roll numbers / IDs, business / corporate IDs, and verification statuses.
 
 Apply all migrations:
 ```bash
@@ -856,12 +858,12 @@ alembic upgrade head
 Verify migration heads:
 ```bash
 alembic heads
-# Expected: 0007_kin_ghost_mode (head)
+# Expected: 0009_firebase_auth_verification (head)
 ```
 
 ### Running Automated Tests
-The backend features 107 automated tests across all 7 core features:
-- `tests/test_auth.py`: Authentication, JWT, and user management (7 tests).
+The backend features 109 automated tests across all core features:
+- `tests/test_auth.py`: Authentication, JWT, bcrypt, user management, and Firebase Auth student/business ID sync (9 tests).
 - `tests/test_career_time_machine.py`: Feature 1 - Career pathways, timelines, skill gaps (11 tests).
 - `tests/test_health.py`: System health checks and routing (3 tests).
 - `tests/test_qualification_connections.py`: Feature 2 - Automated connection policies & evaluation (11 tests).

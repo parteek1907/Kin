@@ -35,6 +35,9 @@ class Profile(Base):
     education = Column(JSON, default=list, nullable=True)
     industry = Column(String(100), nullable=True, index=True)
     current_organization = Column(String(150), nullable=True)
+    student_id = Column(String(100), nullable=True, index=True)
+    business_id = Column(String(100), nullable=True, index=True)
+    verification_status = Column(String(50), default="unverified", nullable=False)
     years_of_experience = Column(Float, default=0.0, nullable=False)
     visibility = Column(String(30), default=ProfileVisibility.PUBLIC.value, nullable=False)
 

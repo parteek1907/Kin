@@ -25,6 +25,7 @@ class UserResponse(BaseModel):
 
     id: int
     email: str
+    firebase_uid: Optional[str] = None
     is_active: bool
     created_at: datetime
     profile: Optional[ProfileResponse] = None
@@ -34,3 +35,23 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+class FirebaseSyncRequest(BaseModel):
+    firebase_uid: str = Field(..., min_length=1, max_length=128, description="Firebase UID from authenticated client")
+    email: EmailStr = Field(..., description="Firebase authenticated email")
+    full_name: str = Field(..., min_length=1, max_length=150, description="Full display name")
+    user_type: str = Field("student", description="Either 'student' or 'professional'")
+    student_id: Optional[str] = Field(None, max_length=100, description="University / Student Roll Number ID")
+    business_id: Optional[str] = Field(None, max_length=100, description="Corporate / Business ID")
+    institution_or_company: Optional[str] = Field(None, max_length=150, description="University or Company name")
+    department_or_title: Optional[str] = Field(None, max_length=150, description="Department or job title")
+
+
+class FirebaseSyncResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+    is_new_user: bool
+    verification_status: str
+    message: str

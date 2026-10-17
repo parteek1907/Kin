@@ -130,3 +130,50 @@ def test_invalid_role_escalation_rejected(client, student_auth):
         headers=student_auth["headers"]
     )
     assert patch_res.status_code in (400, 422)
+
+
+def test_firebase_sync_student_with_student_id(client):
+    """Verify Firebase authenticated student is created in database with verified student_id."""
+    payload = {
+        "firebase_uid": "fb_uid_student_test_101",
+        "email": "student.firebase@iiitd.ac.in",
+        "full_name": "Kin Student Builder",
+        "user_type": "student",
+        "student_id": "2024-CS-8891",
+        "institution_or_company": "IIIT Delhi",
+        "department_or_title": "Computer Science & Engineering"
+    }
+    res = client.post("/api/v1/auth/firebase-sync", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["is_new_user"] is True
+    assert data["verification_status"] == "verified_student"
+    assert data["access_token"] is not None
+    assert data["user"]["email"] == "student.firebase@iiitd.ac.in"
+    assert data["user"]["profile"]["student_id"] == "2024-CS-8891"
+    assert data["user"]["profile"]["role"] == "Student"
+    assert data["user"]["profile"]["current_organization"] == "IIIT Delhi"
+
+
+def test_firebase_sync_professional_with_business_id(client):
+    """Verify Firebase authenticated professional is created in database with verified business_id."""
+    payload = {
+        "firebase_uid": "fb_uid_pro_test_202",
+        "email": "founder.firebase@techcorp.io",
+        "full_name": "Kin Tech Founder",
+        "user_type": "professional",
+        "business_id": "CORP-LLC-7741",
+        "institution_or_company": "TechCorp Systems",
+        "department_or_title": "Founding Systems Architect"
+    }
+    res = client.post("/api/v1/auth/firebase-sync", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["is_new_user"] is True
+    assert data["verification_status"] == "verified_professional"
+    assert data["access_token"] is not None
+    assert data["user"]["email"] == "founder.firebase@techcorp.io"
+    assert data["user"]["profile"]["business_id"] == "CORP-LLC-7741"
+    assert data["user"]["profile"]["role"] == "Alumni"
+    assert data["user"]["profile"]["current_organization"] == "TechCorp Systems"
+

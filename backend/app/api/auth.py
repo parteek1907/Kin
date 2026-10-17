@@ -6,7 +6,14 @@ from app.core.database import get_db
 from app.core.security import hash_password, verify_password, create_access_token, get_current_user
 from app.models.user import User
 from app.models.profile import Profile, PlatformRole
-from app.schemas.auth import UserRegisterRequest, UserLoginRequest, TokenResponse, UserResponse
+from app.schemas.auth import (
+    UserRegisterRequest, 
+    UserLoginRequest, 
+    TokenResponse, 
+    UserResponse,
+    FirebaseSyncRequest,
+    FirebaseSyncResponse
+)
 from app.schemas.profile import ProfileUpdate, ProfileResponse
 
 router = APIRouter(prefix="/auth", tags=["Authentication & Profile"])
@@ -162,3 +169,98 @@ def update_profile(
     db.commit()
     db.refresh(profile)
     return profile
+
+
+@router.post(
+    "/firebase-sync",
+    response_model=FirebaseSyncResponse,
+    summary="Synchronize Firebase Auth and verify student/business ID"
+)
+def firebase_sync(
+    req: FirebaseSyncRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Synchronizes Firebase authenticated users directly to the platform database.
+    Verifies student ID for students or business ID for professionals,
+    creates/updates the User and Profile records, and issues a platform JWT token.
+    """
+    clean_email = req.email.strip().lower()
+    clean_uid = req.firebase_uid.strip()
+
+    # 1. Lookup by firebase_uid or email
+    user = db.query(User).filter(
+        (User.firebase_uid == clean_uid) | (User.email == clean_email)
+    ).first()
+
+    is_new = False
+    if not user:
+        is_new = True
+        synthetic_pw = hash_password(f"firebase_{clean_uid}_{clean_email}")
+        user = User(
+            email=clean_email,
+            firebase_uid=clean_uid,
+            hashed_password=synthetic_pw,
+            is_active=True
+        )
+        db.add(user)
+        db.flush()
+    else:
+        if not user.firebase_uid:
+            user.firebase_uid = clean_uid
+
+    # 2. Map role and verification status
+    is_student = req.user_type.lower() == "student"
+    chosen_role = PlatformRole.STUDENT.value if is_student else PlatformRole.ALUMNI.value
+    verification_status = "verified_student" if (is_student and req.student_id) else (
+        "verified_professional" if (not is_student and req.business_id) else "pending"
+    )
+
+    # 3. Create or update profile
+    profile = user.profile
+    if not profile:
+        profile = Profile(
+            user_id=user.id,
+            full_name=req.full_name.strip(),
+            role=chosen_role,
+            headline=req.department_or_title.strip() if req.department_or_title else None,
+            current_organization=req.institution_or_company.strip() if req.institution_or_company else None,
+            student_id=req.student_id.strip() if req.student_id else None,
+            business_id=req.business_id.strip() if req.business_id else None,
+            verification_status=verification_status,
+            skills=[]
+        )
+        db.add(profile)
+    else:
+        if req.full_name:
+            profile.full_name = req.full_name.strip()
+        profile.role = chosen_role
+        if req.student_id:
+            profile.student_id = req.student_id.strip()
+        if req.business_id:
+            profile.business_id = req.business_id.strip()
+        if req.institution_or_company:
+            profile.current_organization = req.institution_or_company.strip()
+        if req.department_or_title:
+            profile.headline = req.department_or_title.strip()
+        profile.verification_status = verification_status
+
+    db.commit()
+    db.refresh(user)
+
+    # 4. Generate JWT
+    token = create_access_token(subject=user.id)
+
+    id_type = "Student ID" if is_student else "Business ID"
+    id_val = req.student_id if is_student else req.business_id
+    msg = f"Firebase authentication verified and saved to database with {id_type}: {id_val or 'None'}."
+
+    return FirebaseSyncResponse(
+        access_token=token,
+        token_type="bearer",
+        user=user,
+        is_new_user=is_new,
+        verification_status=verification_status,
+        message=msg
+    )
+

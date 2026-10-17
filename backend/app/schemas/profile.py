@@ -13,6 +13,9 @@ class ProfileBase(BaseModel):
     education: Optional[List[Any]] = Field(default_factory=list, description="Education history")
     industry: Optional[str] = Field(None, max_length=100, description="Primary industry")
     current_organization: Optional[str] = Field(None, max_length=150, description="Current organization or university")
+    student_id: Optional[str] = Field(None, max_length=100, description="Verified Student Roll Number / ID")
+    business_id: Optional[str] = Field(None, max_length=100, description="Verified Business / Corporate ID")
+    verification_status: Optional[str] = Field("unverified", max_length=50, description="Identity verification status")
     years_of_experience: float = Field(default=0.0, ge=0.0, le=70.0, description="Years of professional experience")
     visibility: ProfileVisibility = Field(default=ProfileVisibility.PUBLIC, description="Profile privacy setting")
 
@@ -29,6 +32,9 @@ class ProfileUpdate(BaseModel):
     education: Optional[List[Any]] = None
     industry: Optional[str] = Field(None, max_length=100)
     current_organization: Optional[str] = Field(None, max_length=150)
+    student_id: Optional[str] = Field(None, max_length=100)
+    business_id: Optional[str] = Field(None, max_length=100)
+    verification_status: Optional[str] = Field(None, max_length=50)
     years_of_experience: Optional[float] = Field(None, ge=0.0, le=70.0)
     visibility: Optional[ProfileVisibility] = None
     # Users can change their role within permitted platform roles, but cannot escalate to admin
