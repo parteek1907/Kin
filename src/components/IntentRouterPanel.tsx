@@ -18,7 +18,13 @@ import {
   Code2
 } from 'lucide-react';
 
-export default function IntentRouterPanel() {
+export default function IntentRouterPanel({ 
+  embedded = false, 
+  className = "" 
+}: { 
+  embedded?: boolean; 
+  className?: string; 
+}) {
   const {
     intents,
     activeIntentId,
@@ -83,8 +89,12 @@ export default function IntentRouterPanel() {
     setIsSubmitting(false);
   };
 
+  const containerClasses = embedded
+    ? `w-full flex flex-col bg-[#090C15] rounded-3xl shadow-2xl overflow-hidden border border-white/[0.08] ${className}`
+    : `fixed top-20 left-4 z-30 w-84 sm:w-96 max-h-[calc(100vh-6rem)] flex flex-col bg-[#090C15]/95 backdrop-blur-2xl rounded-2xl shadow-2xl overflow-hidden border border-white/10 ${className}`;
+
   return (
-    <aside className="fixed top-20 left-4 z-30 w-84 sm:w-96 max-h-[calc(100vh-6rem)] flex flex-col glass-panel rounded-2xl shadow-2xl overflow-hidden border border-white/10">
+    <aside className={containerClasses}>
       {/* Header */}
       <div className="p-4 border-b border-white/10 flex items-center justify-between bg-obsidian-surface/60">
         <div className="flex items-center space-x-2">
