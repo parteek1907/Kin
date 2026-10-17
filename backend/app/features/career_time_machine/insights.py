@@ -157,14 +157,67 @@ class DeterministicInsightsEngine:
         )
 
 
+import logging
+import httpx
+
+logger = logging.getLogger(__name__)
+
+
 class CareerInsightsService:
     @staticmethod
     def get_insights(db: Session, target_query: str) -> CareerInsightsResponse:
         """
-        Produce career insights. Uses AI provider if configured, otherwise falls back
-        gracefully to DeterministicInsightsEngine without requiring any external keys.
+        Produce career insights. Uses Google Gemini AI provider if configured, otherwise falls back
+        gracefully to DeterministicInsightsEngine without requiring any external keys or breaking on error.
         """
-        # If AI API key is configured in the future, an LLM provider implementation
-        # can enrich or summarize the empirical statistics.
-        # Currently, deterministic Python logic provides safe, grounded insights.
-        return DeterministicInsightsEngine.generate_insights(db, target_query)
+        base_insights = DeterministicInsightsEngine.generate_insights(db, target_query)
+
+        # Check if Gemini AI is configured
+        if settings.AI_API_KEY and settings.AI_PROVIDER in ("gemini", "google"):
+            try:
+                model_name = settings.AI_MODEL or "gemini-1.5-flash"
+                if model_name.startswith("models/"):
+                    model_name = model_name.replace("models/", "")
+
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.AI_API_KEY}"
+                skills_list = [
+                    s.get("skill") if isinstance(s, dict) else getattr(s, "skill", str(s))
+                    for s in (base_insights.in_demand_skills or [])
+                ]
+
+                prompt = (
+                    f"You are a senior career intelligence advisor for university students. "
+                    f"Given this verified alumni data for target '{target_query}':\n"
+                    f"- Common entry roles: {base_insights.common_entry_roles}\n"
+                    f"- Frequent transitions: {base_insights.common_transitions}\n"
+                    f"- In-demand skills: {skills_list}\n"
+                    f"- Average duration: {base_insights.average_duration_per_stage_months} months.\n\n"
+                    f"Synthesize 2 concise, strategic career progression tips for students. "
+                    f"Keep it under 3 sentences, data-grounded, professional, and encouraging."
+                )
+
+                payload = {
+                    "contents": [{
+                        "parts": [{"text": prompt}]
+                    }]
+                }
+
+                with httpx.Client(timeout=8.0) as client:
+                    resp = client.post(url, json=payload)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            text_parts = candidates[0].get("content", {}).get("parts", [])
+                            if text_parts and "text" in text_parts[0]:
+                                ai_text = text_parts[0]["text"].strip()
+                                base_insights.inferred_patterns.append(f"AI Synthesis: {ai_text}")
+                                base_insights.ai_enhanced = True
+                                base_insights.methodology += " Enriched with Google Gemini generative synthesis."
+                    else:
+                        logger.warning("Gemini API call failed (%s): %s", resp.status_code, resp.text)
+            except Exception as e:
+                logger.warning("Gemini AI integration exception: %s. Reverting to deterministic output.", e)
+
+        return base_insights
+
