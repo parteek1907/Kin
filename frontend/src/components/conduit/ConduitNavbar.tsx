@@ -36,7 +36,8 @@ export default function ConduitNavbar({
     }
     const el = document.getElementById(id);
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+      const top = el.getBoundingClientRect().top + window.scrollY - 104;
+      window.scrollTo({ top, behavior: 'smooth' });
     }
   };
 
@@ -83,24 +84,24 @@ export default function ConduitNavbar({
           className="hidden lg:flex items-center justify-center gap-16 text-[14px] font-semibold tracking-[0.12em] text-[#2D3139] uppercase justify-self-center select-none"
         >
           <button
-            onClick={() => handleScrollTo('living-graph', onExplore)}
+            onClick={() => handleScrollTo('network', onExplore)}
             className="hover:text-[#11131A] transition-colors py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A] rounded whitespace-nowrap"
           >
             NETWORK
           </button>
           
           <button
-            onClick={() => handleScrollTo('for-universities', onHowItWorks)}
+            onClick={() => handleScrollTo('network', onHowItWorks)}
             className="hover:text-[#11131A] transition-colors py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A] rounded whitespace-nowrap"
           >
             HOW IT WORKS
           </button>
           
           <button
-            onClick={() => handleScrollTo('institution-radar', onForInstitutions)}
+            onClick={() => handleScrollTo('pricing', onForInstitutions)}
             className="hover:text-[#11131A] transition-colors py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A] rounded whitespace-nowrap"
           >
-            FOR INSTITUTIONS
+            PRICING
           </button>
         </nav>
 
@@ -110,7 +111,7 @@ export default function ConduitNavbar({
         <div className="flex items-center justify-self-end">
           <button
             id="nav-cta"
-            onClick={() => handleScrollTo('living-graph', onExplore)}
+            onClick={() => handleScrollTo('pricing', onExplore)}
             style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
             className="group hidden lg:inline-flex items-center space-x-2.5 h-[52px] text-[#11131A] font-bold text-[12px] tracking-[0.12em] uppercase transition-all duration-200 hover:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A]/30 whitespace-nowrap cursor-pointer select-none"
           >
@@ -122,7 +123,7 @@ export default function ConduitNavbar({
           <button
             id="nav-hamburger"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 text-[#11131A] hover:bg-black/5 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B6E64A]"
+            className="lg:hidden p-2 text-[#11131A] hover:bg-black/5 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A]"
             aria-label="Toggle Navigation Menu"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -140,22 +141,22 @@ export default function ConduitNavbar({
           className="md:hidden bg-[#FFFDF8] border-b border-black/[0.06] px-6 py-5 shadow-lg flex flex-col space-y-4"
         >
           <button
-            onClick={() => handleScrollTo('living-graph', onExplore)}
+            onClick={() => handleScrollTo('network', onExplore)}
             className="text-left font-semibold text-sm tracking-[0.10em] text-[#11131A] py-1 uppercase"
           >
             NETWORK
           </button>
           <button
-            onClick={() => handleScrollTo('for-universities', onHowItWorks)}
+            onClick={() => handleScrollTo('network', onHowItWorks)}
             className="text-left font-semibold text-sm tracking-[0.10em] text-[#11131A] py-1 uppercase"
           >
             HOW IT WORKS
           </button>
           <button
-            onClick={() => handleScrollTo('institution-radar', onForInstitutions)}
+            onClick={() => handleScrollTo('pricing', onForInstitutions)}
             className="text-left font-semibold text-sm tracking-[0.10em] text-[#11131A] py-1 uppercase"
           >
-            FOR INSTITUTIONS
+            PRICING
           </button>
         </motion.div>
       )}

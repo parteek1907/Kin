@@ -1,43 +1,52 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
-import NexusLandingPage from '@/components/NexusLandingPage';
-import WhatsAppBridgeDrawer from '@/components/WhatsAppBridgeDrawer';
-import InstitutionRadarModal from '@/components/InstitutionRadarModal';
-import MicroAuditModal from '@/components/MicroAuditModal';
+import ConduitHero from '@/components/conduit/ConduitHero';
+import KinNetworkSection from '@/components/kin/KinNetworkSection';
+import KinPricingSection from '@/components/kin/KinPricingSection';
+import KinFooter from '@/components/kin/KinFooter';
 import ToastAlert from '@/components/ToastAlert';
 
 export default function Home() {
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      const top = el.getBoundingClientRect().top + window.scrollY - 104;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
+  };
+
   return (
-    <main className="relative w-full min-h-screen bg-[#F7F5F0] text-[#141815] selection:bg-[#E25C38]/20 selection:text-[#E25C38]">
-      {/* 1. Kinetic Nexus Landing Page */}
-      <NexusLandingPage />
+    <main className="relative w-full min-h-screen bg-[#FFFDF8] text-[#11131A] overflow-x-hidden selection:bg-[#EAD8C6] selection:text-[#11131A]">
+      {/* 1. HERO SECTION (INTACT, EXACT LUXURY DESIGN SPECIFICATION) */}
+      <ConduitHero
+        onExplore={() => scrollToSection('network')}
+        onHowItWorks={() => scrollToSection('network')}
+        onForInstitutions={() => scrollToSection('pricing')}
+      />
+
+      {/* 2. HOW KIN WORKS / THE LIVING GRAPH SECTION */}
+      <KinNetworkSection />
+
+      {/* 3. PRICING & MEMBERSHIP TIERS SECTION */}
+      <KinPricingSection />
+
+      {/* 4. EDITORIAL CHARCOAL FOOTER */}
+      <KinFooter />
+
+      {/* Ambient Toast Alerts */}
+      <ToastAlert />
 
       {/* Floating Direct Access to Dashboard */}
       <div className="fixed bottom-6 right-6 z-50">
-        <Link
+        <a
           href="/dashboard"
-          className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-[#141815] hover:bg-[#232323] text-white text-xs font-bold shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/10 hover:scale-105 transition-all group cursor-pointer"
+          className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-[#11131A] hover:bg-[#232323] text-white text-xs font-bold shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/10 hover:scale-105 transition-all group cursor-pointer"
         >
           <span className="w-2 h-2 rounded-full bg-[#E25C38] animate-ping" />
-          <span>Launch Glassmorphic Dashboard</span>
-          <ArrowRight className="w-3.5 h-3.5 text-[#E25C38] group-hover:translate-x-1 transition-transform" />
-        </Link>
+          <span>Launch Dashboard</span>
+        </a>
       </div>
-
-      {/* 2. Interactive WhatsApp Action Bridge Smartphone Simulator */}
-      <WhatsAppBridgeDrawer />
-
-      {/* 3. Institutional Opportunity & Skill-Gap Radar Modal */}
-      <InstitutionRadarModal />
-
-      {/* 4. 60-Second Technical Micro-Audit Modal */}
-      <MicroAuditModal />
-
-      {/* 5. Real-Time Celebration Toasts */}
-      <ToastAlert />
     </main>
   );
 }
