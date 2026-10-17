@@ -5,6 +5,7 @@ from app.features.qualification_connections.router import router as qualificatio
 from app.features.social.router import router as social_router
 from app.features.skill_bounty.router import router as skill_bounty_router
 from app.features.unclaimed_talent_radar.router import router as unclaimed_talent_radar_router
+from app.features.kin_reputation.router import router as kin_reputation_router
 
 api_router = APIRouter()
 
@@ -25,3 +26,7 @@ api_router.include_router(skill_bounty_router)
 
 # Major Feature 5: Unclaimed Talent Radar
 api_router.include_router(unclaimed_talent_radar_router)
+
+# Major Feature 6: Kin Reputation Engine
+api_router.include_router(kin_reputation_router)
+

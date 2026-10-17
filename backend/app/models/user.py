@@ -30,3 +30,6 @@ class User(Base):
     submissions = relationship("ChallengeSubmission", back_populates="student", cascade="all, delete-orphan")
     reviews_authored = relationship("SubmissionReview", back_populates="reviewer", cascade="all, delete-orphan")
     challenge_outcomes = relationship("ChallengeOutcome", foreign_keys="[ChallengeOutcome.student_user_id]", back_populates="student", cascade="all, delete-orphan")
+    kin_reputation_summary = relationship("KinReputationSummary", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    kin_ledger_entries = relationship("KinLedgerEntry", foreign_keys="KinLedgerEntry.user_id", back_populates="user", cascade="all, delete-orphan")
+

@@ -1,4 +1,4 @@
-# Conduit Backend - Alumni Network & Professional Connections Platform
+# Kin Backend - Intelligent Alumni Network & Professional Connections Platform
 
 A high-performance, modular backend built with FastAPI, PostgreSQL, SQLAlchemy 2.x, Alembic, and Pydantic v2.
 
@@ -6,7 +6,7 @@ A high-performance, modular backend built with FastAPI, PostgreSQL, SQLAlchemy 2
 
 ## 1. Overview & Vision
 
-**Conduit** bridges the gap between university students, alumni, faculty, founders, and recruiters. Rather than relying on static profiles or generic advice, Conduit introduces empirical, data-driven career navigation, intelligent qualification-based auto connections, and a comprehensive LinkedIn-style professional social networking system.
+**Kin** bridges the gap between university students, alumni, faculty, founders, and recruiters. Rather than relying on static profiles or generic advice, Kin introduces empirical, data-driven career navigation, intelligent qualification-based auto connections, a comprehensive LinkedIn-style professional social networking system, and a robust contribution-based reputation engine.
 
 ### Major Feature 1: Career Time Machine
 The **Career Time Machine** enables students to explore real historical career pathways submitted by alumni and professionals.
@@ -42,6 +42,16 @@ The **Skill Bounty Network** connects students with alumni, startup founders, re
 
 ### Major Feature 5: Unclaimed Talent Radar
 The **Unclaimed Talent Radar** discovers high-value opportunities that students and alumni might not think to search for themselves. Rather than merely matching declared career aspirations or current narrow job titles, the system identifies **transferable skills** and bridges candidates to adjacent and emerging industries.
+
+### Major Feature 6: Kin Reputation Engine (Contribution-Based Reputation System)
+The **Kin Reputation Engine** provides an immutable, auditable, contribution-based reputation ledger. It rewards genuine, useful, verified contributions to the community rather than raw clicks, vanity popularity, or meaningless engagement.
+- **Configurable Server-Side Points Policy**: Covers 8 core community contributions including mentoring sessions, portfolio reviews, mock interviews, accepted community answers, 20-Minute Doorway sessions, verified introductions, Wisdom Capsules, and confirmed positive feedback.
+- **Append-Only Immutable Ledger**: Every points award, adjustment, and reversal is written to `kin_ledger_entries` with an enforced unique `idempotency_key`, preventing duplicate credits on network retries.
+- **Reversible Audit Corrections**: Mistakes and disputed interactions are corrected exclusively through linked negative adjustment records (`reversal_of_entry_id`), preserving the complete chronological audit history without mutating past transactions.
+- **Multi-Tier & Rolling Velocity**: Computes distinct lifetime points, net balances, rolling 30-day velocity, rolling 90-day velocity, and 5 reputation tiers (Bronze, Silver, Gold, Platinum, Fellow).
+- **Hardened Anti-Abuse Controls**: Built-in safeguards against self-awarding, cooldown violations, daily category point caps, rapid point farming, and pairwise reciprocal collusion rings between colluding members.
+- **Zero Information Leakage**: Public reputation cards strictly enforce profile visibility settings (public, network-only, private) and never expose private fraud flags, dispute references, or internal moderation logs.
+
 
 ---
 
@@ -800,13 +810,18 @@ Authorization: Bearer <JWT_STUDENT>
 
 ---
 
+---
+
 ## 10. Database Migrations, Tests & Roadmap
 
 ### Database Migrations
-Migrations are managed with Alembic. The migration history is linear:
+Migrations are managed with Alembic. The migration history is strictly linear:
 1. `0001_initial_schema`: Users, Profiles, and Career Journey models.
-2. `0002_unclaimed_talent_radar`: Opportunities and Talent Radar Feedback.
-3. `0003_skill_bounty_network`: Challenges, Submissions, Reviews, and Outcomes.
+2. `0002_qualification_connections`: Connection Policies, Connection Requests, and Connections.
+3. `0003_social_networking`: User Blocks and Persistent Notifications.
+4. `0004_unclaimed_talent_radar`: Opportunities and Talent Radar Feedback.
+5. `0005_skill_bounty_network`: Challenges, Submissions, Reviews, and Outcomes.
+6. `0006_kin_reputation_engine`: Points Policies, Reputation Summaries, Immutable Ledger Entries, and Abuse Audit Logs.
 
 Apply all migrations:
 ```bash
@@ -817,31 +832,133 @@ alembic upgrade head
 Verify migration heads:
 ```bash
 alembic heads
-# Expected: 0003_skill_bounty_network (head)
+# Expected: 0006_kin_reputation_engine (head)
 ```
 
 ### Running Automated Tests
-The backend features 61 automated tests verifying all three major features:
+The backend features 96 automated tests across all 6 core features:
 - `tests/test_auth.py`: Authentication, JWT, and user management (7 tests).
 - `tests/test_career_time_machine.py`: Feature 1 - Career pathways, timelines, skill gaps (11 tests).
 - `tests/test_health.py`: System health checks and routing (3 tests).
-- `tests/test_skill_bounty.py`: Feature 2 - Challenge creation, lifecycles, submissions, rubrics, outcomes, recommendations (20 tests).
-- `tests/test_unclaimed_talent_radar.py`: Feature 5 - Cross-industry discovery, transferable skill graph, eligibility (20 tests).
+- `tests/test_qualification_connections.py`: Feature 2 - Automated connection policies & evaluation (11 tests).
+- `tests/test_social.py`: Feature 3 - Social networking, search, blocks, notifications (9 tests).
+- `tests/test_skill_bounty.py`: Feature 4 - Challenges, submissions, rubrics, outcomes (20 tests).
+- `tests/test_unclaimed_talent_radar.py`: Feature 5 - Cross-industry discovery, transferable skill graph (20 tests).
+- `tests/test_kin_reputation.py`: Feature 6 - Kin Reputation Engine, immutable ledger, anti-abuse, reversals (15 tests).
 
 Run the complete test suite:
 ```bash
 cd backend
 python -m pytest
-# Expected: 61 passed
+# Expected: 96 passed
 ```
 
-Run Skill Bounty tests exclusively:
+Run Kin Reputation tests exclusively:
 ```bash
-python -m pytest tests/test_skill_bounty.py
-# Expected: 20 passed
+python -m pytest tests/test_kin_reputation.py
+# Expected: 15 passed
+```
+
+---
+
+## 11. Major Feature 6: Kin Reputation Engine API Reference
+
+### 11.1 Reputation Tiers & Points Allocation
+| Tier | Point Threshold | Community Standing |
+|---|---|---|
+| **Bronze** | 0 – 99 pts | New / Entry Contributor |
+| **Silver** | 100 – 299 pts | Active Contributor |
+| **Gold** | 300 – 699 pts | Senior Community Pillar |
+| **Platinum** | 700 – 1499 pts | Eminent Mentor & Leader |
+| **Fellow** | 1500+ pts | Distinguished Community Fellow |
+
+### 11.2 Core Contribution Categories & Default Policy
+| Category (`event_type`) | Base Points | Daily Cap | Cooldown | Counterparty Required |
+|---|---|---|---|---|
+| `mentoring_session` | 35 | 70 | 30 min | Yes (Student / Mentee) |
+| `portfolio_feedback` | 20 | 60 | 10 min | Yes (Student) |
+| `mock_interview` | 40 | 80 | 30 min | Yes (Candidate) |
+| `community_answer` | 15 | 45 | 5 min | No |
+| `twenty_minute_doorway` | 50 | 100 | 20 min | Yes (Guest) |
+| `successful_introduction` | 25 | 50 | 60 min | Yes (Recipient) |
+| `wisdom_capsule` | 30 | 60 | 30 min | No |
+| `positive_feedback` | 10 | 30 | 5 min | Yes (Rater) |
+
+### 11.3 Endpoints Reference
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/reputation/me` | Authenticated | Retrieve own reputation summary, tier, and rolling velocity |
+| `GET` | `/api/v1/reputation/history` | Authenticated | Paginated immutable contribution ledger transactions |
+| `GET` | `/api/v1/reputation/users/{user_id}` | Public / Auth | Sanitized public reputation card respecting profile visibility |
+| `GET` | `/api/v1/reputation/leaderboard` | Public | Permitted community leaderboard (`lifetime`, `30d`, `90d`) |
+| `GET` | `/api/v1/reputation/breakdown` | Authenticated | Category-by-category contribution percentage breakdown |
+| `GET` | `/api/v1/reputation/policies` | Public | List active contribution policies, point values, and caps |
+| `POST` | `/api/v1/reputation/events` | Privileged | Record verified contribution (Faculty/Admin or Service Key) |
+| `POST` | `/api/v1/reputation/reversals` | Privileged | Reverse an awarded ledger row creating linked negative adjustment |
+| `POST` | `/api/v1/reputation/admin/policies` | Privileged | Create or update points policy configuration |
+
+### 11.4 Example: Record Verified Contribution
+```http
+POST /api/v1/reputation/events
+Authorization: Bearer <FACULTY_JWT_TOKEN>
+Content-Type: application/json
+
+{
+  "user_id": 42,
+  "event_type": "mentoring_session",
+  "source_reference": "session:mentoring-oct-17-001",
+  "counterparty_user_id": 88,
+  "quality_score": 4.8,
+  "metadata_payload": {
+    "session_topic": "Career Transition to Autonomous Robotics",
+    "duration_minutes": 45
+  }
+}
+```
+
+**Response (`201 Created`):**
+```json
+{
+  "success": true,
+  "transaction_id": 104,
+  "idempotency_key": "mentoring_session:session:mentoring-oct-17-001:42",
+  "points_awarded": 35,
+  "new_current_points": 210,
+  "new_tier": "Silver",
+  "verification_status": "verified",
+  "message": "Successfully credited 35 points for verified 'mentoring_session'."
+}
+```
+
+### 11.5 Example: Linked Reversal of Disputed Award
+```http
+POST /api/v1/reputation/reversals
+Authorization: Bearer <FACULTY_JWT_TOKEN>
+Content-Type: application/json
+
+{
+  "entry_id": 104,
+  "reason": "Host did not attend scheduled session",
+  "dispute_reference": "DISPUTE-TICKET-4401"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "transaction_id": 105,
+  "idempotency_key": "rev:mentoring_session:session:mentoring-oct-17-001:42",
+  "points_awarded": -35,
+  "new_current_points": 175,
+  "new_tier": "Silver",
+  "verification_status": "verified",
+  "message": "Successfully reversed transaction #104. Adjusted points by -35."
+}
 ```
 
 ### Known Limitations
 - **No Payment Processing**: In accordance with platform design, monetary reward processing is excluded. Rewards are limited to mentorship, portfolio evidence, interviews, and referrals.
 - **No Server-Side Code Execution**: For security reasons, submitted repositories are not executed or downloaded on the backend server. Evaluation is performed by authorized professional creators inspecting the repository links and live demos.
 - **Non-Guaranteed Opportunities**: All recommendations and professional outcomes are deterministic indicators and verifiable awards, not promises or legal guarantees of employment.
+

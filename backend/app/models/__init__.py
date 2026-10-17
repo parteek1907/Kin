@@ -30,6 +30,15 @@ from app.features.skill_bounty.models import (
     ReviewStatus,
     OutcomeType,
 )
+from app.features.kin_reputation.models import (
+    KinPointsPolicy,
+    KinReputationSummary,
+    KinLedgerEntry,
+    KinAbuseAuditLog,
+    ContributionEventType,
+    VerificationStatus,
+    ReputationTier,
+)
 
 __all__ = [
     "Base",
@@ -63,4 +72,12 @@ __all__ = [
     "SubmissionStatus",
     "ReviewStatus",
     "OutcomeType",
+    "KinPointsPolicy",
+    "KinReputationSummary",
+    "KinLedgerEntry",
+    "KinAbuseAuditLog",
+    "ContributionEventType",
+    "VerificationStatus",
+    "ReputationTier",
 ]
+
