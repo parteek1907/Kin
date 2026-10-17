@@ -4,7 +4,8 @@
 
 @layer base {
   :root {
-    --background: #F7F5F0;
+    --gutter: clamp(24px, 7.3vw, 140px);
+    --background: #FFFDF8;
     --surface: #FFFFFF;
     --surface-warm: #EFECE6;
     --foreground: #141815;
@@ -28,8 +29,15 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+.font-headline {
+  font-family: 'Plus Jakarta Sans', 'Outfit', system-ui, sans-serif;
+}
 
-/* ─── Minimal scrollbar ─── */
+.font-body {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ─── Custom minimal tactile scrollbar ─── */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;

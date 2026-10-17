@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       groupCreated: isVouched,
       groupDetails: isVouched ? {
         channelId: `grp-${Date.now()}`,
-        channelName: 'Conduit Warm Intro: Rohan + Dr. Sharma + Parteek',
+        channelName: 'Kin Warm Intro: Rohan + Dr. Sharma + Parteek',
         participants: [requesterId, bridgeId || 'node-dr-sharma', targetId],
         vouchedAt: timestamp,
         briefingDelivered: true

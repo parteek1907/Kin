@@ -13,6 +13,7 @@ node_modules/
 coverage/
 *.lcov
 .nyc_output
+public/test_results/
 
 # Production & Build outputs
 build/

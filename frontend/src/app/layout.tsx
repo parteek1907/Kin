@@ -6,7 +6,7 @@ import AuthModal from '@/components/AuthModal';
 
 export const metadata: Metadata = {
   title: 'KIN — Campus Trust Network',
-  description: 'An intelligent platform connecting students, alumni, faculty, founders, and recruiters based on verified technical artifacts and warm campus connections.',
+  description: 'A living network that connects proven expertise to real opportunities and trusted campus relationships.',
 };
 
 export default function RootLayout({
@@ -15,12 +15,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full scroll-smooth">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+          rel="preload"
+          as="image"
+          href="/hero.webp"
+          type="image/webp"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>

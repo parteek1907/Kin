@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
-import ExactConduitHero from '@/components/ExactConduitHero';
+import ConduitHero from '@/components/conduit/ConduitHero';
 
 // Dynamic import of living canvas for embedded section
 const LivingNetworkCanvas = dynamic(
@@ -95,7 +95,7 @@ export default function FullAlmasLandingPage() {
       {/* =========================================================================
           1. EXACT HERO SECTION (MATCHING USER REFERENCE IMAGE 1:1)
          ========================================================================= */}
-      <ExactConduitHero
+      <ConduitHero
         onExplore={() => scrollToSection('living-graph')}
         onHowItWorks={() => scrollToSection('for-universities')}
         onForInstitutions={() => setIsRadarModalOpen(true)}
@@ -141,7 +141,7 @@ export default function FullAlmasLandingPage() {
             </h3>
 
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
-              We believe that university success is built upon supporting the growth of their alumni. Conduit transforms inactive campus rosters into living, proof-of-work referral networks.
+              We believe that university success is built upon supporting the growth of their alumni. Kin transforms inactive campus rosters into living, proof-of-work referral networks.
             </p>
           </div>
 
@@ -180,7 +180,7 @@ export default function FullAlmasLandingPage() {
             Why Tracer? Built For Modern Universities.
           </h2>
           <p className="text-base text-slate-600 leading-relaxed">
-            Traditional alumni portals suffer from a 92% inactivity rate because they demand manual data entry. Conduit automates connection through real artifacts.
+            Traditional alumni portals suffer from a 92% inactivity rate because they demand manual data entry. Kin automates connection through real artifacts.
           </p>
         </div>
 
@@ -564,7 +564,7 @@ export default function FullAlmasLandingPage() {
         </div>
 
         <div className="max-w-7xl mx-auto pt-8 mt-8 border-t border-blue-600/60 text-center text-[11px] text-blue-200 font-mono">
-          © 2026 Almas Data / Conduit Living Network. All rights reserved. Zero-form artifact verification.
+          © 2026 Almas Data / Kin Living Network. All rights reserved. Zero-form artifact verification.
         </div>
       </footer>
     </div>

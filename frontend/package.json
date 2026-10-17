@@ -1,5 +1,5 @@
 {
-  "name": "conduit-network",
+  "name": "kin-network",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -14,16 +14,17 @@
     "framer-motion": "^11.11.9",
     "gsap": "^3.15.0",
     "lucide-react": "^0.453.0",
-    "next": "^14.2.15",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "next": "^16.4.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20.14.0",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "playwright": "^1.64.1",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.4.5"

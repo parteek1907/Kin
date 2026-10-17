@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     try {
       const userRes = await fetch(`https://api.github.com/users/${encodeURIComponent(cleanUsername)}`, {
         headers: {
-          'User-Agent': 'Conduit-Campus-Graph-Ingest',
+          'User-Agent': 'Kin-Campus-Graph-Ingest',
           'Accept': 'application/vnd.github.v3+json'
         },
         // 4-second timeout
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     try {
       const reposRes = await fetch(`https://api.github.com/users/${encodeURIComponent(cleanUsername)}/repos?sort=updated&per_page=10`, {
         headers: {
-          'User-Agent': 'Conduit-Campus-Graph-Ingest',
+          'User-Agent': 'Kin-Campus-Graph-Ingest',
           'Accept': 'application/vnd.github.v3+json'
         },
         signal: AbortSignal.timeout(4000)
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
 
     const name = userData?.name || cleanUsername.charAt(0).toUpperCase() + cleanUsername.slice(1);
     const avatar = userData?.avatar_url || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80`;
-    const bio = userData?.bio || `Systems builder specializing in ${Array.from(topLanguagesSet).join(', ')}. Verified via Conduit zero-form ingestion.`;
+    const bio = userData?.bio || `Systems builder specializing in ${Array.from(topLanguagesSet).join(', ')}. Verified via Kin zero-form ingestion.`;
 
     const newNode: CampusNode = {
       id: `node-${cleanUsername.toLowerCase()}-${Date.now()}`,
