@@ -1,9 +1,8 @@
-'use client';
-
 import React from 'react';
-import { MessageCircle, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 interface WavePanelProps {
+
   onExplore?: () => void;
 }
 
@@ -180,35 +179,27 @@ export default function WavePanel({ onExplore }: WavePanelProps) {
             A living network that connects proven expertise to real opportunities through trusted campus relationships.
           </p>
 
-          {/* 4. ACTIONS: Primary Explore CTA + Secondary "Chat on WhatsApp" */}
+          {/* 4. ACTIONS: Primary Enter Network CTA (Direct to Dashboard) + Secondary "Chat on WhatsApp" */}
           <div className="flex flex-wrap items-center gap-4">
-            <button
-              onClick={() => {
-                if (onExplore) {
-                  onExplore();
-                } else {
-                  const el = document.getElementById('how-to-use');
-                  el?.scrollIntoView({ behavior: 'smooth' });
-                }
-              }}
+            <Link
+              href="/dashboard"
               style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-              className="group h-[50px] px-7 rounded-xl bg-[#11131A] text-white font-bold text-[12px] tracking-[0.14em] uppercase transition-all duration-200 hover:bg-black active:scale-[0.98] shadow-lg flex items-center gap-2.5 cursor-pointer"
+              className="h-[50px] px-8 rounded-xl bg-[#11131A] text-white font-bold text-[12px] tracking-[0.14em] uppercase transition-all duration-200 hover:bg-black active:scale-[0.98] shadow-lg flex items-center justify-center cursor-pointer"
             >
-              <span>EXPLORE NETWORK</span>
-              <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
-            </button>
+              <span>ENTER NETWORK</span>
+            </Link>
 
             <a
-              href={`https://wa.me/${process.env.NEXT_PUBLIC_WA_BUSINESS_NUMBER || '919811022678'}?text=Hi%20CONDUIT`}
+              href={`https://wa.me/${process.env.NEXT_PUBLIC_WA_BUSINESS_NUMBER || '919811022678'}?text=${encodeURIComponent('Hi KIN, I need…')}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-              className="h-[50px] px-6 rounded-xl bg-white/80 hover:bg-white text-[#11131A] border border-black/10 hover:border-black/20 font-bold text-[12px] tracking-[0.14em] uppercase transition-all duration-200 shadow-sm flex items-center gap-2.5 hover:shadow-md cursor-pointer group"
+              className="h-[50px] px-7 rounded-xl bg-white/80 hover:bg-white text-[#11131A] border border-black/10 hover:border-black/20 font-bold text-[12px] tracking-[0.14em] uppercase transition-all duration-200 shadow-sm flex items-center justify-center hover:shadow-md cursor-pointer group"
             >
-              <MessageCircle className="w-4 h-4 text-[#11131A] group-hover:text-[#6a9117] transition-colors" />
               <span>CHAT ON WHATSAPP</span>
             </a>
           </div>
+
 
         </div>
       </div>

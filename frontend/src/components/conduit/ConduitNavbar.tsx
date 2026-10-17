@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, Menu, X } from 'lucide-react';
+
 import { tokens } from '@/config/tokens';
 
 interface ConduitNavbarProps {
@@ -118,15 +120,15 @@ export default function ConduitNavbar({
             ZONE 3: PRIMARY ACTION (ENTER NETWORK → Smooth blended borderless action, no pill boundary, no blur)
            ===================================================================== */}
         <div className="flex items-center justify-self-end">
-          <button
+          <Link
             id="nav-cta"
-            onClick={() => handleScrollTo('pricing', onExplore)}
+            href="/dashboard"
             style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-            className="group hidden lg:inline-flex items-center space-x-2.5 h-[52px] text-[#11131A] font-bold text-[12px] tracking-[0.12em] uppercase transition-all duration-200 hover:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A]/30 whitespace-nowrap cursor-pointer select-none"
+            className="group hidden lg:inline-flex items-center h-[52px] text-[#11131A] font-bold text-[12px] tracking-[0.12em] uppercase transition-all duration-200 hover:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A]/30 whitespace-nowrap cursor-pointer select-none"
           >
             <span>ENTER NETWORK</span>
-            <ArrowRight className="w-4 h-4 stroke-[2.2] transition-transform duration-200 group-hover:translate-x-1" />
-          </button>
+          </Link>
+
 
           {/* Tablet & Mobile Menu Hamburger (visible below 1024px) */}
           <button

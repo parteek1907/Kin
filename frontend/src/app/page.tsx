@@ -41,17 +41,7 @@ export default function Home() {
 
       {/* Ambient Toast Alerts */}
       <ToastAlert />
-
-      {/* Floating Direct Access to Dashboard */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <a
-          href="/dashboard"
-          className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-[#11131A] hover:bg-[#232323] text-white text-xs font-bold shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/10 hover:scale-105 transition-all group cursor-pointer"
-        >
-          <span className="w-2 h-2 rounded-full bg-[#E25C38] animate-ping" />
-          <span>Launch Dashboard</span>
-        </a>
-      </div>
     </main>
   );
 }
+
