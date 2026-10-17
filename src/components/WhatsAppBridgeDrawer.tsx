@@ -67,34 +67,34 @@ export default function WhatsAppBridgeDrawer() {
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-      {/* Smartphone Chassis Container */}
-      <div className="relative w-full max-w-[390px] h-[92vh] max-h-[820px] bg-[#111B21] rounded-[48px] border-[10px] border-[#222E35] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden text-slate-100 ring-1 ring-white/10">
+    <div className="fixed inset-y-0 right-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-md animate-in fade-in duration-200">
+      {/* Smartphone Chassis Container (Ceramic Titanium Frame) */}
+      <div className="relative w-full max-w-[390px] h-[92vh] max-h-[820px] bg-[#EFEAE2] rounded-[48px] border-[10px] border-[#D8D3CB] shadow-[0_25px_80px_rgba(20,24,21,0.25)] flex flex-col overflow-hidden text-[#111B21] ring-1 ring-black/10">
         
         {/* Dynamic Island / Speaker Notch */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full z-50 flex items-center justify-center space-x-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#111] ring-1 ring-white/10"></div>
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-5 bg-[#141815] rounded-full z-50 flex items-center justify-center space-x-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#222]"></div>
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
         </div>
 
-        {/* WhatsApp Mobile Top Bar */}
-        <div className="pt-8 pb-2.5 px-4 bg-[#202C33] border-b border-[#2A3942] flex items-center justify-between z-40">
+        {/* WhatsApp Mobile Top Bar (Signature Emerald Green) */}
+        <div className="pt-8 pb-3 px-4 bg-[#008069] text-white flex items-center justify-between z-40 shadow-sm">
           <div className="flex items-center space-x-2.5">
-            <div className="relative w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 p-0.5">
-              <div className="w-full h-full rounded-full bg-[#111B21] flex items-center justify-center">
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+            <div className="relative w-10 h-10 rounded-full bg-white/20 p-0.5">
+              <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-[#008069]">
+                <ShieldCheck className="w-5 h-5" />
               </div>
-              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#202C33]"></span>
+              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#008069]"></span>
             </div>
             <div>
               <div className="flex items-center space-x-1">
                 <span className="font-bold text-xs text-white">
-                  {vouchStatus === 'vouched' ? 'Conduit Intro (3)' : 'Conduit AI Bridge'}
+                  {vouchStatus === 'vouched' ? 'Nexus Intro Group (3)' : 'Nexus AI Campus Bridge'}
                 </span>
-                <span className="text-[10px] text-emerald-400 font-extrabold">✓</span>
+                <span className="text-[10px] text-emerald-200 font-extrabold">✓</span>
               </div>
-              <p className="text-[10px] text-emerald-300 font-mono">
-                {vouchStatus === 'vouched' ? 'Rohan + Dr. Sharma + Parteek' : 'IIT/IIIT Campus Verified'}
+              <p className="text-[10px] text-emerald-100 font-mono">
+                {vouchStatus === 'vouched' ? 'Rohan + Dr. Sharma + Parteek' : 'IIITD Campus Verified'}
               </p>
             </div>
           </div>
@@ -102,7 +102,7 @@ export default function WhatsAppBridgeDrawer() {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => toggleWhatsApp(false)}
-              className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -110,13 +110,13 @@ export default function WhatsAppBridgeDrawer() {
         </div>
 
         {/* Switcher Tabs inside WhatsApp */}
-        <div className="grid grid-cols-2 bg-[#1A252D] border-b border-[#2A3942] text-[11px] font-mono text-center">
+        <div className="grid grid-cols-2 bg-[#00705B] text-white text-[11px] font-mono text-center">
           <button
             onClick={() => setActiveTab('intent-drop')}
             className={`py-2 px-3 border-b-2 font-bold transition-all ${
               activeTab === 'intent-drop'
-                ? 'border-emerald-400 text-emerald-400 bg-white/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-white text-white bg-white/10'
+                : 'border-transparent text-emerald-100 hover:text-white'
             }`}
           >
             Tab 1: Voice Intent Drop
@@ -125,45 +125,43 @@ export default function WhatsAppBridgeDrawer() {
             onClick={() => setActiveTab('vouch-handshake')}
             className={`py-2 px-3 border-b-2 font-bold transition-all ${
               activeTab === 'vouch-handshake'
-                ? 'border-emerald-400 text-emerald-400 bg-white/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-white text-white bg-white/10'
+                : 'border-transparent text-emerald-100 hover:text-white'
             }`}
           >
-            Tab 2: Warm Vouch Handshake
+            Tab 2: Vouch Handshake
           </button>
         </div>
 
         {/* WhatsApp Chat Conversation Bubble Stream */}
         <div
-          className="flex-1 overflow-y-auto p-3 space-y-3"
+          className="flex-1 overflow-y-auto p-3 space-y-3 bg-[#EFEAE2]"
           style={{
-            backgroundImage: `radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0)`,
-            backgroundSize: '20px 20px'
+            backgroundImage: `radial-gradient(rgba(0,0,0,0.04) 1px, transparent 0)`,
+            backgroundSize: '16px 16px'
           }}
         >
           {/* Simulation Header Banner */}
-          <div className="p-2 rounded-lg bg-[#182229] border border-[#2A3942] text-center text-[10px] font-mono text-slate-400">
+          <div className="p-2 rounded-xl bg-white/80 border border-black/5 text-center text-[10px] font-mono text-zinc-500 shadow-xs">
             🔒 End-to-end encrypted zero-login campus bridge. Actions directly mutate the web force graph.
           </div>
 
           {activeTab === 'intent-drop' && (
-            <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-xs text-emerald-300 space-y-2">
-              <div className="flex items-center space-x-1.5 font-bold text-[11px]">
-                <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                <span>Alumnus / Founder Intent Drop Mode</span>
+            <div className="p-3 rounded-2xl bg-[#D9FDD3] border border-emerald-300 text-xs text-zinc-800 space-y-2 shadow-xs">
+              <div className="flex items-center justify-between text-[11px] font-mono font-bold text-[#008069]">
+                <span>1-Tap Voice Test:</span>
+                <span className="text-[10px] bg-white/80 px-2 py-0.5 rounded-full">SIMULATION</span>
               </div>
-              <p className="text-[11px] text-slate-300 leading-snug">
-                Drop natural language voice notes without opening the website. Conduit matches verified GitHub code commits and responds instantly.
+              <p className="text-[11px] text-zinc-700">
+                Tap the microphone below to simulate sending a natural language voice note directly to the campus router.
               </p>
-              
-              {/* Voice Note Simulation Trigger Button */}
               <button
                 onClick={triggerVoiceNote}
                 disabled={isRecording}
-                className="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-[#07090E] font-extrabold text-xs flex items-center justify-center space-x-2 transition-all shadow-glow-green"
+                className="w-full py-2 px-3 rounded-xl bg-[#008069] hover:bg-[#00705B] text-white font-bold text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all"
               >
-                <Mic className="w-3.5 h-3.5 text-[#07090E] animate-bounce" />
-                <span>{isRecording ? 'Broadcasting Voice Stream...' : '🎙️ Send Simulated Voice Note (0:09)'}</span>
+                <Mic className="w-3.5 h-3.5" />
+                <span>{isRecording ? 'Listening (0:09)...' : 'Simulate: "Find me Rust / ZK founders"'}</span>
               </button>
             </div>
           )}
@@ -180,36 +178,36 @@ export default function WhatsAppBridgeDrawer() {
                 className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}
               >
                 <div
-                  className={`max-w-[88%] p-3 rounded-2xl text-xs shadow-md space-y-2 ${
+                  className={`max-w-[88%] p-3 rounded-2xl text-xs shadow-xs space-y-2 ${
                     isUser
-                      ? 'bg-[#005C4B] text-white rounded-tr-none'
+                      ? 'bg-[#D9FDD3] text-[#111B21] rounded-tr-none'
                       : isBridge
-                      ? 'bg-[#202C33] text-amber-200 border border-amber-500/40 rounded-tl-none'
-                      : 'bg-[#202C33] text-slate-200 rounded-tl-none border border-white/5'
+                      ? 'bg-white text-zinc-800 border border-amber-300 rounded-tl-none'
+                      : 'bg-white text-zinc-800 rounded-tl-none border border-black/5'
                   }`}
                 >
-                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pb-1 border-b border-white/10">
-                    <span className="font-bold text-emerald-300">{msg.senderName}</span>
+                  <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 pb-1 border-b border-black/5">
+                    <span className="font-bold text-[#008069]">{msg.senderName}</span>
                     <span>{msg.timestamp}</span>
                   </div>
 
                   {/* Voice waveform simulation if voice message */}
                   {msg.isVoice ? (
                     <div className="flex items-center space-x-2 py-1">
-                      <div className="w-7 h-7 rounded-full bg-emerald-700 flex items-center justify-center text-white">
+                      <div className="w-7 h-7 rounded-full bg-[#008069] flex items-center justify-center text-white">
                         <Play className="w-3.5 h-3.5 fill-white" />
                       </div>
                       <div className="flex-1 flex items-center space-x-1">
-                        <div className="h-3 w-1 bg-emerald-400 rounded-full animate-pulse"></div>
-                        <div className="h-5 w-1 bg-emerald-300 rounded-full animate-pulse"></div>
-                        <div className="h-2 w-1 bg-emerald-400 rounded-full"></div>
-                        <div className="h-6 w-1 bg-emerald-200 rounded-full animate-pulse"></div>
-                        <div className="h-4 w-1 bg-emerald-400 rounded-full"></div>
-                        <div className="h-5 w-1 bg-emerald-300 rounded-full"></div>
-                        <div className="h-2 w-1 bg-emerald-400 rounded-full"></div>
-                        <div className="h-4 w-1 bg-emerald-300 rounded-full"></div>
+                        <div className="h-3 w-1 bg-[#008069] rounded-full animate-pulse"></div>
+                        <div className="h-5 w-1 bg-[#008069] rounded-full animate-pulse"></div>
+                        <div className="h-2 w-1 bg-[#008069] rounded-full"></div>
+                        <div className="h-6 w-1 bg-[#008069] rounded-full animate-pulse"></div>
+                        <div className="h-4 w-1 bg-[#008069] rounded-full"></div>
+                        <div className="h-5 w-1 bg-[#008069] rounded-full"></div>
+                        <div className="h-2 w-1 bg-[#008069] rounded-full"></div>
+                        <div className="h-4 w-1 bg-[#008069] rounded-full"></div>
                       </div>
-                      <span className="text-[10px] font-mono text-emerald-300">{msg.audioDuration}</span>
+                      <span className="text-[10px] font-mono text-[#008069] font-bold">{msg.audioDuration}</span>
                     </div>
                   ) : (
                     <p className="text-[12px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
@@ -221,16 +219,16 @@ export default function WhatsAppBridgeDrawer() {
                       {msg.cards.map((card, i) => (
                         <div
                           key={i}
-                          className="p-2 rounded-lg bg-[#111B21] border border-emerald-500/30 text-[11px] space-y-1"
+                          className="p-2 rounded-xl bg-[#F7F5F0] border border-black/5 text-[11px] space-y-1"
                         >
                           <div className="flex items-center justify-between">
-                            <span className="font-bold text-white">{card.name}</span>
-                            <span className="text-[10px] font-mono font-bold text-emerald-400">
+                            <span className="font-bold text-[#141815]">{card.name}</span>
+                            <span className="text-[10px] font-mono font-bold text-emerald-700">
                               {card.score}% FIT
                             </span>
                           </div>
-                          <div className="text-[10px] font-mono text-slate-400">{card.role}</div>
-                          <div className="text-[10px] font-mono text-cyan-300 bg-black/40 p-1 rounded truncate">
+                          <div className="text-[10px] font-mono text-zinc-500">{card.role}</div>
+                          <div className="text-[10px] font-mono text-zinc-700 bg-white p-1 rounded border border-black/5 truncate">
                             Repo: {card.topRepo}
                           </div>
                         </div>
@@ -253,10 +251,10 @@ export default function WhatsAppBridgeDrawer() {
                               requestWarmVouch('node-parteek');
                             }
                           }}
-                          className={`w-full py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center space-x-1.5 ${
+                          className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 ${
                             btn.variant === 'primary'
-                              ? 'bg-emerald-500 hover:bg-emerald-400 text-[#07090E] shadow-glow-green'
-                              : 'bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-300'
+                              ? 'bg-[#008069] hover:bg-[#00705B] text-white shadow-xs'
+                              : 'bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700'
                           }`}
                         >
                           <span>{btn.label}</span>
@@ -271,8 +269,8 @@ export default function WhatsAppBridgeDrawer() {
         </div>
 
         {/* WhatsApp Mobile Input Bar */}
-        <div className="p-2.5 bg-[#202C33] border-t border-[#2A3942] flex items-center space-x-2">
-          <button className="text-slate-400 hover:text-white p-1">
+        <div className="p-3 bg-[#F0F2F5] border-t border-black/5 flex items-center space-x-2">
+          <button className="text-zinc-500 hover:text-zinc-800 p-1">
             <Smile className="w-5 h-5" />
           </button>
           <form onSubmit={handleSendText} className="flex-1 flex items-center">
@@ -280,21 +278,21 @@ export default function WhatsAppBridgeDrawer() {
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Message Conduit Bridge..."
-              className="w-full px-3 py-2 rounded-full bg-[#2A3942] text-xs text-white placeholder-slate-400 focus:outline-none"
+              placeholder="Message Nexus Bridge..."
+              className="w-full px-4 py-2 rounded-full bg-white text-xs text-[#141815] placeholder-zinc-400 focus:outline-none shadow-xs border border-black/5"
             />
           </form>
           {inputText.trim() ? (
             <button
               onClick={handleSendText}
-              className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center text-[#07090E] font-bold"
+              className="w-9 h-9 rounded-full bg-[#00A884] hover:bg-[#008069] flex items-center justify-center text-white font-bold shadow-xs transition-colors"
             >
               <Send className="w-4 h-4 fill-current" />
             </button>
           ) : (
             <button
               onClick={triggerVoiceNote}
-              className="w-9 h-9 rounded-full bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center text-[#07090E]"
+              className="w-9 h-9 rounded-full bg-[#00A884] hover:bg-[#008069] flex items-center justify-center text-white shadow-xs transition-colors"
               title="Record Voice Note"
             >
               <Mic className="w-4 h-4" />

@@ -3,8 +3,8 @@ import './globals.css';
 import { NetworkProvider } from '@/context/NetworkContext';
 
 export const metadata: Metadata = {
-  title: 'NEXUS // Living Proof-of-Work & Alumni Intent Network',
-  description: 'Artifact-Verified Intent & Multi-Hop Campus Trust Routing Network connecting students, alumni, faculty, and founders.',
+  title: 'NEXUS — The Living Campus Proof & Intent Network',
+  description: 'An intelligent platform connecting students, alumni, faculty, founders, and recruiters based on verified proof-of-work, live intent, and warm campus trust paths.',
 };
 
 export default function RootLayout({
@@ -13,16 +13,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark h-full">
+    <html lang="en" className="h-full">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-full w-full bg-[#030509] text-slate-100 antialiased font-sans overflow-x-hidden overflow-y-auto selection:bg-cyan-500 selection:text-black">
+      <body className="min-h-full w-full bg-[#F7F5F0] text-[#141815] antialiased selection:bg-[#E25C38] selection:text-white overflow-x-hidden overflow-y-auto">
         <NetworkProvider>
           {children}
         </NetworkProvider>

@@ -228,8 +228,8 @@ export default function LivingNetworkCanvas() {
         }
       });
 
-      // 2. Clear canvas with deep obsidian tone
-      ctx.fillStyle = '#07090E';
+      // 2. Clear canvas with warm studio tone
+      ctx.fillStyle = '#EFECE5';
       ctx.fillRect(0, 0, width, height);
 
       // Draw subtle background grid
@@ -237,7 +237,7 @@ export default function LivingNetworkCanvas() {
       ctx.translate(transform.x, transform.y);
       ctx.scale(transform.k, transform.k);
 
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.04)';
       ctx.lineWidth = 1;
       const gridSize = 80;
       const startX = -transform.x / transform.k - 200;
@@ -301,11 +301,11 @@ export default function LivingNetworkCanvas() {
           ctx.shadowBlur = 0;
         } else {
           // Default subtle edge
-          let edgeAlpha = 0.18;
+          let edgeAlpha = 0.15;
           if (activeIntent && (!matchedNodeIds.has(sId) || !matchedNodeIds.has(tId))) {
-            edgeAlpha = 0.05;
+            edgeAlpha = 0.04;
           }
-          ctx.strokeStyle = `rgba(148, 163, 184, ${edgeAlpha})`;
+          ctx.strokeStyle = `rgba(0, 0, 0, ${edgeAlpha})`;
           ctx.lineWidth = 1.2;
           ctx.stroke();
         }
@@ -376,10 +376,10 @@ export default function LivingNetworkCanvas() {
         // Node Body
         ctx.beginPath();
         ctx.arc(0, 0, baseRadius, 0, Math.PI * 2);
-        ctx.fillStyle = '#0F121C';
+        ctx.fillStyle = '#FFFFFF';
         ctx.fill();
         ctx.lineWidth = isSelected ? 3 : 2;
-        ctx.strokeStyle = isSelected ? '#FACC15' : colors.stroke;
+        ctx.strokeStyle = isSelected ? '#E25C38' : colors.stroke;
         ctx.stroke();
 
         // Inner Avatar / Persona Ring
@@ -391,8 +391,8 @@ export default function LivingNetworkCanvas() {
 
         // Node Initials or Text Label
         ctx.globalAlpha = isDimmed ? 0.2 : 1.0;
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = `600 ${Math.max(10, Math.floor(baseRadius * 0.65))}px Inter, sans-serif`;
+        ctx.fillStyle = '#141815';
+        ctx.font = `700 ${Math.max(10, Math.floor(baseRadius * 0.65))}px Inter, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const initials = node.name.split(' ').map(n => n[0]).slice(0, 2).join('');
@@ -404,15 +404,15 @@ export default function LivingNetworkCanvas() {
           ctx.arc(baseRadius * 0.7, -baseRadius * 0.7, 5, 0, Math.PI * 2);
           ctx.fillStyle = '#10B981';
           ctx.lineWidth = 1.5;
-          ctx.strokeStyle = '#07090E';
+          ctx.strokeStyle = '#FFFFFF';
           ctx.fill();
           ctx.stroke();
         }
 
         // Label below node
         if (!isDimmed || isMatched || isSelected) {
-          ctx.font = '500 11px Inter, sans-serif';
-          ctx.fillStyle = isSelected ? '#FACC15' : '#E2E8F0';
+          ctx.font = '600 11px Inter, sans-serif';
+          ctx.fillStyle = isSelected ? '#E25C38' : '#141815';
           ctx.textAlign = 'center';
           ctx.fillText(node.name, 0, baseRadius + 14);
 
@@ -552,7 +552,7 @@ export default function LivingNetworkCanvas() {
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-[#07090E]">
+    <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-[#EFECE5]">
       <canvas
         ref={canvasRef}
         onMouseDown={handleMouseDown}
@@ -563,25 +563,25 @@ export default function LivingNetworkCanvas() {
       />
 
       {/* Floating Canvas Controls (Bottom Left) */}
-      <div className="absolute bottom-6 left-6 z-20 flex items-center space-x-2 p-1.5 rounded-xl glass-panel shadow-2xl">
+      <div className="absolute bottom-6 left-6 z-20 flex items-center space-x-1 p-1 rounded-full bg-white/90 backdrop-blur-md shadow-md border border-black/10">
         <button
           onClick={() => setTransform(t => ({ ...t, k: Math.min(2.8, t.k * 1.2) }))}
-          className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+          className="p-2 rounded-full text-zinc-600 hover:text-black hover:bg-black/5 transition-colors"
           title="Zoom In"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
         <button
           onClick={() => setTransform(t => ({ ...t, k: Math.max(0.35, t.k * 0.8) }))}
-          className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+          className="p-2 rounded-full text-zinc-600 hover:text-black hover:bg-black/5 transition-colors"
           title="Zoom Out"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
-        <div className="w-[1px] h-4 bg-white/10" />
+        <div className="w-[1px] h-4 bg-black/10" />
         <button
           onClick={resetCamera}
-          className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+          className="p-2 rounded-full text-zinc-600 hover:text-black hover:bg-black/5 transition-colors"
           title="Reset View"
         >
           <RotateCcw className="w-4 h-4" />
@@ -589,34 +589,34 @@ export default function LivingNetworkCanvas() {
       </div>
 
       {/* Live Graph Legend / Key (Top Left below nav) */}
-      <div className="absolute top-20 left-6 z-20 p-3 rounded-xl glass-panel-subtle pointer-events-none hidden md:block">
-        <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-2">
+      <div className="absolute top-20 left-6 z-20 p-3.5 rounded-2xl bg-white/90 backdrop-blur-md border border-black/10 shadow-sm pointer-events-none hidden md:block text-left">
+        <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-2 font-bold">
           Node Taxonomy & Verified Radii
         </div>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] font-medium">
           <div className="flex items-center space-x-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#06B6D4] shadow-sm"></span>
-            <span className="text-slate-300">Student Builder</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#06B6D4] shadow-xs"></span>
+            <span className="text-zinc-700">Student Builder</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] shadow-sm"></span>
-            <span className="text-slate-300">Founder / YC</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] shadow-xs"></span>
+            <span className="text-zinc-700">Founder / YC</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#8B5CF6] shadow-sm"></span>
-            <span className="text-slate-300">Alumni Engineer</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#8B5CF6] shadow-xs"></span>
+            <span className="text-zinc-700">Alumni Engineer</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shadow-sm"></span>
-            <span className="text-slate-300">Faculty Advisor</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shadow-xs"></span>
+            <span className="text-zinc-700">Faculty Advisor</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#F43F5E] shadow-sm"></span>
-            <span className="text-slate-300">Tech Recruiter</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#F43F5E] shadow-xs"></span>
+            <span className="text-zinc-700">Tech Recruiter</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#6366F1] shadow-sm"></span>
-            <span className="text-slate-300">Campus Institution</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#6366F1] shadow-xs"></span>
+            <span className="text-zinc-700">Campus Institution</span>
           </div>
         </div>
         <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center space-x-2 text-[10px] font-mono text-amber-300">

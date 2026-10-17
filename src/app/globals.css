@@ -4,9 +4,12 @@
 
 @layer base {
   :root {
-    --background: #07090E;
-    --surface: #0F121C;
-    --foreground: #F8FAFC;
+    --background: #F7F5F0;
+    --surface: #FFFFFF;
+    --surface-warm: #EFECE6;
+    --foreground: #141815;
+    --muted: #64748B;
+    --border: rgba(0, 0, 0, 0.08);
   }
 
   body {
@@ -18,68 +21,45 @@
   }
 }
 
-/* Custom scrollbar for HUD panels */
+/* Custom tactile scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 18, 28, 0.4);
+  background: #EFECE6;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: #CBD5E1;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: #94A3B8;
 }
 
-/* Glassmorphism utility */
-.glass-panel {
-  background: rgba(15, 18, 28, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Tactile Clay / Studio Card utilities */
+.tactile-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 30px -5px rgba(24, 29, 25, 0.05), 0 4px 12px -2px rgba(24, 29, 25, 0.03);
 }
 
-.glass-panel-subtle {
-  background: rgba(15, 18, 28, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+.tactile-card-warm {
+  background: #F4F1EB;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 12px 35px -5px rgba(24, 29, 25, 0.06);
 }
 
-/* Neon glow animations */
-@keyframes goldPulse {
-  0%, 100% {
-    box-shadow: 0 0 15px rgba(250, 204, 21, 0.4), inset 0 0 10px rgba(250, 204, 21, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(250, 204, 21, 0.8), inset 0 0 15px rgba(250, 204, 21, 0.4);
-  }
+.tactile-pill {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
 }
 
-.gold-glow-animated {
-  animation: goldPulse 2s ease-in-out infinite;
-}
-
-@keyframes signalFlow {
-  0% {
-    stroke-dashoffset: 40;
-  }
-  100% {
-    stroke-dashoffset: 0;
-  }
-}
-
-.signal-flow-edge {
-  stroke-dasharray: 6 4;
-  animation: signalFlow 1s linear infinite;
-}
-
+/* Animations */
 @keyframes orbit3d {
   0% {
     transform: rotateZ(0deg);
@@ -91,14 +71,14 @@
 
 @keyframes solarTilt {
   0%, 100% {
-    transform: rotateX(58deg) rotateZ(-12deg);
+    transform: rotateX(54deg) rotateZ(-8deg);
   }
   50% {
-    transform: rotateX(50deg) rotateZ(-6deg);
+    transform: rotateX(46deg) rotateZ(-2deg);
   }
 }
 
-@keyframes floatSlow {
+@keyframes floatSoft {
   0%, 100% {
     transform: translateY(0px);
   }
@@ -107,3 +87,13 @@
   }
 }
 
+@keyframes pulseWarm {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
+}

@@ -11,7 +11,7 @@ import NodeEvidenceDrawer from '@/components/NodeEvidenceDrawer';
 
 export default function Home() {
   return (
-    <main className="relative w-full min-h-screen bg-[#030509] text-slate-100">
+    <main className="relative w-full min-h-screen bg-[#F7F5F0] text-[#141815] selection:bg-[#E25C38]/20 selection:text-[#E25C38]">
       {/* 1. Kinetic Nexus Landing Page */}
       <NexusLandingPage />
 

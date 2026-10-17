@@ -20,7 +20,17 @@ import {
   Code2,
   SlidersHorizontal,
   Compass,
-  ArrowUpRight
+  ArrowUpRight,
+  GraduationCap,
+  Briefcase,
+  Users,
+  Sparkles,
+  Play,
+  RotateCcw,
+  Layers,
+  ChevronRight,
+  Flame,
+  Radio
 } from 'lucide-react';
 
 // Dynamic import of 3D Solar Graph
@@ -65,12 +75,14 @@ export default function NexusLandingPage() {
     setIsRadarModalOpen,
     setIsMicroAuditModalOpen,
     selectIntent,
-    activeIntentId
+    activeIntentId,
+    searchIntentsByText
   } = useNetwork();
 
   const [graphViewMode, setGraphViewMode] = useState<'solar' | 'physics'>('solar');
   const [nodeSearchQuery, setNodeSearchQuery] = useState('');
   const [selectedPersonaTab, setSelectedPersonaTab] = useState<PersonaType | 'all'>('all');
+  const [heroSearchInput, setHeroSearchInput] = useState('');
   const [solarDemoSpeed, setSolarDemoSpeed] = useState(1);
   const [scrollY, setScrollY] = useState(0);
 
@@ -82,7 +94,7 @@ export default function NexusLandingPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Filtered nodes
+  // Filtered nodes for the Proof-of-Work Matrix
   const filteredNodes = useMemo(() => {
     return nodes.filter(n => {
       const matchSearch = nodeSearchQuery === '' ||
@@ -107,201 +119,336 @@ export default function NexusLandingPage() {
     }
   };
 
+  const handleHeroSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!heroSearchInput.trim()) return;
+    searchIntentsByText(heroSearchInput);
+    scrollTo('trust-graph');
+  };
+
   return (
-    <div className="w-full min-h-screen bg-[#04060A] text-[#EDEDED] font-sans selection:bg-cyan-400 selection:text-black overflow-x-hidden relative">
-      {/* Background Subtle Gradient Atmosphere */}
-      <div 
-        className="fixed top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[550px] bg-gradient-to-b from-cyan-500/[0.07] to-transparent blur-[160px] pointer-events-none z-0"
-        style={{ transform: `translate(-50%, ${scrollY * 0.1}px)` }}
-      />
-      <div className="fixed inset-0 bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff02_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none z-0" />
+    <div className="w-full min-h-screen bg-[#F7F5F0] text-[#141815] font-sans overflow-x-hidden relative selection:bg-[#E25C38]/20 selection:text-[#E25C38]">
+      
+      {/* Warm Ambient Studio Lighting & Gentle Texture */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(238,230,215,0.7),transparent_70%)] pointer-events-none z-0" />
+      <div className="fixed inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none z-0" />
 
       {/* =========================================================================
-          1. STICKY TOP NAVIGATION BAR (CLEAN, EDOLUS-STYLE)
+          1. FLOATING PILL NAVIGATION BAR (KUMO & PLAYBIT INSPIRED)
          ========================================================================= */}
-      <header className="sticky top-0 z-40 w-full backdrop-blur-2xl bg-[#04060A]/85 border-b border-white/[0.08] px-6 sm:px-10 py-4 flex items-center justify-between">
-        {/* Brand */}
-        <div className="flex items-center space-x-3 cursor-pointer" onClick={() => scrollTo('hero')}>
-          <div className="w-8 h-8 rounded-lg bg-white/[0.08] border border-white/[0.12] flex items-center justify-center">
-            <Network className="w-4 h-4 text-cyan-400" />
-          </div>
-          <div>
+      <header className="sticky top-4 z-40 w-full max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="w-full backdrop-blur-2xl bg-white/90 border border-black/[0.08] shadow-[0_12px_36px_rgba(20,24,21,0.06)] rounded-full px-4 sm:px-6 py-2.5 flex items-center justify-between transition-all">
+          
+          {/* Brand Mark & Retro 2026 Stamp (Playbit style) */}
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => scrollTo('hero')}>
+            <div className="w-8 h-8 rounded-full bg-[#E25C38] flex items-center justify-center text-white shadow-sm">
+              <Network className="w-4 h-4" />
+            </div>
             <div className="flex items-center space-x-2">
-              <span className="font-bold text-sm tracking-widest text-white uppercase font-mono">
+              <span className="font-extrabold text-base tracking-tight text-[#141815]">
                 NEXUS
               </span>
-              <span className="text-[9px] font-mono tracking-widest px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-zinc-400">
-                CAMPUS PROOF NETWORK
+              <span className="text-[10px] font-mono tracking-widest px-2 py-0.5 rounded-full bg-[#F3EFEA] border border-black/5 text-[#E25C38] font-bold">
+                / 2026
               </span>
             </div>
           </div>
-        </div>
 
-        {/* Center Live Telemetry */}
-        <div className="hidden lg:flex items-center space-x-8 text-xs font-mono text-zinc-400">
-          <div className="flex items-center space-x-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span>{nodes.length} Verified Nodes</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <GitCommit className="w-3.5 h-3.5 text-zinc-500" />
-            <span>{totalVerifiedCommits.toLocaleString()} Indexed Commits</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <ShieldCheck className="w-3.5 h-3.5 text-zinc-500" />
-            <span>94.2% Vouch Rate</span>
-          </div>
-        </div>
+          {/* Center Nav Links (Playbit pill capsules) */}
+          <nav className="hidden md:flex items-center space-x-1 text-xs font-semibold text-zinc-600">
+            <button 
+              onClick={() => scrollTo('trust-graph')}
+              className="px-3.5 py-1.5 rounded-full hover:bg-[#F3EFEA] hover:text-[#141815] transition-all"
+            >
+              Trust Orbit
+            </button>
+            <button 
+              onClick={() => scrollTo('architecture')}
+              className="px-3.5 py-1.5 rounded-full hover:bg-[#F3EFEA] hover:text-[#141815] transition-all"
+            >
+              Architecture
+            </button>
+            <button 
+              onClick={() => scrollTo('intent-engine')}
+              className="px-3.5 py-1.5 rounded-full hover:bg-[#F3EFEA] hover:text-[#141815] transition-all"
+            >
+              Intent Scout
+            </button>
+            <button 
+              onClick={() => scrollTo('proof-matrix')}
+              className="px-3.5 py-1.5 rounded-full hover:bg-[#F3EFEA] hover:text-[#141815] transition-all"
+            >
+              Proof Matrix
+            </button>
+            <button 
+              onClick={() => scrollTo('solar-clock')}
+              className="px-3.5 py-1.5 rounded-full hover:bg-[#F3EFEA] hover:text-[#141815] transition-all"
+            >
+              Solar Clock
+            </button>
+          </nav>
 
-        {/* Action Controls */}
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setIsIngestModalOpen(true)}
-            className="hidden sm:flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-zinc-300 transition-colors"
-          >
-            <Code2 className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Ingest Repo</span>
-          </button>
+          {/* Action Pills (Kumo Matcha & Playbit Terracotta) */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setIsIngestModalOpen(true)}
+              className="hidden sm:flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-[#EFECE5] hover:bg-[#E5E0D7] border border-black/5 text-xs font-semibold text-[#141815] transition-all"
+            >
+              <Code2 className="w-3.5 h-3.5 text-[#E25C38]" />
+              <span>Ingest Repo</span>
+            </button>
 
-          <button
-            onClick={() => toggleWhatsApp(true, 'intent-drop')}
-            className="flex items-center space-x-2 px-4 py-1.5 rounded-lg bg-white text-black text-xs font-bold transition-all hover:bg-zinc-200"
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>WhatsApp Bridge</span>
-          </button>
+            <button
+              onClick={() => toggleWhatsApp(true, 'intent-drop')}
+              className="flex items-center space-x-1.5 px-4 py-1.5 rounded-full bg-[#254B33] hover:bg-[#1C3B27] text-white text-xs font-bold transition-all shadow-[0_4px_14px_rgba(37,75,51,0.25)] hover:scale-[1.02]"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>WhatsApp Bridge</span>
+            </button>
+          </div>
         </div>
       </header>
 
       {/* =========================================================================
-          2. HERO SECTION: EDITORIAL PRECISION & INTENT PRESETS
+          2. HERO SECTION: WARM TACTILE BENTO & PROBLEM STATEMENT 1
          ========================================================================= */}
-      <section id="hero" className="relative z-10 max-w-6xl mx-auto px-6 sm:px-10 pt-20 sm:pt-28 pb-16 flex flex-col items-center text-center">
-        {/* Subtle Category Pill */}
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-400 text-xs font-mono mb-8">
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-          <span>ZERO-FORM PROOF-OF-WORK • SHORTEST WARM CAMPUS ROUTING</span>
+      <section id="hero" className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-16 flex flex-col items-center text-center">
+        
+        {/* Problem Statement 1 Badge (From user slide: Alumni Network & Professional Connections) */}
+        <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-white border border-black/[0.08] text-xs font-bold text-[#141815] shadow-sm mb-6">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#E25C38] animate-pulse" />
+          <span className="text-[#E25C38] uppercase tracking-wider font-mono text-[11px]">Track 1</span>
+          <span className="text-zinc-300">•</span>
+          <span>Alumni Network & Professional Connections</span>
+          <span className="text-zinc-300">•</span>
+          <span className="text-zinc-500 font-normal">Building a Network, Not a Directory</span>
         </div>
 
-        {/* Clean, Massive Editorial Title */}
-        <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.95] text-white font-sans max-w-5xl">
+        {/* High-Impact Headline (Image 3 Swirlzy & Image 4 Playbit Display) */}
+        <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.95] text-[#141815] max-w-5xl">
           A LIVING NETWORK.
           <br />
-          <span className="text-zinc-500">
+          <span className="text-[#E25C38]">
             NOT A DIRECTORY.
           </span>
         </h1>
 
-        {/* Restrained Subhead */}
-        <p className="mt-8 text-base sm:text-lg md:text-xl text-zinc-400 max-w-2xl leading-relaxed font-normal">
-          Traditional alumni portals are static graveyards of unverified resumes and dead cold DMs. Nexus verifies real GitHub commits, builds multi-hop campus trust paths, and introduces founders via WhatsApp.
+        {/* Grounded Subhead (Directly solving the slide's problem) */}
+        <p className="mt-6 text-base sm:text-lg md:text-xl text-zinc-600 max-w-2xl leading-relaxed font-normal">
+          Build an intelligent platform connecting students, alumni, faculty, founders, and recruiters based on verified GitHub code artifacts, Dijkstra shortest trust paths, and 1-tap WhatsApp vouch handshakes.
         </p>
 
-        {/* 1-Click Interactive Intent Presets */}
-        <div className="w-full max-w-4xl mt-12 p-6 rounded-3xl bg-[#080B12] border border-white/[0.08] text-left">
-          <div className="flex items-center justify-between mb-4 text-xs font-mono">
-            <span className="text-zinc-400 uppercase tracking-wider flex items-center space-x-2">
-              <Zap className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Broadcast Intent Test Bench:</span>
-            </span>
-            <span className="text-zinc-500">Select to trigger live graph match</span>
-          </div>
+        {/* etail.me-style Large Floating Search / Broadcast Pill */}
+        <div className="w-full max-w-3xl mt-10">
+          <form 
+            onSubmit={handleHeroSearch}
+            className="w-full p-2 sm:p-2.5 rounded-full bg-white border border-black/[0.08] shadow-[0_16px_40px_rgba(20,24,21,0.08)] flex items-center justify-between transition-all focus-within:ring-2 focus-within:ring-[#E25C38]/40"
+          >
+            <div className="flex items-center space-x-3 pl-3 sm:pl-4 flex-1">
+              <div className="w-8 h-8 rounded-full bg-[#F3EFEA] flex items-center justify-center text-[#E25C38] shrink-0">
+                <Zap className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                value={heroSearchInput}
+                onChange={(e) => setHeroSearchInput(e.target.value)}
+                placeholder="Broadcast intent: 'Find YC alumni founders in Bengaluru looking for Rust / Next.js builders'..."
+                className="w-full bg-transparent text-xs sm:text-sm text-[#141815] placeholder-zinc-400 focus:outline-none font-medium"
+              />
+            </div>
+            
+            <button
+              type="submit"
+              className="px-5 sm:px-6 py-2.5 rounded-full bg-[#141815] hover:bg-[#254B33] text-white text-xs sm:text-sm font-bold flex items-center space-x-2 transition-all shrink-0 shadow-sm"
+            >
+              <span>Match Orbit</span>
+              <ArrowRight className="w-3.5 h-3.5 text-[#E25C38]" />
+            </button>
+          </form>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {intents.slice(0, 4).map((intent) => {
-              const isActive = activeIntentId === intent.id;
-              return (
-                <button
-                  key={intent.id}
-                  onClick={() => {
-                    selectIntent(intent.id);
-                    scrollTo('trust-graph');
-                  }}
-                  className={`p-4 rounded-2xl text-left border transition-all text-xs flex flex-col justify-between ${
-                    isActive 
-                      ? 'bg-cyan-500/10 border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.25)]' 
-                      : 'bg-black/40 border-white/[0.06] hover:border-white/20 hover:bg-white/[0.02]'
-                  }`}
-                >
-                  <div>
-                    <div className="font-bold text-white truncate flex items-center justify-between">
-                      <span>{intent.role}</span>
-                      <span className="text-[10px] font-mono text-cyan-400">
-                        {intent.matchedNodeIds?.length || 2} matches
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-zinc-400 mt-1.5 line-clamp-2 leading-relaxed">
-                      "{intent.query}"
-                    </p>
-                  </div>
-
-                  <div className="mt-3 pt-2.5 border-t border-white/[0.06] flex items-center justify-between text-[10px] font-mono text-zinc-400">
-                    <span>{intent.category}</span>
-                    <ArrowRight className="w-3 h-3 text-cyan-400" />
-                  </div>
-                </button>
-              );
-            })}
+          {/* Quick Intent Pills */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4 text-xs font-medium text-zinc-500">
+            <span className="text-[11px] font-mono uppercase text-zinc-400">Quick Intents:</span>
+            {intents.slice(0, 3).map((intent) => (
+              <button
+                key={intent.id}
+                onClick={() => {
+                  selectIntent(intent.id);
+                  scrollTo('trust-graph');
+                }}
+                className={`px-3 py-1 rounded-full border text-xs transition-all ${
+                  activeIntentId === intent.id
+                    ? 'bg-[#E25C38] text-white border-[#E25C38] font-bold'
+                    : 'bg-white/80 hover:bg-white border-black/[0.06] text-zinc-700'
+                }`}
+              >
+                {intent.role}: "{intent.query.slice(0, 32)}..."
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* CTAs */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-          <button
-            onClick={() => scrollTo('trust-graph')}
-            className="flex items-center space-x-2 px-6 py-3.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-black font-bold text-xs tracking-wider uppercase transition-all shadow-[0_0_25px_rgba(6,182,212,0.4)]"
+        {/* =========================================================================
+            Swirlzy-Style Bento 4-Persona Grid (Image 3)
+           ========================================================================= */}
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-12 text-left">
+          
+          {/* Card 1: Alumni Founders (Honey Ochre) */}
+          <div 
+            onClick={() => {
+              setSelectedPersonaTab('founder');
+              scrollTo('trust-graph');
+            }}
+            className="p-6 rounded-[32px] bg-[#F5B853] text-[#1F1707] shadow-[0_10px_30px_rgba(245,184,83,0.2)] flex flex-col justify-between min-h-[190px] cursor-pointer hover:-translate-y-1 transition-all group"
           >
-            <Orbit className="w-4 h-4" />
-            <span>Explore 3D Constellation</span>
-          </button>
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-mono font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-white/40">
+                  ( 18 YC / SEED )
+                </span>
+                <Briefcase className="w-5 h-5 text-[#1F1707]/70 group-hover:scale-110 transition-transform" />
+              </div>
+              <h3 className="text-2xl font-black tracking-tight mt-3">
+                FOUNDERS
+              </h3>
+              <p className="text-xs text-[#1F1707]/80 mt-1 leading-relaxed">
+                Alumni founders scouting students with verified AST commits for founding engineer roles.
+              </p>
+            </div>
+            <div className="pt-3 border-t border-[#1F1707]/10 flex items-center justify-between text-xs font-bold">
+              <span>View Founder Orbits</span>
+              <ArrowUpRight className="w-4 h-4" />
+            </div>
+          </div>
 
-          <button
-            onClick={() => toggleWhatsApp(true, 'intent-drop')}
-            className="flex items-center space-x-2 px-6 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium text-xs tracking-wider uppercase transition-colors"
+          {/* Card 2: Faculty Research (Soft Sky Blue) */}
+          <div 
+            onClick={() => {
+              setSelectedPersonaTab('faculty');
+              scrollTo('trust-graph');
+            }}
+            className="p-6 rounded-[32px] bg-[#8EC3E6] text-[#0D2132] shadow-[0_10px_30px_rgba(142,195,230,0.2)] flex flex-col justify-between min-h-[190px] cursor-pointer hover:-translate-y-1 transition-all group"
           >
-            <Smartphone className="w-4 h-4 text-emerald-400" />
-            <span>Open WhatsApp Simulator</span>
-          </button>
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-mono font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-white/40">
+                  ( 14 LABS )
+                </span>
+                <GraduationCap className="w-5 h-5 text-[#0D2132]/70 group-hover:scale-110 transition-transform" />
+              </div>
+              <h3 className="text-2xl font-black tracking-tight mt-3">
+                FACULTY LABS
+              </h3>
+              <p className="text-xs text-[#0D2132]/80 mt-1 leading-relaxed">
+                Direct 1-Hop academic advisors & distributed systems co-authors providing warm vouches.
+              </p>
+            </div>
+            <div className="pt-3 border-t border-[#0D2132]/10 flex items-center justify-between text-xs font-bold">
+              <span>View Faculty Hops</span>
+              <ArrowUpRight className="w-4 h-4" />
+            </div>
+          </div>
+
+          {/* Card 3: Senior Tech Alumni (Terracotta Coral) */}
+          <div 
+            onClick={() => {
+              setSelectedPersonaTab('alumni');
+              scrollTo('trust-graph');
+            }}
+            className="p-6 rounded-[32px] bg-[#EB7A53] text-[#280E06] shadow-[0_10px_30px_rgba(235,122,83,0.2)] flex flex-col justify-between min-h-[190px] cursor-pointer hover:-translate-y-1 transition-all group"
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-mono font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-white/40">
+                  ( 42 MENTORS )
+                </span>
+                <Users className="w-5 h-5 text-[#280E06]/70 group-hover:scale-110 transition-transform" />
+              </div>
+              <h3 className="text-2xl font-black tracking-tight mt-3">
+                STAFF ALUMNI
+              </h3>
+              <p className="text-xs text-[#280E06]/80 mt-1 leading-relaxed">
+                Staff engineers at Google, Stripe, and OpenAI offering 1-tap WhatsApp vouch handshakes.
+              </p>
+            </div>
+            <div className="pt-3 border-t border-[#280E06]/10 flex items-center justify-between text-xs font-bold">
+              <span>View Senior Mentors</span>
+              <ArrowUpRight className="w-4 h-4" />
+            </div>
+          </div>
+
+          {/* Card 4: Recruiters & Talent (Matcha Forest Green) */}
+          <div 
+            onClick={() => {
+              setSelectedPersonaTab('recruiter');
+              scrollTo('trust-graph');
+            }}
+            className="p-6 rounded-[32px] bg-[#2A5239] text-white shadow-[0_10px_30px_rgba(42,82,57,0.2)] flex flex-col justify-between min-h-[190px] cursor-pointer hover:-translate-y-1 transition-all group"
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-mono font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-white/20">
+                  ( $120K GRANTS )
+                </span>
+                <Building2 className="w-5 h-5 text-white/70 group-hover:scale-110 transition-transform" />
+              </div>
+              <h3 className="text-2xl font-black tracking-tight mt-3">
+                INSTITUTIONS
+              </h3>
+              <p className="text-xs text-white/80 mt-1 leading-relaxed">
+                Campus scouts, tech talent partners, and micro-audit sponsors cutting through resume slop.
+              </p>
+            </div>
+            <div className="pt-3 border-t border-white/20 flex items-center justify-between text-xs font-bold">
+              <span>View Talent Leads</span>
+              <ArrowUpRight className="w-4 h-4" />
+            </div>
+          </div>
+
         </div>
+
       </section>
 
       {/* =========================================================================
           3. SECTION: THE LIVING CAMPUS TRUST GRAPH (SOLAR ORBIT + PHYSICS)
          ========================================================================= */}
-      <section id="trust-graph" className="relative z-10 max-w-6xl mx-auto px-6 sm:px-10 py-16">
-        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-8 gap-4">
+      <section id="trust-graph" className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12">
+        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-6 gap-4">
           <div>
-            <span className="text-[11px] font-mono tracking-[0.2em] uppercase text-cyan-400 font-semibold">
-              Live Campus Graph
-            </span>
-            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight mt-1 font-sans">
-              3D Orbital Trust Constellation
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#E25C38]" />
+              <span className="text-[11px] font-mono tracking-[0.2em] uppercase text-zinc-500 font-bold">
+                Orbital Trust Architecture
+              </span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black text-[#141815] tracking-tight mt-1">
+              The Living Campus Trust Graph
             </h2>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-lg">
-              You are the central sun. Orbiting nodes are real verified alumni, research leads, and founders positioned by Dijkstra trust distance.
+            <p className="text-xs sm:text-sm text-zinc-600 mt-1 max-w-xl">
+              You are the central sun. Orbiting bodies are <strong>real alumni squircle cards</strong> (not generic planets) positioned by Dijkstra shortest trust distance.
             </p>
           </div>
 
-          {/* View Mode Toggle */}
-          <div className="flex items-center p-1 bg-[#080B12] border border-white/[0.08] rounded-xl text-xs font-medium">
+          {/* View Mode Toggle (Playbit capsules) */}
+          <div className="flex items-center p-1 bg-white border border-black/[0.08] rounded-full shadow-sm text-xs font-semibold">
             <button
               onClick={() => setGraphViewMode('solar')}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center space-x-1.5 px-4 py-1.5 rounded-full transition-all ${
                 graphViewMode === 'solar'
-                  ? 'bg-white text-black font-bold'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-[#141815] text-white shadow-sm'
+                  : 'text-zinc-600 hover:text-[#141815]'
               }`}
             >
               <Orbit className="w-3.5 h-3.5" />
-              <span>3D Solar Orbits</span>
+              <span>Solar Orbits</span>
             </button>
 
             <button
               onClick={() => setGraphViewMode('physics')}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center space-x-1.5 px-4 py-1.5 rounded-full transition-all ${
                 graphViewMode === 'physics'
-                  ? 'bg-white text-black font-bold'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-[#141815] text-white shadow-sm'
+                  : 'text-zinc-600 hover:text-[#141815]'
               }`}
             >
               <Compass className="w-3.5 h-3.5" />
@@ -317,10 +464,10 @@ export default function NexusLandingPage() {
               onSwitchToPhysicsGraph={() => setGraphViewMode('physics')} 
             />
           ) : (
-            <div className="relative w-full h-[640px] rounded-3xl overflow-hidden border border-white/[0.08] bg-[#060810] shadow-2xl">
+            <div className="relative w-full h-[640px] rounded-[36px] overflow-hidden border border-black/[0.08] bg-[#EFECE5] shadow-[0_20px_60px_rgba(20,24,21,0.06)]">
               <LivingNetworkCanvas />
-              <div className="absolute top-4 left-4 z-20 flex items-center space-x-2 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-xs font-mono text-zinc-300">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <div className="absolute top-4 left-4 z-20 flex items-center space-x-2 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-black/10 text-xs font-mono text-zinc-800 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span>60 FPS Force Directed Physics Active</span>
               </div>
             </div>
@@ -329,58 +476,64 @@ export default function NexusLandingPage() {
       </section>
 
       {/* =========================================================================
-          4. SECTION: KINETIC ARCHITECTURE STACK (GSAP APERTURES)
+          4. SECTION: KINETIC ARCHITECTURE STACK (GSAP APERTURES - NO BURGER)
          ========================================================================= */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 sm:px-10 py-16">
-        <div className="mb-10 text-left">
-          <span className="text-[11px] font-mono tracking-[0.2em] uppercase text-cyan-400 font-semibold">
-            System Architecture
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-1 font-sans">
+      <section id="architecture" className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12">
+        <div className="mb-8 text-left">
+          <div className="flex items-center space-x-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#E25C38]" />
+            <span className="text-[11px] font-mono tracking-[0.2em] uppercase text-zinc-500 font-bold">
+              Engineering Specs
+            </span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-black text-[#141815] tracking-tight mt-1">
             Engineered For Pure Signal
           </h2>
-          <p className="text-sm text-zinc-400 mt-1 max-w-xl">
-            Hover over each pillar to trigger live kinetic SVG apertures and inspect the verified mechanics of the platform.
+          <p className="text-sm text-zinc-600 mt-1 max-w-xl">
+            Hover over each pillar to trigger kinetic optical SVG apertures and inspect verified platform mechanics.
           </p>
         </div>
 
-        {/* Clean GSAP SVG Interactor (No Burger) */}
+        {/* Clean GSAP SVG Interactor (Upgraded warm porcelain, no hamburger) */}
         <ConnoisseurStackInteractor />
       </section>
 
       {/* =========================================================================
-          5. SECTION: EMBEDDED INTENT ROUTER (CONTAINED, NOT FLOATING)
+          5. SECTION: EMBEDDED INTENT ROUTER (CONTAINED IN LAYOUT)
          ========================================================================= */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 sm:px-10 py-16">
+      <section id="intent-engine" className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <div className="lg:col-span-5">
-            <span className="text-[11px] font-mono tracking-[0.2em] uppercase text-amber-400 font-semibold">
-              Broadcast Engine
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-1 font-sans">
+          <div className="lg:col-span-5 text-left">
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#E25C38]" />
+              <span className="text-[11px] font-mono tracking-[0.2em] uppercase text-zinc-500 font-bold">
+                Broadcast Engine
+              </span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black text-[#141815] tracking-tight mt-1">
               Live Intent Routing
             </h2>
-            <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
+            <p className="text-sm text-zinc-600 mt-2 leading-relaxed">
               Alumni founders and lab leads broadcast concrete technical needs. The engine parses the query against repository ASTs to discover students with genuine code artifacts.
             </p>
 
             <div className="mt-6 space-y-3">
-              <div className="p-4 rounded-2xl bg-[#080B12] border border-white/[0.06]">
-                <h4 className="text-xs font-bold text-white flex items-center space-x-2">
-                  <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+              <div className="p-5 rounded-[24px] bg-white border border-black/[0.08] shadow-sm">
+                <h4 className="text-xs font-bold text-[#141815] flex items-center space-x-2">
+                  <Terminal className="w-4 h-4 text-[#E25C38]" />
                   <span>AST Code Extraction</span>
                 </h4>
-                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                  Extracts genuine dependencies, commit frequency, and unit test passing rates directly from public repositories.
+                <p className="text-xs text-zinc-600 mt-1 leading-relaxed">
+                  Extracts genuine dependencies, commit velocity, and test passing rates directly from public repositories without requiring manual resumes.
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#080B12] border border-white/[0.06]">
-                <h4 className="text-xs font-bold text-white flex items-center space-x-2">
-                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <div className="p-5 rounded-[24px] bg-white border border-black/[0.08] shadow-sm">
+                <h4 className="text-xs font-bold text-[#141815] flex items-center space-x-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
                   <span>Warm Introduction Handshake</span>
                 </h4>
-                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                <p className="text-xs text-zinc-600 mt-1 leading-relaxed">
                   Introductions require an advisor vouch, completely eliminating unvetted spam and ensuring 90%+ reply rates.
                 </p>
               </div>
@@ -397,16 +550,19 @@ export default function NexusLandingPage() {
       {/* =========================================================================
           6. SECTION: PROOF-OF-WORK VERIFIED MATRIX
          ========================================================================= */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 sm:px-10 py-16">
+      <section id="proof-matrix" className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12">
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-8 gap-4">
           <div>
-            <span className="text-[11px] font-mono tracking-[0.2em] uppercase text-emerald-400 font-semibold">
-              Verifiable Evidence
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-1 font-sans">
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#E25C38]" />
+              <span className="text-[11px] font-mono tracking-[0.2em] uppercase text-zinc-500 font-bold">
+                Verifiable Evidence
+              </span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black text-[#141815] tracking-tight mt-1">
               Proof-of-Work Matrix
             </h2>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-1">
+            <p className="text-xs sm:text-sm text-zinc-600 mt-1">
               Select any student or alumnus to inspect real commit messages and verified citations.
             </p>
           </div>
@@ -414,25 +570,25 @@ export default function NexusLandingPage() {
           {/* Search & Filters */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative w-56">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
               <input
                 type="text"
                 placeholder="Search by tech or name..."
                 value={nodeSearchQuery}
                 onChange={(e) => setNodeSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-black/60 border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-400 font-mono"
+                className="w-full pl-8 pr-3 py-1.5 rounded-full bg-white border border-black/10 text-xs text-[#141815] placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-[#E25C38] font-mono shadow-sm"
               />
             </div>
 
-            <div className="flex items-center p-1 bg-[#080B12] border border-white/[0.08] rounded-lg text-xs">
+            <div className="flex items-center p-1 bg-white border border-black/[0.08] rounded-full shadow-sm text-xs font-semibold">
               {(['all', 'student', 'founder', 'faculty', 'alumni'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setSelectedPersonaTab(tab)}
-                  className={`px-2.5 py-1 rounded capitalize transition-all ${
+                  className={`px-3 py-1 rounded-full capitalize transition-all ${
                     selectedPersonaTab === tab 
-                      ? 'bg-white text-black font-bold' 
-                      : 'text-zinc-400 hover:text-white'
+                      ? 'bg-[#141815] text-white' 
+                      : 'text-zinc-600 hover:text-[#141815]'
                   }`}
                 >
                   {tab === 'all' ? 'All' : tab + 's'}
@@ -442,7 +598,7 @@ export default function NexusLandingPage() {
           </div>
         </div>
 
-        {/* Matrix Grid */}
+        {/* Matrix Grid (Tactile Porcelain Cards) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredNodes.slice(0, 9).map(node => {
             const isSelected = selectedNodeId === node.id;
@@ -453,10 +609,10 @@ export default function NexusLandingPage() {
               <div
                 key={node.id}
                 onClick={() => selectNode(node.id)}
-                className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                className={`p-5 rounded-[28px] border transition-all cursor-pointer flex flex-col justify-between ${
                   isSelected 
-                    ? 'bg-white/[0.06] border-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.2)]' 
-                    : 'bg-[#080B12] border-white/[0.06] hover:border-white/[0.15] hover:bg-white/[0.02]'
+                    ? 'bg-white border-[#E25C38] shadow-[0_12px_30px_rgba(226,92,56,0.15)] ring-2 ring-[#E25C38]/20' 
+                    : 'bg-white border-black/[0.08] hover:border-black/20 hover:shadow-md'
                 }`}
               >
                 <div>
@@ -465,44 +621,44 @@ export default function NexusLandingPage() {
                       <img
                         src={node.avatar}
                         alt={node.name}
-                        className="w-10 h-10 rounded-xl object-cover border border-white/10"
+                        className="w-11 h-11 rounded-2xl object-cover border border-black/10 shadow-sm"
                       />
                       <div>
-                        <h4 className="text-sm font-bold text-white flex items-center space-x-1.5">
+                        <h4 className="text-sm font-bold text-[#141815] flex items-center space-x-1.5">
                           <span>{node.name}</span>
-                          <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                         </h4>
-                        <p className="text-xs text-zinc-400">{node.role}</p>
+                        <p className="text-xs text-zinc-500">{node.role}</p>
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <span className="text-[9px] font-mono uppercase text-zinc-500">Score</span>
-                      <div className="text-xs font-black font-mono text-cyan-400">
-                        {impactScore}<span className="text-[9px] text-zinc-500">/100</span>
+                      <span className="text-[9px] font-mono uppercase text-zinc-400">Score</span>
+                      <div className="text-xs font-black font-mono text-[#E25C38]">
+                        {impactScore}<span className="text-[9px] text-zinc-400">/100</span>
                       </div>
                     </div>
                   </div>
 
                   {topRepo && (
-                    <div className="mt-3.5 p-3 rounded-xl bg-black/40 border border-white/[0.04]">
+                    <div className="mt-3.5 p-3 rounded-2xl bg-[#F7F5F0] border border-black/[0.05]">
                       <div className="flex items-center justify-between text-xs font-mono">
-                        <span className="font-bold text-white truncate max-w-[170px]">
+                        <span className="font-bold text-[#141815] truncate max-w-[170px]">
                           {topRepo.name}
                         </span>
-                        <span className="text-zinc-400 text-[11px]">
+                        <span className="text-zinc-500 text-[11px]">
                           {topRepo.commitsCount} commits
                         </span>
                       </div>
-                      <p className="text-[11px] text-zinc-400 mt-1 line-clamp-2">
+                      <p className="text-[11px] text-zinc-600 mt-1 line-clamp-2">
                         {topRepo.description}
                       </p>
                     </div>
                   )}
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs">
-                  <span className="text-[10px] font-mono text-zinc-400">
+                <div className="mt-4 pt-3 border-t border-black/[0.06] flex items-center justify-between text-xs">
+                  <span className="text-[10px] font-mono text-zinc-500">
                     {node.institution.split('/')[0]}
                   </span>
 
@@ -512,7 +668,7 @@ export default function NexusLandingPage() {
                       requestWarmVouch(node.id);
                       toggleWhatsApp(true, 'vouch-handshake');
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-medium text-cyan-300 flex items-center space-x-1"
+                    className="px-3 py-1 rounded-full bg-[#EFECE5] hover:bg-[#E25C38] hover:text-white border border-black/5 text-[11px] font-bold text-zinc-800 flex items-center space-x-1 transition-all"
                   >
                     <span>Vouch</span>
                     <ArrowRight className="w-3 h-3" />
@@ -525,63 +681,66 @@ export default function NexusLandingPage() {
       </section>
 
       {/* =========================================================================
-          7. SECTION: SOLAR LOADER DEMO SHOWCASE
+          7. SECTION: SOLAR LOADER SHOWCASE (TACTILE STUDIO CONTAINER)
          ========================================================================= */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 sm:px-10 py-16">
-        <div className="p-8 sm:p-12 rounded-3xl bg-[#080B12] border border-white/[0.08] flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="max-w-md">
-            <span className="text-[11px] font-mono tracking-[0.2em] uppercase text-cyan-400 font-semibold">
-              Orbital Synchronizer
-            </span>
-            <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1 font-sans">
+      <section id="solar-clock" className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12">
+        <div className="p-8 sm:p-12 rounded-[36px] bg-white border border-black/[0.08] shadow-[0_16px_40px_rgba(20,24,21,0.06)] flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="max-w-md text-left">
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#E25C38]" />
+              <span className="text-[11px] font-mono tracking-[0.2em] uppercase text-zinc-500 font-bold">
+                Orbital Synchronizer
+              </span>
+            </div>
+            <h3 className="text-2xl sm:text-3xl font-black text-[#141815] tracking-tight mt-1">
               Solar Engine Clock
             </h3>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-2 leading-relaxed">
+            <p className="text-xs sm:text-sm text-zinc-600 mt-2 leading-relaxed">
               Every verified connection in Nexus runs on an active celestial clock. Real-time updates from GitHub Webhooks and WhatsApp drops propagate dynamically across all peer nodes.
             </p>
 
             <div className="mt-6 flex items-center space-x-3">
               <button
                 onClick={() => setSolarDemoSpeed(s => (s === 1 ? 2 : s === 2 ? 0.5 : 1))}
-                className="px-3.5 py-1.5 rounded-lg bg-white text-black text-xs font-bold transition-all"
+                className="px-4 py-2 rounded-full bg-[#141815] hover:bg-[#254B33] text-white text-xs font-bold transition-all shadow-sm"
               >
                 Speed: {solarDemoSpeed}x
               </button>
 
               <button
                 onClick={() => setIsMicroAuditModalOpen(true)}
-                className="px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-white transition-all"
+                className="px-4 py-2 rounded-full bg-[#EFECE5] hover:bg-[#E5E0D7] border border-black/5 text-xs font-semibold text-[#141815] transition-all"
               >
                 Launch Micro-Audit
               </button>
             </div>
           </div>
 
-          <div className="flex items-center justify-center py-6">
-            <SolarLoader size={34} speed={solarDemoSpeed} />
+          <div className="flex items-center justify-center p-6 bg-[#F7F5F0] rounded-[32px] border border-black/[0.06]">
+            <SolarLoader size={36} speed={solarDemoSpeed} />
           </div>
         </div>
       </section>
 
       {/* =========================================================================
-          8. MINIMALIST FOOTER
+          8. TACTILE STUDIO FOOTER
          ========================================================================= */}
-      <footer className="relative z-10 border-t border-white/[0.08] py-10 px-6 sm:px-10 bg-[#030509]">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500 font-mono">
+      <footer className="relative z-10 border-t border-black/[0.08] py-10 px-4 sm:px-6 bg-[#EFECE6] mt-12">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-600 font-mono">
           <div className="flex items-center space-x-2.5">
-            <div className="w-5 h-5 rounded bg-white/10 flex items-center justify-center">
-              <Network className="w-3 h-3 text-cyan-400" />
+            <div className="w-6 h-6 rounded-full bg-[#E25C38] flex items-center justify-center text-white">
+              <Network className="w-3.5 h-3.5" />
             </div>
-            <span className="font-bold text-white">NEXUS</span>
-            <span>• PROOF-OF-WORK NETWORK</span>
+            <span className="font-extrabold text-[#141815]">NEXUS</span>
+            <span>• PROOF-OF-WORK CAMPUS NETWORK</span>
           </div>
 
           <div className="flex items-center space-x-6 text-[11px]">
-            <span className="text-emerald-400 flex items-center space-x-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="text-emerald-700 font-semibold flex items-center space-x-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
               <span>Campus Network 100% Operational</span>
             </span>
-            <span>IIITD HackShift 2026</span>
+            <span className="text-zinc-500">IIITD HackShift 2026</span>
           </div>
         </div>
       </footer>
