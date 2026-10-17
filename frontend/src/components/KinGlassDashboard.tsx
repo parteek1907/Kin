@@ -332,13 +332,63 @@ export default function KinGlassDashboard() {
   const [pendingQueue, setPendingQueue] = useState<any[]>([]);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 20-MINUTE DOORWAY STATES
+  // 20-MINUTE DOORWAY STATES (LIVE INTERLINKED CONSULTATIONS & SETTLEMENTS)
   // ─────────────────────────────────────────────────────────────────────────────
-  const [selectedExpert, setSelectedExpert] = useState<{ name: string; role: string; fee: string; specialty: string } | null>(null);
+  const [doorwaySlots, setDoorwaySlots] = useState<any[]>([]);
+  const [isLoadingDoorwaySlots, setIsLoadingDoorwaySlots] = useState(false);
+  const [selectedExpert, setSelectedExpert] = useState<any | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState('Saturday, 3:00 PM - 3:20 PM');
-  const [consultFeeSetting, setConsultFeeSetting] = useState('₹1,000');
-  const [totalSessionsConducted, setTotalSessionsConducted] = useState(12);
+  const [bookingTopic, setBookingTopic] = useState('');
+  const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
+
+  // Professional Consultation Pricing & Availability (Image 2)
+  const [consultFeeSetting, setConsultFeeSetting] = useState('1000');
+  const [consultSpecialtySetting, setConsultSpecialtySetting] = useState('System Design Drill');
+  const [consultIsOpenForBookings, setConsultIsOpenForBookings] = useState(true);
+  const [isSavingConsultPricing, setIsSavingConsultPricing] = useState(false);
+
+  // Professional Financial Ledger (Real Data, 50/50 Split)
+  const [proSessionsDone, setProSessionsDone] = useState(0);
+  const [proGrossRevenue, setProGrossRevenue] = useState(0);
+  const [proShare50, setProShare50] = useState(0);
+  const [proPendingSettlement, setProPendingSettlement] = useState(0);
+  const [proBookingsList, setProBookingsList] = useState<any[]>([]);
+  const [isRequestingPayout, setIsRequestingPayout] = useState(false);
+
+  const refreshDoorwaySlots = async () => {
+    setIsLoadingDoorwaySlots(true);
+    try {
+      const res = await fetch('/api/doorway/slots?onlyAvailable=true');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.slots)) {
+        setDoorwaySlots(data.slots);
+      }
+    } catch (e) {
+      console.error('Failed to load doorway slots', e);
+    } finally {
+      setIsLoadingDoorwaySlots(false);
+    }
+  };
+
+  const refreshProfessionalLedger = async () => {
+    try {
+      const proEmail = user?.email || activeUserEmail || 'professional@kin.network';
+      const proName = user?.name || activeUserName || 'Verified Professional';
+      const res = await fetch(`/api/doorway/bookings?professionalEmail=${encodeURIComponent(proEmail)}&professionalName=${encodeURIComponent(proName)}`);
+      const data = await res.json();
+      if (data.success && data.stats) {
+        setProSessionsDone(data.stats.totalSessions || 0);
+        setProGrossRevenue(data.stats.grossRevenue || 0);
+        setProShare50(data.stats.share50 || 0);
+        setProPendingSettlement(data.stats.pendingSettlement || 0);
+        setProBookingsList(data.bookings || []);
+      }
+    } catch (e) {
+      console.error('Failed to load professional ledger', e);
+    }
+  };
+
 
   // ─────────────────────────────────────────────────────────────────────────────
   // WISDOM CAPSULE STATES
@@ -636,6 +686,10 @@ export default function KinGlassDashboard() {
         }
       })
       .catch(() => {});
+
+    // 7. Fetch live Doorway consultation offerings & professional ledger
+    refreshDoorwaySlots();
+    refreshProfessionalLedger();
   }, [user?.email, activeUserEmail]);
 
   // GitHub telemetry
@@ -767,10 +821,91 @@ export default function KinGlassDashboard() {
     setApproachSummaryInput('');
   };
 
-  const handleConfirmConsultBooking = () => {
-    setBookingModalOpen(false);
-    showToast(`Confirmed! 20-min consult booked with ${selectedExpert?.name || 'Expert'}. Calendar invite dispatched.`);
+  const handleConfirmConsultBooking = async () => {
+    if (!selectedExpert) return;
+    setIsSubmittingBooking(true);
+    try {
+      const expertName = selectedExpert.professionalName || selectedExpert.name || 'Verified Mentor';
+      const expertEmail = selectedExpert.professionalEmail || 'professional@kin.network';
+      const numericFee = typeof selectedExpert.fee === 'number'
+        ? selectedExpert.fee
+        : parseInt(String(selectedExpert.fee).replace(/[^0-9]/g, '')) || 1000;
+
+      const res = await fetch('/api/doorway/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          doorwayId: selectedExpert.id,
+          professionalEmail: expertEmail,
+          professionalName: expertName,
+          studentName: activeUserName,
+          studentEmail: user?.email || activeUserEmail || 'student@iiitd.ac.in',
+          studentCollege: activeUserInstitution || 'IIIT Delhi',
+          fee: numericFee,
+          slot: selectedSlot,
+          topic: bookingTopic.trim() || 'System architecture drill and real engineering hurdle review',
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setBookingModalOpen(false);
+        setBookingTopic('');
+        try {
+          confetti({
+            particleCount: 110,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        } catch {}
+        showToast(`Confirmed! 20-min consult booked with ${expertName}. Calendar invite dispatched.`);
+        refreshProfessionalLedger();
+      } else {
+        showToast(data.error || 'Failed to book consultation');
+      }
+    } catch {
+      showToast('Network error while booking consultation');
+    } finally {
+      setIsSubmittingBooking(false);
+    }
   };
+
+  const handleSaveConsultationPricing = async () => {
+    setIsSavingConsultPricing(true);
+    try {
+      const numericFee = parseInt(String(consultFeeSetting).replace(/[^0-9]/g, '')) || 1000;
+      const res = await fetch('/api/doorway/slots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          professionalEmail: user?.email || activeUserEmail || 'professional@kin.network',
+          professionalName: activeUserName || 'Verified Leader',
+          role: activeUserRole || 'Senior Systems Architect',
+          company: activeUserInstitution || 'Global Technology Syndicate',
+          specialty: consultSpecialtySetting || 'System Design & Distributed Scalability Drill',
+          fee: numericFee,
+          isAvailable: consultIsOpenForBookings,
+          availableSlots: [
+            'Saturday, 10:00 AM - 10:20 AM',
+            'Saturday, 3:00 PM - 3:20 PM',
+            'Sunday, 11:00 AM - 11:20 AM'
+          ],
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Consultation schedule & pricing published to Student Cockpit!');
+        refreshDoorwaySlots();
+      } else {
+        showToast(data.error || 'Failed to update consultation availability');
+      }
+    } catch {
+      showToast('Error saving consultation pricing');
+    } finally {
+      setIsSavingConsultPricing(false);
+    }
+  };
+
 
   const handleSendManualQueueNote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1108,8 +1243,43 @@ export default function KinGlassDashboard() {
     }
   };
 
-  const handleInstantSettlementPayout = () => {
-    showToast('Instant Settlement Triggered: ₹6,000 transferred to linked corporate account via NEFT.');
+  const handleInstantSettlementPayout = async () => {
+    if (proPendingSettlement <= 0) {
+      showToast('No pending settlement balance to withdraw.');
+      return;
+    }
+    setIsRequestingPayout(true);
+    try {
+      const proEmail = user?.email || activeUserEmail || 'professional@kin.network';
+      const proName = user?.name || activeUserName || 'Verified Professional';
+      const res = await fetch('/api/doorway/bookings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'payout',
+          professionalEmail: proEmail,
+          professionalName: proName,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        try {
+          confetti({
+            particleCount: 130,
+            spread: 80,
+            origin: { y: 0.6 }
+          });
+        } catch {}
+        showToast(`Instant Settlement of ₹${data.paidAmount.toLocaleString()} transferred via UPI / NEFT!`);
+        refreshProfessionalLedger();
+      } else {
+        showToast(data.error || 'Failed to process instant payout');
+      }
+    } catch {
+      showToast('Network error processing payout');
+    } finally {
+      setIsRequestingPayout(false);
+    }
   };
 
   const handleSocialPost = (e: React.FormEvent) => {
@@ -2170,42 +2340,60 @@ export default function KinGlassDashboard() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                      {[
-                        { name: 'Rahul Mehta', role: 'Staff SDE @ Uber', fee: '₹800 for 20 mins', rating: '4.9 ★', specialty: 'System Design Drill', exp: '8 yrs exp' },
-                        { name: 'Dr. Priya Sharma', role: 'Lead Bioinformatician @ Apollo', fee: '₹950 for 20 mins', rating: '5.0 ★', specialty: 'AI / Healthcare Architecture', exp: '10 yrs exp' },
-                        { name: 'Siddharth Verma', role: 'Protocol Lead @ Polygon', fee: '₹1,000 for 20 mins', rating: '4.9 ★', specialty: 'Web3 & Smart Contract Audit', exp: '6 yrs exp' }
-                      ].map((exp) => (
-                        <div key={exp.name} className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                                {exp.specialty}
-                              </span>
-                              <span className="text-xs font-bold text-slate-900">{exp.rating}</span>
-                            </div>
-
-                            <h3 className="text-base font-bold text-slate-900 mt-2">{exp.name}</h3>
-                            <p className="text-xs text-slate-600">{exp.role}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">{exp.exp}</p>
-
-                            <div className="my-4 p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700">
-                              <span className="font-bold text-slate-900 block">{exp.fee}</span>
-                              <span className="text-[10px] text-slate-500">50% supports student endowments</span>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() => {
-                              setSelectedExpert(exp);
-                              setBookingModalOpen(true);
-                            }}
-                            className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>Book 20-Min Slot</span>
-                          </button>
+                      {isLoadingDoorwaySlots ? (
+                        <div className="col-span-1 md:col-span-3 py-16 flex flex-col items-center justify-center gap-3 bg-white rounded-3xl border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] text-slate-500">
+                          <Loader2 className="w-8 h-8 animate-spin text-[#E25C38]" />
+                          <p className="text-sm font-semibold">Loading verified professional consultation slots...</p>
                         </div>
-                      ))}
+                      ) : doorwaySlots.length === 0 ? (
+                        <div className="col-span-1 md:col-span-3 p-12 text-center bg-white rounded-3xl border border-dashed border-slate-200 space-y-3">
+                          <Calendar className="w-10 h-10 mx-auto text-slate-300" />
+                          <h4 className="text-base font-bold text-slate-800">No active calls available right now</h4>
+                          <p className="text-xs text-slate-500 max-w-md mx-auto">
+                            Verified professionals configure their 20-minute consultation availability and rates from their Command Center. As soon as a mentor publishes hours, they will appear here.
+                          </p>
+                        </div>
+                      ) : (
+                        doorwaySlots.map((exp) => (
+                          <div
+                            key={exp.id}
+                            className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between hover:shadow-md transition-all group"
+                          >
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 truncate max-w-[190px]">
+                                  {exp.specialty}
+                                </span>
+                                <span className="text-xs font-bold text-slate-900">{exp.rating || '5.0 ★'}</span>
+                              </div>
+
+                              <h3 className="text-base font-bold text-slate-900 mt-2">{exp.professionalName}</h3>
+                              <p className="text-xs text-slate-600 truncate">{exp.role} @ {exp.company}</p>
+                              <p className="text-xs text-slate-500 mt-0.5">{exp.exp || 'Senior Industry Mentor'}</p>
+
+                              <div className="my-4 p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700">
+                                <span className="font-bold text-slate-900 block">
+                                  ₹{Number(exp.fee).toLocaleString()} for 20 mins
+                                </span>
+                                <span className="text-[10px] text-slate-500">50% supports student endowments</span>
+                              </div>
+                            </div>
+
+                            <button
+                              id={`book-doorway-btn-${exp.id}`}
+                              onClick={() => {
+                                setSelectedExpert(exp);
+                                setSelectedSlot(exp.availableSlots?.[0] || 'Saturday, 3:00 PM - 3:20 PM');
+                                setBookingModalOpen(true);
+                              }}
+                              className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <Calendar className="w-3.5 h-3.5" />
+                              <span>Book 20-Min Slot</span>
+                            </button>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}
@@ -2473,11 +2661,12 @@ export default function KinGlassDashboard() {
                       <div className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
                         <div>
                           <h3 className="text-base font-bold text-slate-900">Consultation Settlements</h3>
-                          <p className="text-xs text-slate-600 mt-1">₹6,000 net earned across 12 completed sessions.</p>
+                          <p className="text-xs text-slate-600 mt-1">₹{proShare50.toLocaleString()} net earned across {proSessionsDone} completed sessions.</p>
                         </div>
                         <button
                           onClick={handleInstantSettlementPayout}
-                          className="mt-4 w-full py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer"
+                          disabled={proPendingSettlement <= 0}
+                          className="mt-4 w-full py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50"
                         >
                           Request Instant Payout
                         </button>
@@ -2939,24 +3128,69 @@ export default function KinGlassDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                       {/* Rate Settings */}
                       <div className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
-                        <h3 className="text-base font-bold text-slate-900">Consultation Pricing</h3>
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-base font-bold text-slate-900">Consultation Pricing</h3>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            consultIsOpenForBookings ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            {consultIsOpenForBookings ? 'Active in Cockpit' : 'Paused'}
+                          </span>
+                        </div>
+
                         <div>
-                          <label className="text-xs font-bold text-slate-700 block mb-1">Set Fee per 20 Minutes:</label>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Set Fee per 20 Minutes (₹):</label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-2.5 text-xs font-bold text-slate-400">₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="50"
+                              value={consultFeeSetting}
+                              onChange={(e) => setConsultFeeSetting(e.target.value)}
+                              className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#E25C38]"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Focus Topic / Drill Specialty:</label>
                           <input
                             type="text"
-                            value={consultFeeSetting}
-                            onChange={(e) => setConsultFeeSetting(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none"
+                            value={consultSpecialtySetting}
+                            onChange={(e) => setConsultSpecialtySetting(e.target.value)}
+                            placeholder="e.g. System Design Drill"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#E25C38]"
                           />
                         </div>
+
+                        <label className="flex items-center gap-2 cursor-pointer pt-0.5">
+                          <input
+                            type="checkbox"
+                            checked={consultIsOpenForBookings}
+                            onChange={(e) => setConsultIsOpenForBookings(e.target.checked)}
+                            className="accent-[#E25C38] w-4 h-4 rounded cursor-pointer"
+                          />
+                          <span className="text-xs font-bold text-slate-700">Open for Student 20-Min Bookings</span>
+                        </label>
+
                         <p className="text-xs text-slate-500 leading-relaxed">
-                          Your earnings: <strong>50%</strong> (e.g. ₹500/session). The remaining 50% funds competitive student grants.
+                          Your earnings: <strong>50%</strong> (e.g. ₹{Math.round((parseInt(String(consultFeeSetting).replace(/[^0-9]/g, '')) || 1000) * 0.5)}/session). The remaining 50% funds competitive student grants.
                         </p>
+
                         <button
-                          onClick={() => showToast('Consultation schedule & fee updated!')}
-                          className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
+                          id="pro-save-pricing-btn"
+                          onClick={handleSaveConsultationPricing}
+                          disabled={isSavingConsultPricing}
+                          className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
                         >
-                          Save Pricing & Hours
+                          {isSavingConsultPricing ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Publishing Availability...</span>
+                            </>
+                          ) : (
+                            <span>Save Pricing & Hours</span>
+                          )}
                         </button>
                       </div>
 
@@ -2973,26 +3207,62 @@ export default function KinGlassDashboard() {
                           <div className="grid grid-cols-3 gap-3 mb-4 text-xs">
                             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
                               <span className="text-[10px] text-slate-500 font-bold uppercase">Sessions Done</span>
-                              <p className="text-2xl font-black text-slate-900 mt-1">{totalSessionsConducted}</p>
+                              <p className="text-2xl font-black text-slate-900 mt-1">{proSessionsDone}</p>
                             </div>
                             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
                               <span className="text-[10px] text-slate-500 font-bold uppercase">Gross Revenue</span>
-                              <p className="text-2xl font-black text-slate-900 mt-1">₹12,000</p>
+                              <p className="text-2xl font-black text-slate-900 mt-1">₹{proGrossRevenue.toLocaleString()}</p>
                             </div>
                             <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-100">
                               <span className="text-[10px] text-emerald-700 font-bold uppercase">Your 50% Share</span>
-                              <p className="text-2xl font-black text-emerald-700 mt-1">₹6,000</p>
+                              <p className="text-2xl font-black text-emerald-700 mt-1">₹{proShare50.toLocaleString()}</p>
                             </div>
                           </div>
+
+                          {/* Recent Bookings List */}
+                          {proBookingsList.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                                Booked Consultations ({proBookingsList.length})
+                              </span>
+                              <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
+                                {proBookingsList.map((b) => (
+                                  <div
+                                    key={b.id}
+                                    className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs flex items-center justify-between"
+                                  >
+                                    <div>
+                                      <div className="font-bold text-slate-900">
+                                        {b.studentName} <span className="text-slate-500 font-normal">({b.studentCollege})</span>
+                                      </div>
+                                      <p className="text-[11px] text-slate-600 truncate max-w-sm">
+                                        {b.slot} • {b.topic}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="font-mono font-bold text-slate-900 block">₹{b.fee}</span>
+                                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
+                                        {b.status === 'paid_out' ? 'Settled' : '50% Accrued'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                          <span className="text-xs text-slate-600">Pending Instant Settlement: <strong>₹6,000</strong></span>
+                          <span className="text-xs text-slate-600">
+                            Pending Instant Settlement: <strong>₹{proPendingSettlement.toLocaleString()}</strong>
+                          </span>
                           <button
+                            id="pro-request-payout-btn"
                             onClick={handleInstantSettlementPayout}
-                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                            disabled={proPendingSettlement <= 0 || isRequestingPayout}
+                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
                           >
-                            Request Instant Settlement Payout
+                            {isRequestingPayout ? 'Processing Instant Payout...' : 'Request Instant Settlement Payout'}
                           </button>
                         </div>
                       </div>
@@ -3612,32 +3882,58 @@ export default function KinGlassDashboard() {
               </div>
 
               <h3 className="text-lg font-bold text-slate-900 mb-1">
-                Book 1-on-1 with {selectedExpert.name}
+                Book 1-on-1 with {selectedExpert.professionalName || selectedExpert.name}
               </h3>
-              <p className="text-xs text-slate-600 mb-4">{selectedExpert.role}</p>
+              <p className="text-xs text-slate-600 mb-4">
+                {selectedExpert.role} @ {selectedExpert.company || selectedExpert.institution || 'Verified Network'}
+              </p>
 
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 mb-4 text-xs space-y-2">
                 <div className="flex justify-between font-bold">
-                  <span>Session Type:</span>
-                  <span>{selectedExpert.specialty}</span>
+                  <span>Session Focus:</span>
+                  <span className="text-slate-800">{selectedExpert.specialty}</span>
                 </div>
                 <div className="flex justify-between font-bold">
-                  <span>Price:</span>
-                  <span className="text-emerald-700">{selectedExpert.fee}</span>
+                  <span>Fee (20 mins):</span>
+                  <span className="text-emerald-700 font-mono">
+                    ₹{Number(selectedExpert.fee).toLocaleString()} (50% supports student grants)
+                  </span>
                 </div>
               </div>
 
-              <div className="mb-4">
-                <label className="text-xs font-bold text-slate-700 block mb-1.5">Select Time Slot:</label>
+              <div className="mb-3">
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">Select Available Slot:</label>
                 <select
                   value={selectedSlot}
                   onChange={(e) => setSelectedSlot(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#E25C38]"
                 >
-                  <option value="Saturday, 3:00 PM - 3:20 PM">Saturday, 3:00 PM - 3:20 PM</option>
-                  <option value="Saturday, 4:00 PM - 4:20 PM">Saturday, 4:00 PM - 4:20 PM</option>
-                  <option value="Sunday, 11:00 AM - 11:20 AM">Sunday, 11:00 AM - 11:20 AM</option>
+                  {(selectedExpert.availableSlots && selectedExpert.availableSlots.length > 0
+                    ? selectedExpert.availableSlots
+                    : [
+                        'Saturday, 10:00 AM - 10:20 AM',
+                        'Saturday, 3:00 PM - 3:20 PM',
+                        'Sunday, 11:00 AM - 11:20 AM'
+                      ]
+                  ).map((sl: string, i: number) => (
+                    <option key={i} value={sl}>
+                      {sl}
+                    </option>
+                  ))}
                 </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                  Discussion Objective / Question:
+                </label>
+                <input
+                  type="text"
+                  value={bookingTopic}
+                  onChange={(e) => setBookingTopic(e.target.value)}
+                  placeholder="e.g. Distributed system race condition review & scale bottlenecks"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#E25C38]"
+                />
               </div>
 
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800 mb-4">
@@ -3645,10 +3941,19 @@ export default function KinGlassDashboard() {
               </div>
 
               <button
+                id="confirm-booking-btn"
                 onClick={handleConfirmConsultBooking}
-                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
+                disabled={isSubmittingBooking}
+                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                Confirm Booking & Dispatch Invite
+                {isSubmittingBooking ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Confirming Booking...</span>
+                  </>
+                ) : (
+                  <span>Confirm Booking & Dispatch Invite</span>
+                )}
               </button>
             </motion.div>
           </div>

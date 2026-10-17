@@ -1,0 +1,16 @@
+[
+  {
+    "id": "booking-1792274806432",
+    "doorwayId": "doorway-parth",
+    "professionalEmail": "parth.arora@deepmind.com",
+    "professionalName": "Parth Arora",
+    "studentName": "Verified Member",
+    "studentEmail": "builder@kin.network",
+    "studentCollege": "IIIT Delhi",
+    "fee": 1000,
+    "slot": "Saturday, 10:00 AM - 10:20 AM",
+    "topic": "Distributed Consensus & Zero-Downtime Sharding",
+    "status": "confirmed",
+    "bookedAt": "2026-10-17T22:06:46.432Z"
+  }
+]
