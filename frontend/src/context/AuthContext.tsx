@@ -80,10 +80,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let backendSuccess = false;
     let jwtToken = '';
 
-    // Attempt direct database connection via backend API
+    // Attempt connection via unified backend service route, falling back to local port if standalone
     const backendEndpoints = [
-      'http://localhost:8000/api/v1/auth/firebase-sync',
       '/api/v1/auth/firebase-sync',
+      'http://localhost:8000/api/v1/auth/firebase-sync',
     ];
 
     for (const endpoint of backendEndpoints) {

@@ -27,7 +27,8 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+        "*"
     ]
 
     @field_validator("CORS_ORIGINS", mode="before")
@@ -42,7 +43,7 @@ class Settings(BaseSettings):
             return [i.strip() for i in v.split(",") if i.strip()]
         elif isinstance(v, list):
             return v
-        return ["http://localhost:3000", "http://127.0.0.1:3000"]
+        return ["http://localhost:3000", "http://127.0.0.1:3000", "*"]
 
     # AI Integration Settings (Optional)
     AI_PROVIDER: Optional[str] = None

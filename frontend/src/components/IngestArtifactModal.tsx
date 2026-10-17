@@ -66,7 +66,7 @@ export default function IngestArtifactModal() {
     }
 
     try {
-      const res = await fetch('/api/ingest', {
+      const res = await fetch('/app-api/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
