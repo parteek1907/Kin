@@ -142,8 +142,6 @@ export default function ProfileCompletionWizard({
     }
   }, [user, isOpen]);
 
-  if (!isOpen) return null;
-
   const toggleContribution = (type: string) => {
     if (contributionTypes.includes(type)) {
       setContributionTypes(contributionTypes.filter((t) => t !== type));
@@ -234,8 +232,9 @@ export default function ProfileCompletionWizard({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-md overflow-y-auto">
-        <motion.div
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-md overflow-y-auto">
+          <motion.div
           initial={{ opacity: 0, scale: 0.94, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 15 }}
@@ -786,6 +785,7 @@ export default function ProfileCompletionWizard({
           </div>
         </motion.div>
       </div>
+      )}
     </AnimatePresence>
   );
 }
