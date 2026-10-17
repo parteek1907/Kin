@@ -211,11 +211,14 @@ export default function KinGlassDashboard() {
     setShowMascotTour(false);
   };
 
-  // Sync role state on load
+  // Sync role state on load & check profile param
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlRole = params.get('role');
+      if (params.get('setup') === 'true' || params.get('profile') === 'true') {
+        setLocalProfileModalOpen(true);
+      }
       if (urlRole === 'alumni' || activeRole === 'Alumni') {
         setNetworkRole('alumni');
         setShowMascotTour(false);
