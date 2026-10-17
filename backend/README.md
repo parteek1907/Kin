@@ -51,7 +51,7 @@ The **Unclaimed Talent Radar** discovers high-value opportunities that students 
 |---|---|---|
 | **Language** | Python 3.11+ / 3.12 | Modern type-annotated Python |
 | **Framework** | FastAPI 0.115+ | High-performance async/sync REST API with auto OpenAPI docs |
-| **Database** | PostgreSQL 16+ (SQLite for tests) | Enterprise relational database |
+| **Database** | PostgreSQL 16+ (Neon Cloud PostgreSQL / SQLite for local tests) | Enterprise cloud relational database |
 | **ORM** | SQLAlchemy 2.0+ | Modern declarative models with strict relationship integrity |
 | **Migrations** | Alembic 1.14+ | Version-controlled, reproducible database schema migrations |
 | **Validation** | Pydantic v2 | High-speed data parsing and validation |
