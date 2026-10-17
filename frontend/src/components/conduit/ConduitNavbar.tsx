@@ -36,8 +36,12 @@ export default function ConduitNavbar({
     }
     const el = document.getElementById(id);
     if (el) {
-      const top = el.getBoundingClientRect().top + window.scrollY - 104;
-      window.scrollTo({ top, behavior: 'smooth' });
+      if (typeof window !== 'undefined' && window.__lenis) {
+        window.__lenis.scrollTo(el, { offset: -104, duration: 2.2 });
+      } else {
+        const top = el.getBoundingClientRect().top + window.scrollY - 104;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
     }
   };
 
@@ -89,14 +93,14 @@ export default function ConduitNavbar({
           className="hidden lg:flex items-center justify-center gap-16 text-[14px] font-semibold tracking-[0.12em] text-[#2D3139] uppercase justify-self-center select-none"
         >
           <button
-            onClick={() => handleScrollTo('network', onExplore)}
+            onClick={() => handleScrollTo('how-to-use', onExplore)}
             className="hover:text-[#11131A] transition-colors py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A] rounded whitespace-nowrap"
           >
             NETWORK
           </button>
           
           <button
-            onClick={() => handleScrollTo('network', onHowItWorks)}
+            onClick={() => handleScrollTo('how-to-use', onHowItWorks)}
             className="hover:text-[#11131A] transition-colors py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11131A] rounded whitespace-nowrap"
           >
             HOW IT WORKS
@@ -146,13 +150,13 @@ export default function ConduitNavbar({
           className="md:hidden bg-[#FFFDF8] border-b border-black/[0.06] px-6 py-5 shadow-lg flex flex-col space-y-4"
         >
           <button
-            onClick={() => handleScrollTo('network', onExplore)}
+            onClick={() => handleScrollTo('how-to-use', onExplore)}
             className="text-left font-semibold text-sm tracking-[0.10em] text-[#11131A] py-1 uppercase"
           >
             NETWORK
           </button>
           <button
-            onClick={() => handleScrollTo('network', onHowItWorks)}
+            onClick={() => handleScrollTo('how-to-use', onHowItWorks)}
             className="text-left font-semibold text-sm tracking-[0.10em] text-[#11131A] py-1 uppercase"
           >
             HOW IT WORKS

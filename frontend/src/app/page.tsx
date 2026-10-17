@@ -2,8 +2,8 @@
 
 import React from 'react';
 import ConduitHero from '@/components/conduit/ConduitHero';
-import KinNetworkSection from '@/components/kin/KinNetworkSection';
-import KinPricingSection from '@/components/kin/KinPricingSection';
+import { Feature } from '@/components/ui/feature-section-with-bento-grid';
+import PricingSection3 from '@/components/ui/pricing-section-3';
 import KinFooter from '@/components/kin/KinFooter';
 import ToastAlert from '@/components/ToastAlert';
 
@@ -20,16 +20,16 @@ export default function Home() {
     <main className="relative w-full min-h-screen bg-[#FFFDF8] text-[#11131A] overflow-x-hidden selection:bg-[#EAD8C6] selection:text-[#11131A]">
       {/* 1. HERO SECTION (INTACT, EXACT LUXURY DESIGN SPECIFICATION) */}
       <ConduitHero
-        onExplore={() => scrollToSection('network')}
-        onHowItWorks={() => scrollToSection('network')}
+        onExplore={() => scrollToSection('how-to-use')}
+        onHowItWorks={() => scrollToSection('how-to-use')}
         onForInstitutions={() => scrollToSection('pricing')}
       />
 
-      {/* 2. HOW KIN WORKS / THE LIVING GRAPH SECTION */}
-      <KinNetworkSection />
+      {/* 2. HOW TO USE KIN • BENTO GRID FEATURE SECTION */}
+      <Feature />
 
-      {/* 3. PRICING & MEMBERSHIP TIERS SECTION */}
-      <KinPricingSection />
+      {/* 3. NUMBERFLOW INTERACTIVE PRICING SECTION */}
+      <PricingSection3 />
 
       {/* 4. EDITORIAL CHARCOAL FOOTER */}
       <KinFooter />

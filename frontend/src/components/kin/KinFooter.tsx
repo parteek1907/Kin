@@ -34,26 +34,14 @@ export default function KinFooter() {
                 >
                   KIN
                 </span>
-                <span className="text-[10px] font-mono tracking-widest text-[#F5C84C] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
-                  CAMPUS PROOF GRAPH
-                </span>
               </div>
 
               <p 
                 style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
-                className="text-[#9CA3AF] text-[15px] leading-relaxed max-w-md mb-8"
+                className="text-[#9CA3AF] text-[15px] leading-relaxed max-w-md"
               >
                 A living academic network that connects proven student engineering proof to real venture opportunities through trusted campus relationships.
               </p>
-            </div>
-
-            {/* Consensus Pulse Badge */}
-            <div className="inline-flex items-center space-x-2.5 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-[12px] text-[#D1D5DB] w-fit">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span className="font-mono text-[11px]">154 NODES ONLINE • 412 TRUST EDGES</span>
             </div>
           </div>
 

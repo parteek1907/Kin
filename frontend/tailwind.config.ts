@@ -10,6 +10,22 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        primary: {
+          DEFAULT: "#11131A",
+          foreground: "#FFFDF8",
+        },
+        secondary: {
+          DEFAULT: "#FAF7F0",
+          foreground: "#11131A",
+        },
+        muted: {
+          DEFAULT: "#F4F1EB",
+          foreground: "#686875",
+        },
+        destructive: {
+          DEFAULT: "#EF4444",
+          foreground: "#FFFFFF",
+        },
         obsidian: {
           DEFAULT: "#07090E",
           deep: "#040508",

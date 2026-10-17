@@ -2,7 +2,7 @@
 
 import React from 'react';
 import ConduitNavbar from '@/components/conduit/ConduitNavbar';
-import KinPricingSection from '@/components/kin/KinPricingSection';
+import PricingSection3 from '@/components/ui/pricing-section-3';
 import KinFooter from '@/components/kin/KinFooter';
 import ToastAlert from '@/components/ToastAlert';
 
@@ -16,7 +16,7 @@ export default function PricingPage() {
       <div className="h-[104px] w-full" aria-hidden="true" />
 
       {/* Pricing Section */}
-      <KinPricingSection />
+      <PricingSection3 />
 
       {/* Footer */}
       <KinFooter />

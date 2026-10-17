@@ -13,7 +13,7 @@ export default function KinPricingSection() {
       name: 'Student Builder',
       badge: 'CAMPUS VERIFIED',
       featured: false,
-      price: '$0',
+      price: '₹0',
       period: 'free forever',
       description: 'For undergraduate and graduate engineers building real systems. Never pay a cent.',
       features: [
@@ -31,9 +31,9 @@ export default function KinPricingSection() {
       name: 'Alumni Founder & Scout',
       badge: 'HIGH CONVICTION',
       featured: true,
-      price: billingCycle === 'annual' ? '$39' : '$49',
+      price: billingCycle === 'annual' ? '₹799' : '₹999',
       period: 'per month',
-      subPeriod: billingCycle === 'annual' ? 'Billed annually ($468/yr)' : 'Billed monthly',
+      subPeriod: billingCycle === 'annual' ? 'Billed annually at ₹9,588/yr' : 'Billed monthly',
       description: 'For venture founders and angel investors seeking proven engineering talent.',
       features: [
         'Broadcast up to 5 concurrent intent capsules',
@@ -51,8 +51,9 @@ export default function KinPricingSection() {
       name: 'University & Research Labs',
       badge: 'ENTERPRISE DEPLOYMENT',
       featured: false,
-      price: 'Custom',
-      period: 'annual campus license',
+      price: billingCycle === 'annual' ? '₹3,999' : '₹4,999',
+      period: 'per month',
+      subPeriod: billingCycle === 'annual' ? 'Billed annually at ₹47,988/yr' : 'Billed monthly',
       description: 'For university leadership, deans, and research incubators monitoring real placement.',
       features: [
         'Campus-wide alumni & student network radar',
@@ -78,15 +79,6 @@ export default function KinPricingSection() {
             1. SECTION HEADER & BILLING TOGGLE
            ===================================================================== */}
         <div className="text-center max-w-3xl mx-auto mb-16 md:mb-20">
-          <div className="mb-3 md:mb-4">
-            <span 
-              style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
-              className="text-[12px] md:text-[13px] font-bold tracking-[0.2em] text-[#8A829A] uppercase inline-block leading-none"
-            >
-              TRANSPARENT MEMBERSHIP • NO RECRUITER TAX
-            </span>
-          </div>
-
           <h2 
             style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
             className="text-[clamp(32px,4.5vw,56px)] font-extrabold text-[#11131A] leading-[1.05] tracking-[-0.025em] uppercase mb-6"
@@ -101,11 +93,11 @@ export default function KinPricingSection() {
             Kin is free forever for students. Transparent, high-conviction access for alumni founders and university institutions.
           </p>
 
-          {/* Billing Toggle (Monthly / Annual) */}
-          <div className="inline-flex items-center p-1.5 rounded-full bg-[#EFE9DE] border border-[#E0D8CB]">
+          {/* Billing Toggle (Monthly / Annual) - Clean Architectural Segmented Switch */}
+          <div className="inline-flex items-center p-1 rounded-xl bg-[#EFE9DE] border border-[#E0D8CB]">
             <button
               onClick={() => setBillingCycle('monthly')}
-              className={`px-5 py-2 rounded-full text-[12px] font-bold tracking-[0.08em] uppercase transition-all duration-200 ${
+              className={`px-5 py-2 rounded-lg text-[12px] font-bold tracking-[0.08em] uppercase transition-all duration-200 ${
                 billingCycle === 'monthly'
                   ? 'bg-[#11131A] text-white shadow-sm'
                   : 'text-[#686875] hover:text-[#11131A]'
@@ -115,14 +107,14 @@ export default function KinPricingSection() {
             </button>
             <button
               onClick={() => setBillingCycle('annual')}
-              className={`flex items-center space-x-2 px-5 py-2 rounded-full text-[12px] font-bold tracking-[0.08em] uppercase transition-all duration-200 ${
+              className={`flex items-center space-x-2 px-5 py-2 rounded-lg text-[12px] font-bold tracking-[0.08em] uppercase transition-all duration-200 ${
                 billingCycle === 'annual'
                   ? 'bg-[#11131A] text-white shadow-sm'
                   : 'text-[#686875] hover:text-[#11131A]'
               }`}
             >
               <span>Annual</span>
-              <span className="text-[10px] font-bold text-[#E2C799] bg-[#2A231C] px-2 py-0.5 rounded-full lowercase">
+              <span className="text-[10px] font-bold text-[#E2C799] bg-[#2A231C] px-2 py-0.5 rounded lowercase">
                 save 20%
               </span>
             </button>
@@ -130,7 +122,7 @@ export default function KinPricingSection() {
         </div>
 
         {/* =====================================================================
-            2. THREE LUXURY EDITORIAL PRICING CARDS
+            2. THREE LUXURY EDITORIAL PRICING CARDS (Zero Pill Shapes)
            ===================================================================== */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-10 items-stretch mb-16">
           {tiers.map((tier, index) => {
@@ -141,33 +133,13 @@ export default function KinPricingSection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-60px' }}
                 transition={{ duration: 0.6, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
-                className={`relative rounded-3xl p-8 sm:p-10 flex flex-col justify-between transition-all duration-300 ${
+                className={`relative rounded-2xl p-8 sm:p-10 flex flex-col justify-between transition-all duration-300 ${
                   tier.featured
                     ? 'bg-[#11131A] text-[#FFFDF8] border-2 border-[#11131A] shadow-[0_20px_50px_rgba(17,19,26,0.18)] lg:-translate-y-3'
                     : 'bg-[#FFFDF8] text-[#11131A] border border-[#E5E0D8] shadow-[0_4px_24px_rgba(34,18,10,0.03)] hover:shadow-[0_12px_40px_rgba(34,18,10,0.07)] hover:border-[#11131A]/20'
                 }`}
               >
                 <div>
-                  {/* Badge & Title */}
-                  <div className="flex items-center justify-between mb-6">
-                    <span 
-                      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
-                      className={`text-[11px] font-bold tracking-[0.16em] uppercase px-3 py-1 rounded-full border ${
-                        tier.featured
-                          ? 'bg-[#222634] text-[#EAD8C6] border-[#3A4052]'
-                          : 'bg-[#FAF7F0] text-[#686875] border-[#E5E0D8]'
-                      }`}
-                    >
-                      {tier.badge}
-                    </span>
-                    {tier.featured && (
-                      <span className="flex items-center space-x-1 text-[11px] font-bold text-[#F5C84C]">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>POPULAR</span>
-                      </span>
-                    )}
-                  </div>
-
                   <h3 
                     style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
                     className="text-[24px] font-bold tracking-tight mb-2"
@@ -203,8 +175,8 @@ export default function KinPricingSection() {
                   <ul className="space-y-4 mb-10">
                     {tier.features.map((feature, fIndex) => (
                       <li key={fIndex} className="flex items-start space-x-3 text-[14px] leading-snug">
-                        <div className={`mt-0.5 rounded-full p-0.5 shrink-0 ${tier.featured ? 'bg-[#222634] text-[#EAD8C6]' : 'bg-[#FAF7F0] text-[#11131A]'}`}>
-                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        <div className={`mt-0.5 shrink-0 ${tier.featured ? 'text-[#EAD8C6]' : 'text-[#11131A]'}`}>
+                          <Check className="w-4 h-4 stroke-[2.5]" />
                         </div>
                         <span className={tier.featured ? 'text-[#E5E7EB]' : 'text-[#374151]'}>
                           {feature}
@@ -217,7 +189,7 @@ export default function KinPricingSection() {
                 {/* Card CTA Button */}
                 <button
                   style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-                  className={`w-full py-4 px-6 rounded-full font-bold text-[13px] tracking-[0.10em] uppercase transition-all duration-200 flex items-center justify-center space-x-2 group cursor-pointer ${
+                  className={`w-full py-4 px-6 rounded-xl font-bold text-[13px] tracking-[0.10em] uppercase transition-all duration-200 flex items-center justify-center space-x-2 group cursor-pointer ${
                     tier.featured
                       ? 'bg-[#FFFDF8] text-[#11131A] hover:bg-[#F0EBE1] shadow-lg'
                       : 'bg-[#11131A] text-white hover:bg-[#2A2E3D]'
@@ -229,13 +201,6 @@ export default function KinPricingSection() {
               </motion.div>
             );
           })}
-        </div>
-
-        {/* =====================================================================
-            3. COMMITMENT TO ZERO-COMMISSION FOOTNOTE
-           ===================================================================== */}
-        <div className="text-center text-[13px] text-[#686875] max-w-2xl mx-auto">
-          <span>🔒 100% Academic Data Sovereignty • Zero placement agency commissions • Full privacy control</span>
         </div>
 
       </div>

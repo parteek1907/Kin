@@ -3,6 +3,7 @@ import './globals.css';
 import { NetworkProvider } from '@/context/NetworkContext';
 import { AuthProvider } from '@/context/AuthContext';
 import AuthModal from '@/components/AuthModal';
+import SmoothScrollProvider from '@/components/providers/SmoothScrollProvider';
 
 export const metadata: Metadata = {
   title: 'KIN — Campus Trust Network',
@@ -20,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full scroll-smooth">
+    <html lang="en" className="h-full">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -35,13 +36,15 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-full w-full bg-[#F7F5F0] text-[#141815] antialiased selection:bg-[#E25C38] selection:text-white overflow-x-hidden overflow-y-auto">
-        <AuthProvider>
-          <NetworkProvider>
-            {children}
-            <AuthModal />
-          </NetworkProvider>
-        </AuthProvider>
+      <body className="min-h-full w-full bg-[#FFFFFF] text-[#0A0D14] antialiased selection:bg-[#B6E64A] selection:text-[#142600] overflow-x-hidden">
+        <SmoothScrollProvider>
+          <AuthProvider>
+            <NetworkProvider>
+              {children}
+              <AuthModal />
+            </NetworkProvider>
+          </AuthProvider>
+        </SmoothScrollProvider>
       </body>
     </html>
   );

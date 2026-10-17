@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import CountUpNumber from './CountUpNumber';
 
 interface WavePanelProps {
   onExplore?: () => void;
@@ -139,31 +138,30 @@ export default function WavePanel({ onExplore }: WavePanelProps) {
 
       {/* =========================================================================
           LAYER 3: HERO CONTENT AND VERTICAL RHYTHM
-          Optimized lower-left placement, generous white space utilization.
-          Strict Left Edge parity: Logo, Eyebrow, Headline, Subtext, Stats.
-          Grounded with balanced lower-left anchoring: pb-14 md:pb-20.
+          Lower-left anchored with generous whitespace and open typography tracking.
+          Strict Left Edge parity: Logo, Eyebrow, Headline, Subtext.
          ========================================================================= */}
       <div 
         id="hero-content"
-        className="relative md:absolute md:inset-0 z-30 w-full flex flex-col justify-end min-h-[100svh] px-[var(--gutter)] pt-[calc(20svh+12px)] md:pt-0 pb-14 md:pb-20 pointer-events-none"
+        className="relative md:absolute md:inset-0 z-30 w-full flex flex-col justify-end min-h-[100svh] px-[var(--gutter)] pt-[calc(20svh+12px)] md:pt-0 pb-8 md:pb-12 lg:pb-14 pointer-events-none"
       >
         <div className="w-full flex flex-col items-start pointer-events-auto">
           
-          {/* 1. EYEBROW: 13px, uppercase, tracking 0.2em, warm grey */}
-          <div id="hero-eyebrow" className="mb-3 md:mb-5">
+          {/* 1. EYEBROW: 13px, uppercase, spacious tracking 0.26em, warm grey */}
+          <div id="hero-eyebrow" className="mb-4 md:mb-6">
             <span 
               style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
-              className="text-[12px] md:text-[13px] font-bold tracking-[0.2em] text-[#8A829A] uppercase select-none block leading-none"
+              className="text-[12px] md:text-[13px] font-bold tracking-[0.26em] text-[#8A829A] uppercase select-none block leading-none"
             >
               TRUST, BUILT INTO EVERY CONNECTION
             </span>
           </div>
 
-          {/* 2. HEADLINE: authoritative, weight 800, line-height 0.95, uppercase. 3 lines. */}
+          {/* 2. HEADLINE: open letter-spacing (tracking 0.055em), leading 1.05, uppercase */}
           <h1 
             id="hero-headline"
             style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-            className="text-[clamp(28px,6.8vw,38px)] md:text-[clamp(44px,4.3vw,84px)] font-extrabold text-[#11131A] leading-[0.95] tracking-[-0.025em] uppercase select-none mb-4 md:mb-7"
+            className="text-[clamp(26px,6.2vw,36px)] md:text-[clamp(40px,3.7vw,74px)] font-extrabold text-[#11131A] leading-[1.05] tracking-[0.055em] uppercase select-none mb-6 md:mb-8"
           >
             {HEADLINE_LINES.map((line) => (
               <span key={line} className="block whitespace-nowrap">
@@ -172,71 +170,14 @@ export default function WavePanel({ onExplore }: WavePanelProps) {
             ))}
           </h1>
 
-          {/* 3. SUBTEXT: max-width 520px, 21px, line-height 1.5, flowing naturally into stats */}
+          {/* 3. SUBTEXT: comfortable tracking 0.025em, relaxed leading 1.7, filling lower-left quadrant */}
           <p
             id="hero-subtext"
             style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
-            className="text-[#4A4B53] text-[15px] sm:text-[17px] md:text-[21px] font-normal leading-[1.4] md:leading-[1.5] max-w-[520px] mb-8 md:mb-14"
+            className="text-[#4A4B53] text-[15px] sm:text-[17px] md:text-[20px] font-normal leading-[1.6] md:leading-[1.7] tracking-[0.025em] max-w-[580px] md:max-w-[640px]"
           >
             A living network that connects proven expertise to real opportunities through trusted campus relationships.
           </p>
-
-          {/* 4. STATS: 3 equal columns, 40px padding on desktop (none on left of first), 1px dividers, bold numbers */}
-          <div id="hero-stats" className="flex items-center select-none">
-            {/* Column 1: Verified Nodes (left padding 0, right padding 40px on desktop) */}
-            <div id="stat-col-1" className="flex flex-col pr-3.5 md:pr-10">
-              <div 
-                style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-                className="text-[26px] sm:text-[34px] md:text-[48px] font-bold text-[#11131A] leading-none tracking-tight"
-              >
-                <CountUpNumber target={154} duration={1.2} />
-              </div>
-              <div 
-                style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
-                className="text-[10px] md:text-[12px] font-semibold tracking-[0.16em] text-[#686875] uppercase mt-1.5 md:mt-2.5 whitespace-nowrap"
-              >
-                VERIFIED NODES
-              </div>
-            </div>
-
-            {/* 1px Divider (48px tall on desktop, vertically centered) */}
-            <div className="w-px h-7 md:h-12 bg-[#E5E0D8] self-center shrink-0" aria-hidden="true" />
-
-            {/* Column 2: Trust Edges (padding 40px on desktop) */}
-            <div id="stat-col-2" className="flex flex-col px-3.5 md:px-10">
-              <div 
-                style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-                className="text-[26px] sm:text-[34px] md:text-[48px] font-bold text-[#11131A] leading-none tracking-tight"
-              >
-                <CountUpNumber target={412} duration={1.4} />
-              </div>
-              <div 
-                style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
-                className="text-[10px] md:text-[12px] font-semibold tracking-[0.16em] text-[#686875] uppercase mt-1.5 md:mt-2.5 whitespace-nowrap"
-              >
-                TRUST EDGES
-              </div>
-            </div>
-
-            {/* 1px Divider (48px tall on desktop, vertically centered) */}
-            <div className="w-px h-7 md:h-12 bg-[#E5E0D8] self-center shrink-0" aria-hidden="true" />
-
-            {/* Column 3: Active Intents (padding 40px on desktop) */}
-            <div id="stat-col-3" className="flex flex-col px-3.5 md:px-10">
-              <div 
-                style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-                className="text-[26px] sm:text-[34px] md:text-[48px] font-bold text-[#11131A] leading-none tracking-tight"
-              >
-                <CountUpNumber target={18} duration={1.0} />
-              </div>
-              <div 
-                style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
-                className="text-[10px] md:text-[12px] font-semibold tracking-[0.16em] text-[#686875] uppercase mt-1.5 md:mt-2.5 whitespace-nowrap"
-              >
-                ACTIVE INTENTS
-              </div>
-            </div>
-          </div>
 
         </div>
       </div>
