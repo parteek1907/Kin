@@ -120,15 +120,6 @@ export default function TopNavigation() {
           <span>💎 Almas Landing Page</span>
         </button>
 
-        {/* Ingest Artifact Node Trigger */}
-        <button
-          onClick={() => setIsIngestModalOpen(true)}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/40 text-cyan-300 text-xs font-medium transition-all shadow-sm hover:shadow-glow-cyan"
-        >
-          <PlusCircle className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden sm:inline">+ Ingest Proof-of-Work</span>
-          <span className="sm:hidden">+ Ingest</span>
-        </button>
 
         {/* Institution Radar trigger (for mobile or quick toggle) */}
         <button

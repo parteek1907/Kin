@@ -10,6 +10,12 @@
     --foreground: #141815;
     --muted: #64748B;
     --border: rgba(0, 0, 0, 0.08);
+    --accent: #E25C38;
+    --green: #254B33;
+  }
+
+  html {
+    scroll-behavior: smooth;
   }
 
   body {
@@ -18,17 +24,19 @@
     overflow-x: hidden;
     overflow-y: auto;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Custom tactile scrollbar */
+/* ─── Minimal scrollbar ─── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #EFECE6;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -40,7 +48,7 @@
   background: #94A3B8;
 }
 
-/* Tactile Clay / Studio Card utilities */
+/* ─── Tactile card utilities ─── */
 .tactile-card {
   background: #FFFFFF;
   border: 1px solid rgba(0, 0, 0, 0.06);
@@ -59,41 +67,37 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
 }
 
-/* Animations */
+/* ─── Animations ─── */
 @keyframes orbit3d {
-  0% {
-    transform: rotateZ(0deg);
-  }
-  100% {
-    transform: rotateZ(360deg);
-  }
+  0% { transform: rotateZ(0deg); }
+  100% { transform: rotateZ(360deg); }
 }
 
 @keyframes solarTilt {
-  0%, 100% {
-    transform: rotateX(54deg) rotateZ(-8deg);
-  }
-  50% {
-    transform: rotateX(46deg) rotateZ(-2deg);
-  }
+  0%, 100% { transform: rotateX(54deg) rotateZ(-8deg); }
+  50% { transform: rotateX(46deg) rotateZ(-2deg); }
 }
 
 @keyframes floatSoft {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
 }
 
 @keyframes pulseWarm {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 0.4;
-  }
-  50% {
-    transform: scale(1.08);
-    opacity: 0.8;
-  }
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.08); opacity: 0.8; }
+}
+
+/* ─── Gradient text utility ─── */
+.gradient-text {
+  background: linear-gradient(135deg, #E25C38, #D04E2E);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Selection ─── */
+::selection {
+  background: rgba(226, 92, 56, 0.15);
+  color: #E25C38;
 }

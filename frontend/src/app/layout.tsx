@@ -3,8 +3,8 @@ import './globals.css';
 import { NetworkProvider } from '@/context/NetworkContext';
 
 export const metadata: Metadata = {
-  title: 'NEXUS — The Living Campus Proof & Intent Network',
-  description: 'An intelligent platform connecting students, alumni, faculty, founders, and recruiters based on verified proof-of-work, live intent, and warm campus trust paths.',
+  title: 'KIN — Campus Trust Network',
+  description: 'An intelligent platform connecting students, alumni, faculty, founders, and recruiters based on verified technical artifacts and warm campus connections.',
 };
 
 export default function RootLayout({

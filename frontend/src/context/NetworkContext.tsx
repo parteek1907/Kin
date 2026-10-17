@@ -53,6 +53,7 @@ interface NetworkContextType {
   setIsMicroAuditModalOpen: (open: boolean) => void;
   clearToast: () => void;
   resetIntentFilter: () => void;
+  searchIntentsByText: (query: string) => void;
 }
 
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
@@ -64,8 +65,8 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   
   const [activePersonaFilter, setActivePersonaFilter] = useState<PersonaType | 'all' | 'institution-radar'>('all');
   const [activeIntentId, setActiveIntentId] = useState<string | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>('node-parteek');
-  const [targetVouchNodeId, setTargetVouchNodeId] = useState<string | null>('node-parteek');
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [targetVouchNodeId, setTargetVouchNodeId] = useState<string | null>(null);
 
   // Modals & Panels
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
@@ -128,6 +129,19 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
 
   const resetIntentFilter = () => {
     setActiveIntentId(null);
+  };
+
+  const searchIntentsByText = (query: string) => {
+    const q = query.toLowerCase();
+    const found = intents.find(i => 
+      i.query.toLowerCase().includes(q) || 
+      i.category.toLowerCase().includes(q) ||
+      i.authorName.toLowerCase().includes(q) ||
+      i.authorRole.toLowerCase().includes(q)
+    );
+    if (found) {
+      setActiveIntentId(found.id);
+    }
   };
 
   const setPersonaFilter = (filter: PersonaType | 'all' | 'institution-radar') => {
@@ -485,7 +499,8 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
         setIsRadarModalOpen,
         setIsMicroAuditModalOpen,
         clearToast,
-        resetIntentFilter
+        resetIntentFilter,
+        searchIntentsByText
       }}
     >
       {children}

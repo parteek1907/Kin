@@ -549,12 +549,6 @@ export default function FullAlmasLandingPage() {
 
           <div className="md:col-span-7 flex flex-wrap items-center justify-end gap-4 text-xs font-mono">
             <button
-              onClick={() => setIsIngestModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-colors"
-            >
-              + Ingest Proof-of-Work
-            </button>
-            <button
               onClick={() => toggleWhatsApp()}
               className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#07090E] font-extrabold transition-colors"
             >
