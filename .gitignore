@@ -57,5 +57,5 @@ ui-references/*.mov
 ui-references/*.webm
 ui-references/*.mkv
 ui-references/*.avi
-!ui-references/README.md
-
+# Next.js auto-generated
+AGENTS.md
