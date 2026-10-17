@@ -148,12 +148,12 @@ export const MOCK_SKILL_GAP: SkillGapAnalysis = {
 export const MOCK_BOUNTIES: SkillBounty[] = [
   {
     id: 101,
-    title: 'Zero-Copy Shared Memory Ring Buffer for Audio Streaming',
-    organization: 'Synthetics Audio Labs',
+    title: 'Zero-Copy Shared Memory Ring Buffer for High-Throughput IPC',
+    organization: 'Synthetics Core Labs',
     rewardUsdc: 850,
     deadline: '4 days left',
     difficulty: 'HARD',
-    category: 'Systems & Audio',
+    category: 'Systems & Kernels',
     requiredSkills: ['C++', 'Shared Memory', 'Linux IPC', 'Low-Latency'],
     submissionsCount: 7,
     status: 'OPEN',
@@ -226,14 +226,14 @@ export const MOCK_POLICIES: AutoConnectionPolicy[] = [
 export const MOCK_RADAR_OPPORTUNITIES: RadarOpportunity[] = [
   {
     id: 301,
-    title: 'Bio-Informatics High-Throughput Pipeline Architect',
+    title: 'Bio-Informatics High-Throughput Engine Architect',
     organization: 'GeneSys Genomics',
     industry: 'Computational Biology',
     type: 'research',
     matchScore: 92,
     transferableBridgeScore: 88,
     bridgeSkills: ['Distributed Systems', 'Python Streaming', 'DAG Processing'],
-    reasoning: 'Your distributed pipeline skills in cloud telemetry directly match genomic FASTA sequencing ETL.',
+    reasoning: 'Your distributed systems skills in data streaming directly match genomic FASTA sequencing ETL.',
     status: 'DISCOVERED',
   },
   {
@@ -259,6 +259,18 @@ export const MOCK_RADAR_OPPORTUNITIES: RadarOpportunity[] = [
     bridgeSkills: ['Zero-Copy IPC', 'C++', 'Lock-Free Queues'],
     reasoning: 'Your real-time low-latency telemetry experience transfers directly to L3 market tick processing.',
     status: 'SHORTLISTED',
+  },
+  {
+    id: 304,
+    title: 'Cyber-Physical Systems & Micro-Kernel Sentinel',
+    organization: 'VeriSys Security Labs',
+    industry: 'Embedded Systems & Security',
+    type: 'bounty',
+    matchScore: 84,
+    transferableBridgeScore: 80,
+    bridgeSkills: ['Rust', 'eBPF', 'Static Verification'],
+    reasoning: 'Formal AST parsing skills translate directly into eBPF runtime safety assertions.',
+    status: 'DISCOVERED',
   },
 ];
 
