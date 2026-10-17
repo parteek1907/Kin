@@ -25,6 +25,9 @@ import {
   Loader2,
   Filter,
   FileText,
+  History,
+  X,
+  ArrowRight,
 } from 'lucide-react';
 
 interface LiveMember {
@@ -124,6 +127,29 @@ export default function LiveCommunityNetwork({
   const [directoryRoleFilter, setDirectoryRoleFilter] = useState<'all' | 'student' | 'professional' | 'connected'>('all');
   const [directorySearchQuery, setDirectorySearchQuery] = useState('');
   const [connectingMemberId, setConnectingMemberId] = useState<string | null>(null);
+
+  // Professional Time Machine Journey Modal State
+  const [selectedProForJourney, setSelectedProForJourney] = useState<LiveMember | null>(null);
+  const [journeyMilestones, setJourneyMilestones] = useState<any[]>([]);
+  const [isLoadingJourney, setIsLoadingJourney] = useState(false);
+
+  const handleOpenProfessionalJourney = async (m: LiveMember) => {
+    setSelectedProForJourney(m);
+    setIsLoadingJourney(true);
+    try {
+      const res = await fetch(`/api/career-milestones?userEmail=${encodeURIComponent(m.email)}&name=${encodeURIComponent(m.name)}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.milestones)) {
+        setJourneyMilestones(data.milestones);
+      } else {
+        setJourneyMilestones([]);
+      }
+    } catch {
+      setJourneyMilestones([]);
+    } finally {
+      setIsLoadingJourney(false);
+    }
+  };
 
   // Fetch Live Feed
   const fetchPosts = async () => {
@@ -1051,8 +1077,20 @@ export default function LiveCommunityNetwork({
                         )}
                       </div>
 
-                      {/* Connection & Send CV Buttons */}
-                      <div className="flex items-center gap-2">
+                      {/* Actions: Time Machine, Send CV, Connect */}
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        {!isStudentRole && (
+                          <button
+                            id={`journey-btn-${m.id}`}
+                            onClick={() => handleOpenProfessionalJourney(m)}
+                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1.5"
+                            title="Explore Professional's Career Time Machine"
+                          >
+                            <History className="w-3.5 h-3.5 text-[#E25C38]" />
+                            <span>Journey</span>
+                          </button>
+                        )}
+
                         {isStudent && !isStudentRole && !isSelf && (
                           <button
                             id={`send-cv-btn-${m.id}`}
@@ -1105,6 +1143,158 @@ export default function LiveCommunityNetwork({
               })}
             </div>
           )}
+        </div>
+      )}
+      {/* Senior Professional Authentic Journey / Time Machine Modal */}
+      {selectedProForJourney && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[88vh]">
+            {/* Modal Header */}
+            <div className="px-6 py-5 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#E25C38] to-orange-400 p-0.5 shadow-md">
+                  <div className="w-full h-full rounded-[14px] bg-slate-950 flex items-center justify-center font-black text-white text-base overflow-hidden">
+                    {selectedProForJourney.avatarUrl ? (
+                      <img
+                        src={selectedProForJourney.avatarUrl}
+                        alt={selectedProForJourney.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      selectedProForJourney.name.charAt(0)
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-white tracking-tight">
+                      {selectedProForJourney.name}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-md bg-[#E25C38]/20 border border-[#E25C38]/40 text-[#E25C38] text-[10px] font-bold">
+                      Verified Leader
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 font-medium">
+                    {selectedProForJourney.headline || 'Senior Technology Leader'} • {selectedProForJourney.institution}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedProForJourney(null)}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Sub-banner */}
+            <div className="px-6 py-3 bg-amber-50/80 border-b border-amber-100/80 flex items-center justify-between text-xs text-amber-900 font-semibold">
+              <span className="flex items-center gap-1.5">
+                <History className="w-4 h-4 text-[#E25C38]" />
+                Authentic Career Time Machine & Mentorship Footprint
+              </span>
+              <span className="text-[11px] text-amber-700 font-bold">
+                {journeyMilestones.length} Milestones Published
+              </span>
+            </div>
+
+            {/* Modal Body: Milestones List */}
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              {isLoadingJourney ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-500">
+                  <Loader2 className="w-7 h-7 animate-spin text-[#E25C38]" />
+                  <p className="text-sm font-semibold">Loading authentic trajectory milestones...</p>
+                </div>
+              ) : journeyMilestones.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 space-y-2">
+                  <History className="w-10 h-10 mx-auto text-slate-300" />
+                  <p className="text-sm font-semibold text-slate-700">No milestones published yet</p>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                    This mentor hasn't published their custom career journey timeline yet. Check back soon or connect directly!
+                  </p>
+                </div>
+              ) : (
+                <div className="relative pl-6 space-y-5 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                  {journeyMilestones.map((m, idx) => (
+                    <div key={m.id || idx} className="relative group">
+                      {/* Timeline dot */}
+                      <div className="absolute -left-6 top-1.5 w-4 h-4 rounded-full border-2 border-white bg-[#E25C38] shadow-sm flex items-center justify-center">
+                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-[#E25C38]/40 hover:bg-orange-50/30 transition-all">
+                        <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                          <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <span>{m.role}</span>
+                            <span className="text-xs font-semibold text-slate-500">• {m.comp}</span>
+                          </h4>
+                          <span className="text-xs font-bold text-slate-600 px-2.5 py-0.5 rounded-lg bg-white border border-slate-200 shadow-2xs">
+                            {m.period}
+                          </span>
+                        </div>
+
+                        {m.hurdles && (
+                          <div className="mt-2 text-xs text-slate-700 bg-white p-3 rounded-xl border border-slate-200/80 space-y-0.5">
+                            <span className="font-bold text-orange-700 uppercase tracking-wider text-[10px] block">
+                              Hurdle Overcome
+                            </span>
+                            <p className="leading-relaxed font-medium">{m.hurdles}</p>
+                          </div>
+                        )}
+
+                        {m.skills && m.skills.length > 0 && (
+                          <div className="mt-2.5 flex flex-wrap gap-1.5">
+                            {m.skills.map((s: string, si: number) => (
+                              <span
+                                key={si}
+                                className="px-2 py-0.5 rounded-md bg-slate-200/70 text-slate-700 text-[10px] font-bold"
+                              >
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+              <span className="text-xs text-slate-500 font-medium hidden sm:inline">
+                Benchmark your skills against real industry footprints.
+              </span>
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  onClick={() => setSelectedProForJourney(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+                {isStudent && (
+                  <button
+                    onClick={() => {
+                      const pro = selectedProForJourney;
+                      setSelectedProForJourney(null);
+                      onSendCvToProfessional?.({
+                        name: pro.name,
+                        role: pro.headline || 'Senior Engineering Leader',
+                        institution: pro.institution,
+                        avatarUrl: pro.avatarUrl,
+                        skills: pro.skills,
+                      });
+                    }}
+                    className="px-4 py-2 rounded-xl bg-[#E25C38] hover:bg-[#d04e2b] text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Send CV for ATS Review</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

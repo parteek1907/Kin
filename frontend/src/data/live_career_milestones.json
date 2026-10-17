@@ -1,0 +1,122 @@
+{
+  "parth.arora@deepmind.com": [
+    {
+      "id": "cm-p-1",
+      "period": "2019 - 2020",
+      "role": "Systems Research Intern",
+      "comp": "Microsoft Research",
+      "hurdles": "Overcame multithreading race conditions in C++ telemetry services and memory bounds.",
+      "skills": [
+        "C++",
+        "Distributed Systems",
+        "Linux"
+      ]
+    },
+    {
+      "id": "cm-p-2",
+      "period": "2020 - 2022",
+      "role": "Infrastructure Engineer",
+      "comp": "Google Core Systems",
+      "hurdles": "Built asynchronous webhook retry workers processing 40M events/day with 99.99% SLA.",
+      "skills": [
+        "Go",
+        "Kubernetes",
+        "gRPC",
+        "Kafka"
+      ]
+    },
+    {
+      "id": "cm-p-3",
+      "period": "2022 - Present",
+      "role": "Staff Infrastructure Architect",
+      "comp": "Google DeepMind",
+      "hurdles": "Architected low-latency TPU cluster scheduling for large multimodal foundation model training.",
+      "skills": [
+        "TPU Clusters",
+        "Distributed Training",
+        "System Architecture"
+      ]
+    }
+  ],
+  "sneha.kapoor@anthropic.com": [
+    {
+      "id": "cm-s-1",
+      "period": "2020 - 2021",
+      "role": "AI Research Fellow",
+      "comp": "Stanford AI Lab",
+      "hurdles": "Implemented transformer circuit interpretability probes with sparse autoencoders.",
+      "skills": [
+        "PyTorch",
+        "Python",
+        "Transformers"
+      ]
+    },
+    {
+      "id": "cm-s-2",
+      "period": "2021 - 2023",
+      "role": "Member of Technical Staff",
+      "comp": "Anthropic",
+      "hurdles": "Built automated red-teaming pipelines evaluating mechanistic model steering at scale.",
+      "skills": [
+        "AI Safety",
+        "Mechanistic Interpretability",
+        "Distributed Training"
+      ]
+    }
+  ],
+  "default": [
+    {
+      "id": "cm-d-1",
+      "period": "2020 - 2021",
+      "role": "Software Engineer Intern",
+      "comp": "Microsoft",
+      "hurdles": "Overcame multithreading race conditions in C++ telemetry services.",
+      "skills": [
+        "C++",
+        "Threading",
+        "Linux"
+      ]
+    },
+    {
+      "id": "cm-d-2",
+      "period": "2021 - 2023",
+      "role": "SDE-1",
+      "comp": "Uber Core Platform",
+      "hurdles": "Built asynchronous webhook retry workers processing 40M events/day.",
+      "skills": [
+        "Go",
+        "Kafka",
+        "Docker",
+        "PostgreSQL"
+      ]
+    },
+    {
+      "id": "cm-d-3",
+      "period": "2023 - Present",
+      "role": "Senior Systems Architect",
+      "comp": "Uber / TechCorp",
+      "hurdles": "Driving zero-downtime database sharding and mentoring junior engineers.",
+      "skills": [
+        "System Design",
+        "Distributed Systems",
+        "PostgreSQL"
+      ]
+    }
+  ],
+  "student@iiitd.ac.in": [
+    {
+      "id": "cm-1792273457039-xh7f",
+      "period": "Summer 2024",
+      "role": "Robotics & AI Research Intern",
+      "comp": "IIITD Autonomous Systems Lab",
+      "hurdles": "Eliminated sensor fusion deadlocks in ROS2 DDS middleware under 100Hz LiDAR stream",
+      "skills": [
+        "ROS2",
+        "C++",
+        "Python",
+        "LiDAR"
+      ],
+      "createdAt": "2026-10-17T21:44:17.039Z"
+    }
+  ]
+}

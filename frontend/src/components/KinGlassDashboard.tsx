@@ -352,10 +352,156 @@ export default function KinGlassDashboard() {
   const [wisdomFeedbackAdvice, setWisdomFeedbackAdvice] = useState('');
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // TIME MACHINE STATES
+  // TIME MACHINE STATES & AI PATHWAY GENERATOR
   // ─────────────────────────────────────────────────────────────────────────────
   const [targetRoleSelection, setTargetRoleSelection] = useState('Staff AI Engineer');
+  const [customRoleInput, setCustomRoleInput] = useState('');
   const [selectedMilestoneIndex, setSelectedMilestoneIndex] = useState(0);
+  const [isGeneratingPathway, setIsGeneratingPathway] = useState(false);
+  const [activePathwayData, setActivePathwayData] = useState<{
+    targetRole: string;
+    milestones: Array<{ year: string; desc: string; hurdles?: string }>;
+    skillGap: {
+      matchPercentage: number;
+      items: Array<{ skill: string; status: string; progress: number; verified: boolean }>;
+      recommendedBounty?: string;
+    };
+  } | null>(null);
+
+  // Career Milestones State (Published by both students and professionals)
+  const [careerMilestones, setCareerMilestones] = useState<Array<{
+    id: string;
+    period: string;
+    role: string;
+    comp: string;
+    hurdles: string;
+    skills?: string[];
+    userEmail?: string;
+    userName?: string;
+    userRole?: 'student' | 'alumni';
+  }>>([]);
+  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+  const [isSavingMilestone, setIsSavingMilestone] = useState(false);
+  const [newMilestoneForm, setNewMilestoneForm] = useState({
+    role: '',
+    comp: '',
+    period: '',
+    hurdles: '',
+    skills: ''
+  });
+
+  const fetchCareerMilestones = async () => {
+    try {
+      const email = user?.email || parsedProfile?.email || (activeRole === 'Student' ? 'student@iiitd.ac.in' : 'professional@kin.network');
+      const name = user?.name || parsedProfile?.name || (activeRole === 'Student' ? 'Student Member' : 'Verified Professional');
+      const res = await fetch(`/api/career-milestones?userEmail=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.milestones)) {
+        setCareerMilestones(data.milestones);
+      }
+    } catch (e) {
+      console.error('Failed to fetch milestones', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchCareerMilestones();
+  }, [activeRole, user?.email]);
+
+  const handleGenerateAiPathway = async (roleOverride?: string) => {
+    const role = (roleOverride || customRoleInput || targetRoleSelection).trim();
+    if (!role) {
+      showToast('Please specify a desired job role!');
+      return;
+    }
+    setIsGeneratingPathway(true);
+    try {
+      const currentSkills = (user?.skills && user.skills.length > 0)
+        ? user.skills
+        : (parsedProfile?.skills && parsedProfile.skills.length > 0)
+        ? parsedProfile.skills
+        : ['React', 'TypeScript', 'Node.js', 'FastAPI'];
+      const headline = user?.headline || parsedProfile?.role || 'Full-Stack Developer';
+
+      const res = await fetch('/api/time-machine/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetRole: role,
+          currentSkills,
+          githubCommits: 342,
+          headline
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.pathway) {
+        setActivePathwayData(data.pathway);
+        setTargetRoleSelection(data.pathway.targetRole || role);
+        showToast(`AI generated authentic roadmap for ${data.pathway.targetRole || role}!`);
+      } else {
+        showToast(data.error || 'Failed to generate pathway');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Error contacting AI Career Architect');
+    } finally {
+      setIsGeneratingPathway(false);
+    }
+  };
+
+  const handlePublishMilestone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMilestoneForm.role.trim() || !newMilestoneForm.comp.trim()) {
+      showToast('Please provide role and organization/company');
+      return;
+    }
+    setIsSavingMilestone(true);
+    try {
+      const email = user?.email || parsedProfile?.email || (activeRole === 'Student' ? 'student@iiitd.ac.in' : 'professional@kin.network');
+      const name = user?.name || parsedProfile?.name || (activeRole === 'Student' ? 'Student Member' : 'Verified Professional');
+      const res = await fetch('/api/career-milestones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: newMilestoneForm.role,
+          comp: newMilestoneForm.comp,
+          period: newMilestoneForm.period || '2024 - Present',
+          hurdles: newMilestoneForm.hurdles,
+          skills: newMilestoneForm.skills.split(',').map((s) => s.trim()).filter(Boolean),
+          userEmail: email,
+          userName: name,
+          userRole: activeRole === 'Student' ? 'student' : 'alumni'
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.milestone) {
+        setCareerMilestones((prev) => [data.milestone, ...prev]);
+        setIsMilestoneModalOpen(false);
+        setNewMilestoneForm({ role: '', comp: '', period: '', hurdles: '', skills: '' });
+        showToast('Career milestone published to your authentic trajectory!');
+      } else {
+        showToast(data.error || 'Failed to publish milestone');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Error saving milestone');
+    } finally {
+      setIsSavingMilestone(false);
+    }
+  };
+
+  const handleDeleteMilestone = async (id: string) => {
+    try {
+      const res = await fetch(`/api/career-milestones?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setCareerMilestones((prev) => prev.filter((m) => m.id !== id));
+        showToast('Milestone removed');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // ─────────────────────────────────────────────────────────────────────────────
   // COMMUNITY & GHOST MODE STATES
@@ -1709,52 +1855,141 @@ export default function KinGlassDashboard() {
 
                 {/* 4. STUDENT CAREER TIME MACHINE TAB */}
                 {activeTab === 'time-machine' && (
-                  <div key="student-time-machine" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                          Career Time Machine (The Skill-Gap Explorer)
-                        </h2>
-                        <p className="text-xs text-slate-600 mt-1">
-                          Benchmark your trajectory against alumni who successfully stepped into senior leadership.
+                  <div key="student-time-machine" className="flex-1 flex flex-col gap-6 animate-in fade-in duration-150">
+                    {/* Header & AI Role Generator Controls */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                            Career Time Machine (The Skill-Gap Explorer)
+                          </h2>
+                          <span className="px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-[#E25C38] text-[10px] font-bold">
+                            Powered by Gemini 2.5
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600">
+                          Ask Gemini AI to build an authentic year-by-year trajectory for any dream role & compute your deterministic skill gap.
                         </p>
                       </div>
 
-                      {/* Target Role Dropdown */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-700">Target Role:</span>
+                      {/* AI Generator Bar */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        {/* Quick preset selector */}
                         <select
                           value={targetRoleSelection}
-                          onChange={(e) => setTargetRoleSelection(e.target.value)}
-                          className="px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 shadow-xs focus:outline-none"
+                          onChange={(e) => {
+                            setTargetRoleSelection(e.target.value);
+                            setCustomRoleInput(e.target.value);
+                            handleGenerateAiPathway(e.target.value);
+                          }}
+                          className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 shadow-2xs focus:outline-none focus:border-[#E25C38]"
                         >
                           <option value="Staff AI Engineer">Staff AI Engineer</option>
-                          <option value="FinTech Quant">FinTech Quant Lead</option>
+                          <option value="FinTech Quant Lead">FinTech Quant Lead</option>
                           <option value="Founding Frontend Engineer">Founding Frontend Engineer</option>
+                          <option value="Distributed Systems Architect">Distributed Systems Architect</option>
+                          <option value="Autonomous Robotics Engineer">Autonomous Robotics Engineer</option>
                         </select>
+
+                        {/* Custom Role Input */}
+                        <div className="relative flex-1 sm:w-64">
+                          <input
+                            type="text"
+                            value={customRoleInput}
+                            onChange={(e) => setCustomRoleInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleGenerateAiPathway();
+                            }}
+                            placeholder="Or type custom role..."
+                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none focus:border-[#E25C38]"
+                          />
+                        </div>
+
+                        {/* AI Trigger Button */}
+                        <button
+                          id="ask-ai-timemachine-btn"
+                          onClick={() => handleGenerateAiPathway()}
+                          disabled={isGeneratingPathway}
+                          className="px-4 py-2 rounded-xl bg-[#E25C38] hover:bg-[#d04e2b] text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 shrink-0"
+                        >
+                          {isGeneratingPathway ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>AI Building Pathway...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                              <span>Ask AI to Build Pathway</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
 
+                    {/* Pathway Progression & Deterministic Skill Gap Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                       {/* Timeline Progression */}
                       <div className="lg:col-span-7 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
-                        <h3 className="text-base font-bold text-slate-900">Alumni Verified Milestone Path for {targetRoleSelection}</h3>
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <span>Alumni Verified Milestone Path for</span>
+                            <span className="text-[#E25C38]">
+                              {activePathwayData?.targetRole || targetRoleSelection}
+                            </span>
+                          </h3>
+                          {activePathwayData && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              AI Synthesized
+                            </span>
+                          )}
+                        </div>
                         
                         <div className="space-y-3">
-                          {[
-                            { year: 'Year 1: University & Intern', desc: 'Shipped Next.js full-stack apps, mastered React & relational schemas. 300+ GitHub commits.' },
-                            { year: 'Year 2: Associate SDE', desc: 'Implemented Docker containerization, Kafka event pipelines, and production CI/CD.' },
-                            { year: 'Year 4: Senior SDE', desc: 'Designed high-availability microservices handling 25k req/sec with sub-50ms p99 latency.' },
-                            { year: 'Year 6: Staff Architect', desc: 'Technical strategy, cross-org distributed consensus design, and mentorship of 18 engineers.' },
-                          ].map((step, idx) => (
-                            <div key={step.year} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex gap-3">
-                              <span className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                                {idx + 1}
-                              </span>
-                              <div>
-                                <h4 className="text-xs font-bold text-slate-900">{step.year}</h4>
-                                <p className="text-xs text-slate-600 mt-0.5">{step.desc}</p>
+                          {(activePathwayData?.milestones && activePathwayData.milestones.length > 0
+                            ? activePathwayData.milestones
+                            : [
+                                {
+                                  year: 'Year 1: University & Intern',
+                                  desc: 'Shipped Next.js full-stack apps, mastered React & relational schemas. 300+ GitHub commits.',
+                                  hurdles: 'Overcame cold start API latency in serverless edge runtimes.'
+                                },
+                                {
+                                  year: 'Year 2: Associate SDE',
+                                  desc: 'Implemented Docker containerization, Kafka event pipelines, and production CI/CD.',
+                                  hurdles: 'Debugged memory leaks in multi-tenant Redis message brokers.'
+                                },
+                                {
+                                  year: 'Year 4: Senior SDE',
+                                  desc: 'Designed high-availability microservices handling 25k req/sec with sub-50ms p99 latency.',
+                                  hurdles: 'Executed zero-downtime database sharding without data corruption.'
+                                },
+                                {
+                                  year: 'Year 6: Staff Architect',
+                                  desc: 'Technical strategy, cross-org distributed consensus design, and mentorship of 18 engineers.',
+                                  hurdles: 'Aligned 4 cross-functional product orgs around unified schema contracts.'
+                                },
+                              ]
+                          ).map((step, idx) => (
+                            <div key={`${step.year}-${idx}`} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col gap-2 transition-all hover:bg-orange-50/20 hover:border-[#E25C38]/30">
+                              <div className="flex items-start gap-3">
+                                <span className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                                  {idx + 1}
+                                </span>
+                                <div className="flex-1">
+                                  <h4 className="text-xs font-bold text-slate-900">{step.year}</h4>
+                                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">{step.desc}</p>
+                                </div>
                               </div>
+
+                              {step.hurdles && (
+                                <div className="ml-10 text-[11px] text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200/80">
+                                  <span className="font-bold text-orange-700 uppercase tracking-wider text-[9px] block">
+                                    Hurdle Overcome
+                                  </span>
+                                  <p className="font-medium">{step.hurdles}</p>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -1765,51 +2000,58 @@ export default function KinGlassDashboard() {
                         <div>
                           <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base font-bold text-slate-900">Deterministic Skill Gap</h3>
-                            <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                              64% Match
+                            <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                              {activePathwayData?.skillGap?.matchPercentage
+                                ? `${activePathwayData.skillGap.matchPercentage}% Match`
+                                : '64% Match'}
                             </span>
                           </div>
 
-                          <div className="space-y-3 text-xs">
-                            <div className="space-y-1">
-                              <div className="flex justify-between font-bold">
-                                <span>React & Frontend Engineering</span>
-                                <span className="text-emerald-600">100% (Verified)</span>
-                              </div>
-                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: '100%' }} />
-                              </div>
-                            </div>
+                          <div className="space-y-3.5 text-xs">
+                            {(activePathwayData?.skillGap?.items && activePathwayData.skillGap.items.length > 0
+                              ? activePathwayData.skillGap.items
+                              : [
+                                  { skill: 'React & Frontend Engineering', status: '100% (Verified)', progress: 100, verified: true },
+                                  { skill: 'FastAPI & Python AI Pipelines', status: '85% (Verified)', progress: 85, verified: true },
+                                  { skill: 'Docker & Container Orchestration', status: 'Missing on Profile', progress: 15, verified: false },
+                                  { skill: 'High-Throughput Kafka Streams', status: 'In Progress (40%)', progress: 40, verified: false },
+                                ]
+                            ).map((item, i) => {
+                              const isMissing = item.status.toLowerCase().includes('missing');
+                              const isInProgress = item.status.toLowerCase().includes('progress');
+                              const isVerified = item.verified || item.status.toLowerCase().includes('verified');
 
-                            <div className="space-y-1">
-                              <div className="flex justify-between font-bold">
-                                <span>FastAPI & Python AI Pipelines</span>
-                                <span className="text-emerald-600">85% (Verified)</span>
-                              </div>
-                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: '85%' }} />
-                              </div>
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="flex justify-between font-bold">
-                                <span>Docker & Container Orchestration</span>
-                                <span className="text-rose-600">Missing on Profile</span>
-                              </div>
-                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-rose-500 rounded-full" style={{ width: '20%' }} />
-                              </div>
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="flex justify-between font-bold">
-                                <span>High-Throughput Kafka Streams</span>
-                                <span className="text-amber-600">In Progress (40%)</span>
-                              </div>
-                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-amber-500 rounded-full" style={{ width: '40%' }} />
-                              </div>
-                            </div>
+                              return (
+                                <div key={i} className="space-y-1.5">
+                                  <div className="flex justify-between font-bold text-xs">
+                                    <span className="text-slate-800">{item.skill}</span>
+                                    <span
+                                      className={
+                                        isVerified
+                                          ? 'text-emerald-600'
+                                          : isMissing
+                                          ? 'text-rose-600'
+                                          : 'text-amber-600'
+                                      }
+                                    >
+                                      {item.status}
+                                    </span>
+                                  </div>
+                                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-500 ${
+                                        isVerified
+                                          ? 'bg-emerald-500'
+                                          : isMissing
+                                          ? 'bg-rose-500'
+                                          : 'bg-amber-500'
+                                      }`}
+                                      style={{ width: `${Math.min(100, Math.max(5, item.progress))}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
 
@@ -1817,10 +2059,100 @@ export default function KinGlassDashboard() {
                           onClick={() => setActiveTab('problems')}
                           className="mt-6 w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                         >
-                          <span>Solve Docker Bounty to Close Gap</span>
+                          <span>
+                            {activePathwayData?.skillGap?.recommendedBounty
+                              ? `Solve ${activePathwayData.skillGap.recommendedBounty} Bounty to Close Gap`
+                              : 'Solve Docker Bounty to Close Gap'}
+                          </span>
                           <ArrowRight className="w-3 h-3" />
                         </button>
                       </div>
+                    </div>
+
+                    {/* Student Authentic Career Experience Publisher (Identical to Image 2 for Students) */}
+                    <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-bold text-slate-900">
+                              Your Authentic Experience & Mentorship Footprint (Pathway Publisher)
+                            </h3>
+                            <span className="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-[#E25C38] text-[10px] font-bold">
+                              Student Profile
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 mt-0.5">
+                            Publish your real internship, lab, and open-source project milestones with hurdles overcome so seniors can verify your authenticity.
+                          </p>
+                        </div>
+                        <button
+                          id="student-add-milestone-btn"
+                          onClick={() => setIsMilestoneModalOpen(true)}
+                          className="px-3.5 py-1.5 rounded-xl bg-[#E25C38] hover:bg-[#d04e2b] text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>+ Add Career Milestone</span>
+                        </button>
+                      </div>
+
+                      {careerMilestones.length === 0 ? (
+                        <div className="py-8 text-center text-slate-500 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200 space-y-2">
+                          <History className="w-8 h-8 mx-auto text-slate-300" />
+                          <p className="text-xs font-bold text-slate-700">No milestones added to your trajectory yet</p>
+                          <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                            Click <strong>&quot;+ Add Career Milestone&quot;</strong> to document your summer internships, college labs, or projects with real hurdles overcome.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {careerMilestones.map((m) => (
+                            <div
+                              key={m.id}
+                              className="p-4 rounded-2xl bg-slate-50 border border-slate-100 transition-all hover:bg-white hover:shadow-xs group"
+                            >
+                              <div className="flex justify-between items-center text-xs font-bold text-slate-900 mb-1">
+                                <span className="flex items-center gap-2">
+                                  <span>{m.role} • {m.comp}</span>
+                                  {m.userRole === 'student' && (
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold border border-blue-200">
+                                      Student Experience
+                                    </span>
+                                  )}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-slate-500">{m.period}</span>
+                                  <button
+                                    onClick={() => handleDeleteMilestone(m.id)}
+                                    className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 transition-all"
+                                    title="Delete milestone"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {m.hurdles && (
+                                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                                  <strong className="text-slate-800">Hurdle Overcome:</strong> {m.hurdles}
+                                </p>
+                              )}
+
+                              {m.skills && m.skills.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {m.skills.map((s, si) => (
+                                    <span
+                                      key={si}
+                                      className="px-2 py-0.5 rounded bg-slate-200/60 text-slate-700 text-[10px] font-semibold"
+                                    >
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -2497,27 +2829,76 @@ export default function KinGlassDashboard() {
                         <div className="flex items-center justify-between">
                           <h3 className="text-base font-bold text-slate-900">Published Career Progression</h3>
                           <button
-                            onClick={() => showToast('Opening milestone editor...')}
-                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-800 cursor-pointer"
+                            id="pro-add-milestone-btn"
+                            onClick={() => setIsMilestoneModalOpen(true)}
+                            className="px-3.5 py-1.5 rounded-xl bg-[#E25C38] hover:bg-[#d04e2b] text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
                           >
-                            + Add Career Milestone
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>+ Add Career Milestone</span>
                           </button>
                         </div>
 
                         <div className="space-y-3">
-                          {[
-                            { period: '2020 - 2021', role: 'Software Engineer Intern', comp: 'Microsoft', hurdles: 'Overcame multithreading race conditions in C++ telemetry services.' },
-                            { period: '2021 - 2023', role: 'SDE-1', comp: 'Uber Core Platform', hurdles: 'Built asynchronous webhook retry workers processing 40M events/day.' },
-                            { period: '2023 - Present', role: 'Senior Systems Architect', comp: 'Uber / TechCorp', hurdles: 'Driving zero-downtime database sharding and mentoring junior engineers.' }
-                          ].map((step, idx) => (
-                            <div key={`step-${step.period || 'p'}-${idx}`} className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                          {(careerMilestones.length > 0
+                            ? careerMilestones
+                            : [
+                                {
+                                  id: 'seed-1',
+                                  period: '2020 - 2021',
+                                  role: 'Software Engineer Intern',
+                                  comp: 'Microsoft',
+                                  hurdles: 'Overcame multithreading race conditions in C++ telemetry services.',
+                                  skills: ['C++', 'Telemetry', 'Multi-threading']
+                                },
+                                {
+                                  id: 'seed-2',
+                                  period: '2021 - 2023',
+                                  role: 'SDE-1',
+                                  comp: 'Uber Core Platform',
+                                  hurdles: 'Built asynchronous webhook retry workers processing 40M events/day.',
+                                  skills: ['Go', 'Kafka', 'Redis']
+                                },
+                                {
+                                  id: 'seed-3',
+                                  period: '2023 - Present',
+                                  role: 'Senior Systems Architect',
+                                  comp: 'Uber / TechCorp',
+                                  hurdles: 'Driving zero-downtime database sharding and mentoring junior engineers.',
+                                  skills: ['PostgreSQL', 'Distributed Systems', 'Mentorship']
+                                }
+                              ]
+                          ).map((step, idx) => (
+                            <div key={step.id || idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 transition-all hover:bg-white hover:shadow-xs group">
                               <div className="flex justify-between items-center text-xs font-bold text-slate-900">
                                 <span>{step.role} • {step.comp}</span>
-                                <span className="font-mono text-slate-500">{step.period}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-slate-500">{step.period}</span>
+                                  {step.id && !step.id.startsWith('seed-') && (
+                                    <button
+                                      onClick={() => handleDeleteMilestone(step.id)}
+                                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 transition-all"
+                                      title="Delete milestone"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
                                 <strong>Hurdle Overcome:</strong> {step.hurdles}
                               </p>
+                              {step.skills && step.skills.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {step.skills.map((s, si) => (
+                                    <span
+                                      key={si}
+                                      className="px-2 py-0.5 rounded bg-slate-200/60 text-slate-700 text-[10px] font-semibold"
+                                    >
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -3454,6 +3835,139 @@ export default function KinGlassDashboard() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ─── MODAL 6: PUBLISH AUTHENTIC CAREER MILESTONE ─── */}
+      <AnimatePresence>
+        {isMilestoneModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="max-w-lg w-full rounded-[32px] bg-white border border-slate-100 p-6 sm:p-7 shadow-2xl text-slate-900 space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#E25C38] flex items-center justify-center">
+                    <History className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Add Authentic Career Milestone</h3>
+                    <p className="text-[11px] text-slate-500">
+                      Publish to your career progression footprint ({activeRole === 'Student' ? 'Student' : 'Professional'})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => !isSavingMilestone && setIsMilestoneModalOpen(false)}
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handlePublishMilestone} className="space-y-3.5">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    Role / Position Title <span className="text-[#E25C38]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newMilestoneForm.role}
+                    onChange={(e) => setNewMilestoneForm({ ...newMilestoneForm, role: e.target.value })}
+                    placeholder={activeRole === 'Student' ? 'e.g. Software Engineer Intern / Lab Researcher' : 'e.g. Senior Systems Architect'}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E25C38]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                      Organization / Company / Lab <span className="text-[#E25C38]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newMilestoneForm.comp}
+                      onChange={(e) => setNewMilestoneForm({ ...newMilestoneForm, comp: e.target.value })}
+                      placeholder="e.g. Uber / IIITD AI Lab"
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#E25C38]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                      Timeline Period
+                    </label>
+                    <input
+                      type="text"
+                      value={newMilestoneForm.period}
+                      onChange={(e) => setNewMilestoneForm({ ...newMilestoneForm, period: e.target.value })}
+                      placeholder="e.g. 2023 - 2024 or Present"
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#E25C38]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    Technical Hurdle Overcome
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={newMilestoneForm.hurdles}
+                    onChange={(e) => setNewMilestoneForm({ ...newMilestoneForm, hurdles: e.target.value })}
+                    placeholder="Describe a real problem, race condition, scalability bottleneck, or hurdle you resolved..."
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#E25C38] resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    Skills Tagged (Comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    value={newMilestoneForm.skills}
+                    onChange={(e) => setNewMilestoneForm({ ...newMilestoneForm, skills: e.target.value })}
+                    placeholder="e.g. React, Next.js, Docker, PostgreSQL"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#E25C38]"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsMilestoneModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingMilestone}
+                    className="px-5 py-2.5 rounded-xl bg-[#E25C38] hover:bg-[#d04e2b] text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {isSavingMilestone ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Publishing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Publish Milestone</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
 
       {/* ─── Profile Completion Wizard Modal ─── */}
       <ProfileCompletionWizard
