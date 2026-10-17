@@ -1,3 +1,4 @@
+// @ts-ignore
 import parsePhoneNumberFromString, { CountryCode } from 'libphonenumber-js';
 
 export interface PhoneValidationResult {

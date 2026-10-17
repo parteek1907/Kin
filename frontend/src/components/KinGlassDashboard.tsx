@@ -3459,6 +3459,15 @@ export default function KinGlassDashboard() {
                     currentUserInstitution={activeUserInstitution}
                     isStudent={false}
                     onShowToast={showToast}
+                    onSendCvToProfessional={(pro) => {
+                      setSelectedProForCv({
+                        name: pro.name,
+                        role: pro.role || 'Senior Engineering Leader',
+                        company: pro.institution || 'Tech Firm',
+                        avatar: pro.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+                      });
+                      setIsSendCvModalOpen(true);
+                    }}
                   />
                 )}
               </div>

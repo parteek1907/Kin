@@ -128,6 +128,38 @@ export default function LiveCommunityNetwork({
   const [directorySearchQuery, setDirectorySearchQuery] = useState('');
   const [connectingMemberId, setConnectingMemberId] = useState<string | null>(null);
 
+  // Universal Live Search State (Across all students & professionals)
+  const [universalSearchQuery, setUniversalSearchQuery] = useState('');
+  const [universalSearchFilter, setUniversalSearchFilter] = useState<'all' | 'student' | 'professional'>('all');
+
+  // Selected Profile Modal State (Clicking any post author, directory card, or search result)
+  const [selectedProfileMember, setSelectedProfileMember] = useState<LiveMember | null>(null);
+
+  // Helper to open full profile from post author or search
+  const handleOpenProfileByAuthor = (author: SocialPostItem['author']) => {
+    const found = members.find(
+      (m) => m.name.toLowerCase().trim() === author.name.toLowerCase().trim()
+    );
+    if (found) {
+      setSelectedProfileMember(found);
+    } else {
+      setSelectedProfileMember({
+        id: `author-${author.name.toLowerCase().replace(/\s+/g, '-')}`,
+        email: '',
+        name: author.name,
+        role: author.role.toLowerCase().includes('student') ? 'student' : 'professional',
+        headline: author.role,
+        institution: author.institution || 'KIN Campus & Industry Network',
+        verificationStatus: 'verified',
+        bio: 'Verified contributor in the KIN Engineering & Campus Network.',
+        skills: ['Systems Engineering', 'Distributed Architectures', 'Full-Stack'],
+        connectionStatus: 'none',
+        createdAt: new Date().toISOString(),
+        avatarUrl: author.avatar,
+      });
+    }
+  };
+
   // Professional Time Machine Journey Modal State
   const [selectedProForJourney, setSelectedProForJourney] = useState<LiveMember | null>(null);
   const [journeyMilestones, setJourneyMilestones] = useState<any[]>([]);
@@ -384,6 +416,19 @@ export default function LiveCommunityNetwork({
     return true;
   });
 
+  // Matching members for universal search bar
+  const matchingSearchResults = members.filter((m) => {
+    if (universalSearchFilter === 'student' && m.role !== 'student') return false;
+    if (universalSearchFilter === 'professional' && m.role === 'student') return false;
+    if (!universalSearchQuery.trim()) return false;
+    const q = universalSearchQuery.toLowerCase().trim();
+    const matchName = m.name.toLowerCase().includes(q);
+    const matchHeadline = (m.headline || '').toLowerCase().includes(q);
+    const matchInst = (m.institution || '').toLowerCase().includes(q);
+    const matchSkills = m.skills.some((s) => s.toLowerCase().includes(q));
+    return matchName || matchHeadline || matchInst || matchSkills;
+  });
+
   const publicPosts = posts.filter((p) => !p.isGhost);
   const ghostPosts = posts.filter((p) => p.isGhost);
 
@@ -453,6 +498,149 @@ export default function LiveCommunityNetwork({
             </span>
           </button>
         </div>
+      </div>
+
+      {/* ─── UNIVERSAL LIVE NETWORK SEARCH BAR (For Students & Professionals) ─── */}
+      <div className="relative z-30">
+        <div className="p-2 sm:p-2.5 rounded-2xl bg-white/95 border border-slate-200/90 shadow-xs backdrop-blur-md flex flex-col sm:flex-row items-center gap-2.5">
+          <div className="relative flex-1 w-full flex items-center">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+            <input
+              id="universal-network-search-input"
+              type="text"
+              value={universalSearchQuery}
+              onChange={(e) => setUniversalSearchQuery(e.target.value)}
+              placeholder="Search students, verified alumni, or mentors by name, tech stack (e.g. PyTorch, Go), company, or university..."
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-slate-50/90 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#E25C38] focus:bg-white transition-all font-medium"
+            />
+            {universalSearchQuery && (
+              <button
+                onClick={() => setUniversalSearchQuery('')}
+                className="absolute right-2.5 p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Quick Filters */}
+          <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
+            <button
+              onClick={() => setUniversalSearchFilter('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                universalSearchFilter === 'all'
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              All ({members.length})
+            </button>
+            <button
+              onClick={() => setUniversalSearchFilter('student')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                universalSearchFilter === 'student'
+                  ? 'bg-[#E25C38] text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              🎓 Students ({members.filter((m) => m.role === 'student').length})
+            </button>
+            <button
+              onClick={() => setUniversalSearchFilter('professional')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                universalSearchFilter === 'professional'
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              💼 Pros ({members.filter((m) => m.role !== 'student').length})
+            </button>
+          </div>
+        </div>
+
+        {/* Live Search Results Dropdown Panel */}
+        {universalSearchQuery.trim() && (
+          <div className="absolute top-full left-0 right-0 mt-2 z-40 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-h-96 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-semibold">
+              <span className="flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5 text-[#E25C38]" />
+                <span>Found {matchingSearchResults.length} matching member{matchingSearchResults.length === 1 ? '' : 's'}</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium">Click on any profile to open details & connect</span>
+            </div>
+
+            {matchingSearchResults.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-500 space-y-1">
+                <p className="font-semibold text-slate-700">No students or professionals match &quot;{universalSearchQuery}&quot;</p>
+                <p className="text-[11px] text-slate-400">Try searching by first name, company, university, or tech stack</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {matchingSearchResults.map((m) => {
+                  const isStudentRole = m.role === 'student';
+                  return (
+                    <div
+                      key={m.id}
+                      onClick={() => {
+                        setSelectedProfileMember(m);
+                        setUniversalSearchQuery('');
+                      }}
+                      className="p-3.5 sm:px-4 sm:py-3 hover:bg-orange-50/40 cursor-pointer transition-colors flex items-center justify-between gap-3 group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={m.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
+                          alt={m.name}
+                          className="w-10 h-10 rounded-xl object-cover shrink-0 border border-slate-200 group-hover:ring-2 group-hover:ring-[#E25C38] transition-all"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#E25C38] transition-colors truncate">
+                              {m.name}
+                            </h4>
+                            <span
+                              className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
+                                isStudentRole
+                                  ? 'bg-orange-100 text-[#E25C38]'
+                                  : 'bg-slate-900 text-white'
+                              }`}
+                            >
+                              {isStudentRole ? 'Student' : 'Alumni / Pro'}
+                            </span>
+                            <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded">
+                              ✓ Verified
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 truncate">{m.headline || m.institution}</p>
+                          {m.skills && m.skills.length > 0 && (
+                            <div className="flex items-center gap-1 mt-1 truncate">
+                              {m.skills.slice(0, 3).map((s) => (
+                                <span key={s} className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+                                  {s}
+                                </span>
+                              ))}
+                              {m.skills.length > 3 && (
+                                <span className="text-[9px] text-slate-400 font-mono">+{m.skills.length - 3}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="px-3 py-1.5 rounded-xl bg-slate-100 group-hover:bg-[#E25C38] group-hover:text-white text-slate-700 text-xs font-bold transition-all shadow-2xs flex items-center gap-1">
+                          <span>View Profile</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ═════════════════════════════════════════════════════════════════════
@@ -527,15 +715,22 @@ export default function LiveCommunityNetwork({
                       className="p-5 sm:p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-3"
                     >
                       <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
+                        <div
+                          onClick={() => handleOpenProfileByAuthor(post.author)}
+                          className="flex items-center gap-3 cursor-pointer group"
+                          title="Click to view full profile & connect"
+                        >
                           <img
                             src={post.author.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
                             alt={post.author.name}
-                            className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                            className="w-10 h-10 rounded-full object-cover border border-slate-200 group-hover:ring-2 group-hover:ring-[#E25C38] transition-all shadow-2xs"
                           />
                           <div>
                             <div className="flex items-center gap-1.5">
-                              <h4 className="text-xs font-bold text-slate-900">{post.author.name}</h4>
+                              <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#E25C38] transition-colors flex items-center gap-1">
+                                <span>{post.author.name}</span>
+                                <span className="text-[10px] text-slate-400 group-hover:translate-x-0.5 transition-transform">↗</span>
+                              </h4>
                               <span className="w-3.5 h-3.5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
                                 <Check className="w-2.5 h-2.5" />
                               </span>
@@ -767,15 +962,19 @@ export default function LiveCommunityNetwork({
                         key={m.id}
                         className="p-3 rounded-2xl bg-slate-50/80 border border-slate-100 flex items-center justify-between gap-2.5 transition-all hover:bg-slate-50"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          onClick={() => setSelectedProfileMember(m)}
+                          className="flex items-center gap-2.5 min-w-0 cursor-pointer group"
+                          title="Click to view full profile & connect"
+                        >
                           <img
                             src={m.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
                             alt={m.name}
-                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200"
+                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200 group-hover:ring-2 group-hover:ring-[#E25C38] transition-all"
                           />
                           <div className="min-w-0">
                             <div className="flex items-center gap-1">
-                              <h4 className="text-xs font-bold text-slate-900 truncate">{m.name}</h4>
+                              <h4 className="text-xs font-bold text-slate-900 truncate group-hover:text-[#E25C38] transition-colors">{m.name}</h4>
                               <span
                                 className={`text-[9px] px-1 rounded font-bold ${
                                   m.role === 'student'
@@ -1077,8 +1276,18 @@ export default function LiveCommunityNetwork({
                         )}
                       </div>
 
-                      {/* Actions: Time Machine, Send CV, Connect */}
+                      {/* Actions: Profile, Time Machine, Send CV, Connect */}
                       <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <button
+                          id={`profile-btn-${m.id}`}
+                          onClick={() => setSelectedProfileMember(m)}
+                          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1"
+                          title="View Full Profile, ATS Connect & Published Posts"
+                        >
+                          <Users className="w-3.5 h-3.5 text-slate-600" />
+                          <span>Profile</span>
+                        </button>
+
                         {!isStudentRole && (
                           <button
                             id={`journey-btn-${m.id}`}
@@ -1293,6 +1502,332 @@ export default function LiveCommunityNetwork({
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═════════════════════════════════════════════════════════════════════
+          USER PROFILE MODAL (With ATS Resume Send, Direct Message DM,
+          Network Connect, and Strictly Author-Specific Posts)
+          ═════════════════════════════════════════════════════════════════════ */}
+      {selectedProfileMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header Banner */}
+            <div className="px-6 py-5 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="relative">
+                  <img
+                    src={selectedProfileMember.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'}
+                    alt={selectedProfileMember.name}
+                    className="w-14 h-14 rounded-2xl object-cover border-2 border-white/20 shadow-lg"
+                  />
+                  <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center text-[8px] text-white">
+                    ✓
+                  </span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-white tracking-tight">
+                      {selectedProfileMember.name}
+                    </h3>
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                        selectedProfileMember.role === 'student'
+                          ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                          : 'bg-[#E25C38]/20 text-[#E25C38] border border-[#E25C38]/40'
+                      }`}
+                    >
+                      {selectedProfileMember.role === 'student' ? 'Verified Student' : 'Verified Alumni / Pro'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 font-medium">
+                    {selectedProfileMember.headline || 'Engineer & Builder'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 font-mono">
+                    {selectedProfileMember.institution}
+                    {selectedProfileMember.graduationYear && ` • Class of ${selectedProfileMember.graduationYear}`}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedProfileMember(null)}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all cursor-pointer"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              {/* Action Buttons Row */}
+              <div className="flex flex-wrap items-center gap-2.5 pb-4 border-b border-slate-100">
+                {/* 1. Send Resume / CV to ATS (for student viewing professional) */}
+                {isStudent && selectedProfileMember.role !== 'student' && selectedProfileMember.connectionStatus !== 'self' && (
+                  <button
+                    id="profile-send-cv-ats-btn"
+                    onClick={() => {
+                      const pro = selectedProfileMember;
+                      setSelectedProfileMember(null);
+                      onSendCvToProfessional?.({
+                        name: pro.name,
+                        role: pro.headline || 'Senior Engineering Leader',
+                        institution: pro.institution,
+                        avatarUrl: pro.avatarUrl,
+                        skills: pro.skills,
+                      });
+                    }}
+                    className="px-4 py-2 rounded-xl bg-[#E25C38] hover:bg-[#d04e2b] text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                    title="Submit CV for AI ATS Gatekeeper Review & Connect"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Send Resume to ATS & Connect</span>
+                  </button>
+                )}
+
+                {/* 2. Direct Message (DM) - As requested: non-functional placeholder */}
+                <button
+                  id="profile-dm-btn"
+                  onClick={() => {
+                    onShowToast('Direct Messaging (E2EE) is currently in security audit for v2.0. Please connect or use Verified Outreach in the meantime.');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1.5 border border-slate-200/80"
+                  title="Direct Message (Peer-to-peer)"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-[#E25C38]" />
+                  <span>Direct Message (DM)</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-600 font-mono">
+                    Soon
+                  </span>
+                </button>
+
+                {/* 3. Connect Button */}
+                {selectedProfileMember.connectionStatus === 'self' ? (
+                  <span className="px-3 py-2 rounded-xl bg-slate-100 text-slate-500 text-xs font-bold">
+                    This is You
+                  </span>
+                ) : selectedProfileMember.connectionStatus === 'connected' ? (
+                  <span className="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" /> Connected
+                  </span>
+                ) : selectedProfileMember.connectionStatus === 'pending' ? (
+                  <span className="px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" /> Request Pending
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleSendConnection(selectedProfileMember)}
+                    disabled={connectingMemberId === selectedProfileMember.id}
+                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {connectingMemberId === selectedProfileMember.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Users className="w-3.5 h-3.5" />
+                    )}
+                    <span>Connect in Network</span>
+                  </button>
+                )}
+
+                {/* 4. Career Journey / Time Machine (if professional) */}
+                {selectedProfileMember.role !== 'student' && (
+                  <button
+                    onClick={() => {
+                      const member = selectedProfileMember;
+                      setSelectedProfileMember(null);
+                      handleOpenProfessionalJourney(member);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1.5"
+                    title="View Career Journey Timeline"
+                  >
+                    <History className="w-3.5 h-3.5 text-[#E25C38]" />
+                    <span>Time Machine</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Verified External Profiles */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">
+                  Verified Links:
+                </span>
+                {selectedProfileMember.githubUrl && (
+                  <a
+                    href={selectedProfileMember.githubUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-semibold flex items-center gap-1.5 border border-slate-200"
+                  >
+                    <Github className="w-3.5 h-3.5" />
+                    <span>GitHub</span>
+                  </a>
+                )}
+                {selectedProfileMember.linkedinUrl && (
+                  <a
+                    href={selectedProfileMember.linkedinUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 text-xs font-semibold flex items-center gap-1.5 border border-sky-200"
+                  >
+                    <Linkedin className="w-3.5 h-3.5 text-sky-600" />
+                    <span>LinkedIn</span>
+                  </a>
+                )}
+                {selectedProfileMember.portfolioUrl && (
+                  <a
+                    href={selectedProfileMember.portfolioUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold flex items-center gap-1.5 border border-emerald-200"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Portfolio</span>
+                  </a>
+                )}
+                {selectedProfileMember.topProjectUrl && (
+                  <a
+                    href={selectedProfileMember.topProjectUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#E25C38] text-xs font-semibold flex items-center gap-1.5 border border-orange-200"
+                  >
+                    <Code2 className="w-3.5 h-3.5" />
+                    <span>Top Project</span>
+                  </a>
+                )}
+              </div>
+
+              {/* Bio */}
+              {selectedProfileMember.bio && (
+                <div className="space-y-1">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">About</h4>
+                  <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+                    {selectedProfileMember.bio}
+                  </p>
+                </div>
+              )}
+
+              {/* Skills */}
+              {selectedProfileMember.skills && selectedProfileMember.skills.length > 0 && (
+                <div className="space-y-1.5">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Verified Tech Stack</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedProfileMember.skills.map((s) => (
+                      <span
+                        key={s}
+                        className="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200"
+                      >
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ─── AUTHOR'S POSTS SECTION (Strictly Isolated to this Author) ─── */}
+              <div className="pt-4 border-t border-slate-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>Engineering Posts by {selectedProfileMember.name}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-mono">
+                      {
+                        posts.filter(
+                          (p) =>
+                            !p.isGhost &&
+                            p.author &&
+                            p.author.name &&
+                            p.author.name.trim().toLowerCase() === selectedProfileMember.name.trim().toLowerCase()
+                        ).length
+                      }
+                    </span>
+                  </h4>
+                  <span className="text-[10px] text-slate-400 font-mono">Verified Posts Only</span>
+                </div>
+
+                {(() => {
+                  const authorPosts = posts.filter(
+                    (p) =>
+                      !p.isGhost &&
+                      p.author &&
+                      p.author.name &&
+                      p.author.name.trim().toLowerCase() === selectedProfileMember.name.trim().toLowerCase()
+                  );
+
+                  if (authorPosts.length === 0) {
+                    return (
+                      <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-500">
+                        No public engineering posts published by {selectedProfileMember.name} yet.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      {authorPosts.map((post) => (
+                        <div
+                          key={post.id}
+                          className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-2.5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-slate-400 font-mono">{post.timestamp}</span>
+                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded">
+                              ✓ Verified Post
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-slate-800 leading-relaxed whitespace-pre-line">
+                            {post.content}
+                          </p>
+
+                          {post.tags && post.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {post.tags.map((t) => (
+                                <span
+                                  key={t}
+                                  className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[9px] font-bold text-slate-600"
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-500">
+                            <button
+                              onClick={() => handleToggleLike(post.id)}
+                              className={`flex items-center gap-1.5 transition-colors cursor-pointer ${
+                                post.isLiked ? 'text-rose-600 font-bold' : 'hover:text-rose-600'
+                              }`}
+                            >
+                              <Heart className={`w-3.5 h-3.5 ${post.isLiked ? 'fill-rose-600 text-rose-600' : ''}`} />
+                              <span>{post.likes}</span>
+                            </button>
+                            <span className="text-[10px] text-slate-400">
+                              {post.commentsCount} Comments
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+              <span className="text-xs text-slate-500 font-medium">
+                {selectedProfileMember.institution}
+              </span>
+              <button
+                onClick={() => setSelectedProfileMember(null)}
+                className="px-5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold transition-all cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
