@@ -49,7 +49,7 @@ import {
 } from '@/services/dashboardService';
 import { useAuth } from '@/context/AuthContext';
 import ResumeUploadModal from './ResumeUploadModal';
-import { DARSH_OHRI_PROFILE } from '@/app/api/parse-resume/route';
+import { DARSH_OHRI_PROFILE } from '@/data/darshProfile';
 
 type ActiveTab = 'overview' | 'time-machine' | 'bounties' | 'auto-connect' | 'radar' | 'community';
 
@@ -622,8 +622,12 @@ export default function KinGlassDashboard() {
                               >
                                 <div>
                                   <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-xs font-bold text-[#E25C38] font-mono">{b.reward}</span>
-                                    <span className="text-[10px] text-slate-500 font-semibold">{b.sponsor}</span>
+                                    <span className="text-xs font-bold text-[#E25C38] font-mono">
+                                      {b.reward || (b.rewardUsdc ? `$${b.rewardUsdc}` : '$500')}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 font-semibold">
+                                      {b.sponsor || b.organization || 'Verified Partner'}
+                                    </span>
                                   </div>
                                   <h5 className="text-xs font-bold text-slate-900 line-clamp-1 group-hover:text-[#E25C38] transition-colors">
                                     {b.title}
@@ -884,16 +888,18 @@ export default function KinGlassDashboard() {
                       >
                         <div>
                           <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-black font-mono text-[#E25C38]">{b.reward}</span>
+                            <span className="text-sm font-black font-mono text-[#E25C38]">
+                              {b.reward || (b.rewardUsdc ? `$${b.rewardUsdc}` : '$500')}
+                            </span>
                             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                              {b.sponsor}
+                              {b.sponsor || b.organization || 'Verified Partner'}
                             </span>
                           </div>
                           <h3 className="text-base font-bold text-slate-900 group-hover:text-[#E25C38] transition-colors">
                             {b.title}
                           </h3>
                           <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                            {b.description}
+                            {b.description || `Verified task in ${b.category || 'Engineering'} with automated test verification.`}
                           </p>
 
                           <div className="mt-4 flex flex-wrap gap-1.5">
@@ -970,16 +976,22 @@ export default function KinGlassDashboard() {
                           <h3 className="text-base font-bold text-slate-900 leading-snug">{policy.name}</h3>
                           <div className="mt-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-1.5 text-xs">
                             <div className="flex justify-between text-slate-600">
-                              <span>Target Role:</span>
-                              <strong className="text-slate-900">{policy.targetRole}</strong>
+                              <span>Target Focus:</span>
+                              <strong className="text-slate-900 truncate max-w-[150px]">
+                                {policy.targetRole || policy.requiredSkills?.join(', ') || 'Full-Stack & AI'}
+                              </strong>
                             </div>
                             <div className="flex justify-between text-slate-600">
                               <span>Min Match Score:</span>
-                              <strong className="text-[#E25C38]">{policy.minMatchScore}%</strong>
+                              <strong className="text-[#E25C38]">
+                                {policy.minMatchScore || policy.qualificationScoreThreshold || 75}%
+                              </strong>
                             </div>
                             <div className="flex justify-between text-slate-600">
                               <span>Verified Only:</span>
-                              <strong className="text-slate-900">{policy.verifiedOnly ? 'Yes' : 'No'}</strong>
+                              <strong className="text-slate-900">
+                                {policy.verifiedOnly !== undefined ? (policy.verifiedOnly ? 'Yes' : 'No') : 'Yes'}
+                              </strong>
                             </div>
                           </div>
                         </div>

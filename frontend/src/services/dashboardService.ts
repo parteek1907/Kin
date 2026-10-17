@@ -33,6 +33,9 @@ export interface SkillBounty {
   submissionsCount: number;
   status: 'OPEN' | 'REVIEWING' | 'AWARDED';
   astVerification: boolean;
+  reward?: string;
+  sponsor?: string;
+  description?: string;
 }
 
 export interface AutoConnectionPolicy {
@@ -44,6 +47,9 @@ export interface AutoConnectionPolicy {
   allowedInstitutions: string[];
   qualificationScoreThreshold: number;
   activeRequestsCount: number;
+  targetRole?: string;
+  minMatchScore?: number;
+  verifiedOnly?: boolean;
 }
 
 export interface RadarOpportunity {
