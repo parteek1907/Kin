@@ -49,3 +49,12 @@ Thumbs.db
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+
+# Large reference videos
+ui-references/*.mp4
+ui-references/*.mov
+ui-references/*.webm
+ui-references/*.mkv
+ui-references/*.avi
+!ui-references/README.md
+
