@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import {
   LayoutGrid,
   History,
@@ -18,9 +21,6 @@ import {
   Send,
   Heart,
   Plus,
-  HelpCircle,
-  Settings,
-  Sliders,
   Sparkles,
   ArrowRight,
   ArrowLeft,
@@ -37,26 +37,49 @@ import {
   GitBranch,
   Star,
   Search,
-  MessageSquare
+  MessageSquare,
+  Sliders,
+  Check,
+  Clock,
+  Play,
+  Pause,
+  RotateCcw,
+  AlertCircle,
+  FileText,
+  Calendar,
+  Share2,
+  Eye,
+  Filter,
+  CheckSquare
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import {
-  MOCK_CAREER_MILESTONES,
-  MOCK_SKILL_GAP,
-  MOCK_BOUNTIES,
-  MOCK_POLICIES,
-  MOCK_RADAR_OPPORTUNITIES,
-  MOCK_SOCIAL_FEED,
-  SkillBounty,
-  SocialFeedItem,
-  AutoConnectionPolicy
-} from '@/services/dashboardService';
+
 import { useAuth } from '@/context/AuthContext';
 import ResumeUploadModal from './ResumeUploadModal';
 import { DARSH_OHRI_PROFILE } from '@/data/darshProfile';
 import KinMascot from './KinMascot';
+import {
+  ALUMNI_PROBLEMS,
+  AlumniProblem,
+  INITIAL_SUBMITTED_SOLUTIONS,
+  CandidateSolutionSubmission
+} from '@/data/alumniProblems';
+import {
+  MOCK_POLICIES,
+  MOCK_SOCIAL_FEED,
+  SocialFeedItem,
+  AutoConnectionPolicy
+} from '@/services/dashboardService';
 
-type ActiveTab = 'overview' | 'time-machine' | 'bounties' | 'auto-connect' | 'radar' | 'community';
+type ActiveTab = 
+  | 'overview' 
+  | 'problems' 
+  | 'outreach' 
+  | 'firewall' 
+  | 'time-machine' 
+  | 'doorway' 
+  | 'wisdom' 
+  | 'radar' 
+  | 'community';
 
 interface WalkthroughStep {
   id: string;
@@ -69,43 +92,55 @@ const KIN_WALKTHROUGH: WalkthroughStep[] = [
   {
     id: 'welcome',
     title: "Hi, I'm Kin 👋",
-    lines: ["Welcome to your dashboard!"],
+    lines: ["Welcome to your career acceleration cockpit!"],
     tabId: 'overview'
   },
   {
     id: 'overview',
     title: "Overview Cockpit",
-    lines: ["See your match score, active commits, and career milestones at a glance."],
+    lines: ["See your career readiness, active commits, and verified trajectory at a glance."],
     tabId: 'overview'
   },
   {
+    id: 'problems',
+    title: "Alumni Problem Statements",
+    lines: ["Solve real architectural bottlenecks posted by senior alumni and submit your GitHub repos to get hired!"],
+    tabId: 'problems'
+  },
+  {
+    id: 'outreach',
+    title: "Smart Auto-Connect",
+    lines: ["Unlock instant connection with verified seniors by meeting their automated skill gatekeeper."],
+    tabId: 'outreach'
+  },
+  {
     id: 'time-machine',
-    title: "Career Journey",
-    lines: ["Maps out your path to senior roles and highlights the exact skills to learn next."],
+    title: "Career Time Machine",
+    lines: ["Trace the authentic career footsteps of staff engineers who walked this path before you."],
     tabId: 'time-machine'
   },
   {
-    id: 'bounties',
-    title: "Paid Challenges",
-    lines: ["Solve real technical tasks, submit a PR, and earn USDC rewards directly."],
-    tabId: 'bounties'
+    id: 'doorway',
+    title: "20-Minute Doorway",
+    lines: ["Book 1-on-1 expert sessions protected by Kin's anti-AI-slop guarantee."],
+    tabId: 'doorway'
   },
   {
-    id: 'auto-connect',
-    title: "Smart Auto-Connect",
-    lines: ["Set your cutoff score to connect with alumni & founders automatically."],
-    tabId: 'auto-connect'
+    id: 'wisdom',
+    title: "Wisdom Capsule",
+    lines: ["Practice rapid 90-second mock interview prompts with scored alumni feedback."],
+    tabId: 'wisdom'
   },
   {
     id: 'radar',
     title: "Talent Radar",
-    lines: ["Discovers high-paying roles in robotics, genomics, and fintech that match your skills."],
+    lines: ["Discover transferable skills and high-paying roles in non-obvious adjacent industries."],
     tabId: 'radar'
   },
   {
     id: 'community',
-    title: "Alumni Network",
-    lines: ["Stay connected with peers, see what they're shipping, and get endorsed in 1 tap."],
+    title: "Professional & Ghost Network",
+    lines: ["Connect publicly or switch to pseudonymous Ghost Mode for candid, unfiltered industry discussions."],
     tabId: 'community'
   }
 ];
@@ -118,19 +153,21 @@ export default function KinGlassDashboard() {
     openAuthModal,
     logout,
     parsedProfile,
+    activeRole,
+    setActiveRole,
     isUploadResumeModalOpen,
     openUploadResumeModal,
-    closeUploadResumeModal
+    closeUploadResumeModal,
+    setParsedProfile
   } = useAuth();
 
   const router = useRouter();
+
+  // Role State: Sync with AuthContext & URL parameter
   const [networkRole, setNetworkRole] = useState<'student' | 'alumni'>('student');
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [currentTime, setCurrentTime] = useState('10:02 PM');
-  const [autoAcceptThreshold, setAutoAcceptThreshold] = useState(64);
-  const [autoAcceptEnabled, setAutoAcceptEnabled] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
   const handleLogout = async () => {
     try {
       await logout();
@@ -141,83 +178,154 @@ export default function KinGlassDashboard() {
     }
   };
 
-  // Profile Popover in Bottom Menu
+  // Profile Menu Popover in Topbar
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   // Mascot Walkthrough State
   const [showMascotTour, setShowMascotTour] = useState(true);
   const [mascotStepIndex, setMascotStepIndex] = useState(0);
 
-  // Sync network role from URL or localStorage
+  // Sync role state on load
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlRole = params.get('role');
-      if (urlRole === 'alumni') {
+      if (urlRole === 'alumni' || activeRole === 'Alumni') {
         setNetworkRole('alumni');
         setShowMascotTour(false);
       } else {
-        const storedRole = localStorage.getItem('kin_network_role');
-        if (storedRole === 'alumni') {
-          setNetworkRole('alumni');
-          setShowMascotTour(false);
-        } else {
-          setNetworkRole('student');
-        }
+        setNetworkRole('student');
       }
     }
-  }, []);
+  }, [activeRole]);
 
-  // Interactive Modals & States
-  const [selectedBounty, setSelectedBounty] = useState<SkillBounty | null>(null);
-  const [submitPrModalOpen, setSubmitPrModalOpen] = useState(false);
-  const [prUrlInput, setPrUrlInput] = useState('');
+  // Toast Helper
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3200);
+  };
 
-  // Alumni & Builder Network Search and DM States
-  const [searchUserQuery, setSearchUserQuery] = useState('');
-  const [communityFilter, setCommunityFilter] = useState<'all' | 'alumni' | 'builders' | 'founders'>('all');
-  const [dmRecipient, setDmRecipient] = useState<{ id: string; name: string; role: string } | null>(null);
-  const [dmMessages, setDmMessages] = useState<{ id: string; sender: 'me' | 'them'; text: string; time: string }[]>([]);
-  const [newDmText, setNewDmText] = useState('');
+  // Switch Role Handler
+  const handleRoleToggle = (targetRole: 'student' | 'alumni') => {
+    setNetworkRole(targetRole);
+    setActiveRole(targetRole === 'student' ? 'Student' : 'Alumni');
+    setActiveTab('overview');
+    showToast(`Switched to ${targetRole === 'student' ? 'Student Dashboard' : 'Working Professional Command Center'}`);
+  };
 
-  // Career Time Machine State
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PROBLEM STATEMENTS (IMAGE 3 UI) & SOLUTION SUBMISSION MODAL STATE
+  // ─────────────────────────────────────────────────────────────────────────────
+  const [problems, setProblems] = useState<AlumniProblem[]>(ALUMNI_PROBLEMS);
+  const [problemCategoryFilter, setProblemCategoryFilter] = useState<string>('All');
+  const [selectedProblem, setSelectedProblem] = useState<AlumniProblem | null>(null);
+  const [isSubmitSolutionModalOpen, setIsSubmitSolutionModalOpen] = useState(false);
+  const [repoUrlInput, setRepoUrlInput] = useState('');
+  const [liveUrlInput, setLiveUrlInput] = useState('');
+  const [approachSummaryInput, setApproachSummaryInput] = useState('');
+  const [submittingSolution, setSubmittingSolution] = useState(false);
+
+  // Professional Problem Creator Modal State
+  const [isPostProblemModalOpen, setIsPostProblemModalOpen] = useState(false);
+  const [newProblemQuestion, setNewProblemQuestion] = useState('');
+  const [newProblemCategory, setNewProblemCategory] = useState<'Automotive' | 'Housing' | 'Healthcare' | 'Blockchain' | 'FinTech' | 'Fake News' | 'Hardware' | 'Career' | 'Consumer Services'>('Healthcare');
+  const [newProblemCompany, setNewProblemCompany] = useState('Google Health Core');
+  const [newProblemReward, setNewProblemReward] = useState('₹25,000 / $300 USDC');
+  const [newProblemRepo, setNewProblemRepo] = useState('https://github.com/company/starter-template');
+  const [newProblemContext, setNewProblemContext] = useState('');
+
+  // Professional Candidate PR / Solution Review Console State
+  const [candidateSubmissions, setCandidateSubmissions] = useState<CandidateSolutionSubmission[]>(INITIAL_SUBMITTED_SOLUTIONS);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // AUTO-CONNECT & FIREWALL STATES
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Student Outreach State
+  const [manualNoteModalOpen, setManualNoteModalOpen] = useState(false);
+  const [manualNoteSenior, setManualNoteSenior] = useState<string>('Rahul Mehta');
+  const [manualNoteText, setManualNoteText] = useState('');
+
+  // Professional Firewall Settings State
+  const [firewallThreshold, setFirewallThreshold] = useState<number>(75);
+  const [firewallMinCommits, setFirewallMinCommits] = useState<number>(15);
+  const [firewallActive, setFirewallActive] = useState<boolean>(true);
+  const [selectedFirewallSkills, setSelectedFirewallSkills] = useState<string[]>(['React', 'Docker', 'PostgreSQL']);
+  const [pendingQueue, setPendingQueue] = useState([
+    { id: 'pq-1', name: 'Tanmay Saxena', college: 'NSUT Delhi', match: 68, missing: 'Docker (0/1)', note: 'Hi Rahul! Built a high-concurrency pub-sub in Go and would love your guidance on Uber platform architecture.' },
+    { id: 'pq-2', name: 'Rhea Sen', college: 'DTU', match: 71, missing: 'Min Commits (12/15)', note: 'Hey! Loved your post on distributed cache warming. Check my Raft KV implementation.' },
+    { id: 'pq-3', name: 'Kabir Varma', college: 'IIIT Hyderabad', match: 64, missing: 'PostgreSQL', note: 'Hey Rahul, solving your CarDekho OBD-II problem right now!' },
+  ]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 20-MINUTE DOORWAY STATES
+  // ─────────────────────────────────────────────────────────────────────────────
+  const [selectedExpert, setSelectedExpert] = useState<{ name: string; role: string; fee: string; specialty: string } | null>(null);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState('Saturday, 3:00 PM - 3:20 PM');
+  const [consultFeeSetting, setConsultFeeSetting] = useState('₹1,000');
+  const [totalSessionsConducted, setTotalSessionsConducted] = useState(12);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // WISDOM CAPSULE STATES
+  // ─────────────────────────────────────────────────────────────────────────────
+  const [isRecordingWisdom, setIsRecordingWisdom] = useState(false);
+  const [wisdomTimer, setWisdomTimer] = useState(90);
+  const [wisdomActivePrompt, setWisdomActivePrompt] = useState("Explain how you handled a production outage or latency spike in your last distributed project.");
+  const [wisdomDepthScore, setWisdomDepthScore] = useState(4);
+  const [wisdomClarityScore, setWisdomClarityScore] = useState(5);
+  const [wisdomBrevityScore, setWisdomBrevityScore] = useState(4);
+  const [wisdomFeedbackAdvice, setWisdomFeedbackAdvice] = useState('');
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // TIME MACHINE STATES
+  // ─────────────────────────────────────────────────────────────────────────────
+  const [targetRoleSelection, setTargetRoleSelection] = useState('Staff AI Engineer');
   const [selectedMilestoneIndex, setSelectedMilestoneIndex] = useState(0);
-  const [targetReadinessScore, setTargetReadinessScore] = useState(82);
 
-  // Auto-Connect Policies State
-  const [policies, setPolicies] = useState<AutoConnectionPolicy[]>(MOCK_POLICIES);
-
-  // Community Feed State
+  // ─────────────────────────────────────────────────────────────────────────────
+  // COMMUNITY & GHOST MODE STATES
+  // ─────────────────────────────────────────────────────────────────────────────
+  const [communitySubTab, setCommunitySubTab] = useState<'feed' | 'ghost'>('feed');
   const [socialFeed, setSocialFeed] = useState<SocialFeedItem[]>(MOCK_SOCIAL_FEED);
   const [newPostContent, setNewPostContent] = useState('');
+  const [ghostPosts, setGhostPosts] = useState([
+    {
+      id: 'g-1',
+      persona: 'Ghost-Cadet-108',
+      role: 'Student • Tier 3 College',
+      content: 'Is it true that top product firms filter out non-target colleges even if your GitHub has 400+ commits on production-grade Rust systems? Need honest answers.',
+      timestamp: '25m ago',
+      likes: 34,
+      replies: 12
+    },
+    {
+      id: 'g-2',
+      persona: 'Ghost-Architect-402',
+      role: 'Staff Engineer • Tier 1 US Firm',
+      content: 'Real compensation reality check: Base bands capped at ₹45L for SDE-2 in Bangalore. The ₹90L CTCs advertised in headlines include 4-year unvested RSUs priced at bubble valuations. Focus on liquid equity.',
+      timestamp: '1h ago',
+      likes: 89,
+      replies: 24
+    }
+  ]);
+  const [newGhostText, setNewGhostText] = useState('');
 
-  // GitHub Real-Time Data State
-  const [githubData, setGithubData] = useState<any>(null);
-
-  // Derived real data from parsed profile or default (Darsh Ohri from uploaded CV)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PROFILE & GITHUB DATA
+  // ─────────────────────────────────────────────────────────────────────────────
   const profile = parsedProfile || DARSH_OHRI_PROFILE;
+  const activeUserName = profile?.name || 'Darsh Ohri';
+  const activeUserRole = profile?.role || 'Full-Stack & AI Software Developer';
+  const activeUserInstitution = profile?.institution || 'B.Tech CSE (Data Science Specialization)';
+  const activeGithubUsername = profile?.githubUsername || 'darshohri';
+  const activeGithubUrl = profile?.githubUrl || 'https://github.com/darshohri';
+  const activeLinkedinUrl = profile?.linkedinUrl || 'https://linkedin.com/in/darshohri';
   const activeCareerMilestones = (profile?.careerMilestones && profile.careerMilestones.length > 0)
     ? profile.careerMilestones
     : DARSH_OHRI_PROFILE.careerMilestones;
-  const activeSkillGap = profile?.skillGap || DARSH_OHRI_PROFILE.skillGap;
-  const activeBounties = (profile?.bounties && profile.bounties.length > 0)
-    ? profile.bounties
-    : DARSH_OHRI_PROFILE.bounties;
-  const activeRadarOpportunities = (profile?.radarOpportunities && profile.radarOpportunities.length > 0)
-    ? profile.radarOpportunities
-    : DARSH_OHRI_PROFILE.radarOpportunities;
-  const rawName = profile?.name || user?.name;
-  const activeUserName = (!rawName || rawName === 'Not Specified') ? 'Darsh Ohri' : rawName;
-  const rawRole = profile?.role || user?.role;
-  const activeUserRole = (!rawRole || rawRole === 'Not Specified' || rawRole === 'Software Engineer') ? 'Full-Stack & AI Software Developer' : rawRole;
-  const rawInst = profile?.institution || user?.institution;
-  const activeUserInstitution = (!rawInst || rawInst === 'Not Specified') ? 'B.Tech CSE (Data Science Specialization)' : rawInst;
-  const activeUserEmail = profile?.email || user?.email || 'darshohri@gmail.com';
-  const activeGithubUsername = profile?.githubUsername || 'darshohri';
-  const activeLinkedinUrl = profile?.linkedinUrl || 'https://linkedin.com/in/darshohri';
-  const activeGithubUrl = profile?.githubUrl || 'https://github.com/darshohri';
 
-  // Fetch real GitHub events if username available
+  // GitHub telemetry
+  const [githubData, setGithubData] = useState<any>(null);
   useEffect(() => {
     if (activeGithubUsername) {
       fetch(`/api/github-activity?username=${activeGithubUsername}`)
@@ -229,7 +337,7 @@ export default function KinGlassDashboard() {
     }
   }, [activeGithubUsername]);
 
-  // Live clock
+  // Live Clock
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -242,1622 +350,2583 @@ export default function KinGlassDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+  // Timer for 90s Wisdom Mock Arena
+  useEffect(() => {
+    let timerId: any = null;
+    if (isRecordingWisdom && wisdomTimer > 0) {
+      timerId = setInterval(() => {
+        setWisdomTimer((t) => t - 1);
+      }, 1000);
+    } else if (wisdomTimer === 0) {
+      setIsRecordingWisdom(false);
+      showToast("Time's up! 90-second mock response recorded. Ready for AI & Alumni feedback.");
+    }
+    return () => clearInterval(timerId);
+  }, [isRecordingWisdom, wisdomTimer]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // HANDLERS FOR STUDENT ACTIONS
+  // ─────────────────────────────────────────────────────────────────────────────
+  const handleSubmitProjectSolution = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!repoUrlInput.trim()) {
+      showToast('Please enter your GitHub repository link.');
+      return;
+    }
+    setSubmittingSolution(true);
+
+    setTimeout(() => {
+      setSubmittingSolution(false);
+      setIsSubmitSolutionModalOpen(false);
+
+      // Trigger Confetti
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      } catch (e) {}
+
+      // Update problem status
+      if (selectedProblem) {
+        setProblems((prev) =>
+          prev.map((p) => (p.id === selectedProblem.id ? { ...p, status: 'under_review' } : p))
+        );
+
+        // Prepend to professional candidate review console
+        const newSubmission: CandidateSolutionSubmission = {
+          id: `sub-${Date.now()}`,
+          problemId: selectedProblem.id,
+          problemQuestion: selectedProblem.question,
+          studentName: activeUserName,
+          studentCollege: activeUserInstitution,
+          studentAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+          repoUrl: repoUrlInput.trim(),
+          liveDemoUrl: liveUrlInput.trim() || undefined,
+          approachSummary: approachSummaryInput.trim() || 'Implemented core architecture with full test verification.',
+          testsPassed: `${selectedProblem.testCasesCount}/${selectedProblem.testCasesCount} tests passed (100%)`,
+          submittedAt: 'Just now',
+          status: 'pending'
+        };
+        setCandidateSubmissions([newSubmission, ...candidateSubmissions]);
+      }
+
+      showToast('Solution submitted directly to Senior Alumni! They will review your repository diff.');
+      setRepoUrlInput('');
+      setLiveUrlInput('');
+      setApproachSummaryInput('');
+    }, 900);
   };
 
-  const navItems = [
-    { id: 'overview' as ActiveTab, label: 'Overview', icon: LayoutGrid },
-    { id: 'time-machine' as ActiveTab, label: 'Career Journey', icon: History },
-    { id: 'bounties' as ActiveTab, label: 'Paid Challenges', icon: Trophy },
-    { id: 'auto-connect' as ActiveTab, label: 'Auto-Connect', icon: ShieldCheck },
-    { id: 'radar' as ActiveTab, label: 'Hidden Opportunities', icon: Radio },
-    { id: 'community' as ActiveTab, label: 'Alumni Network', icon: Users },
-  ];
+  const handleConfirmConsultBooking = () => {
+    setBookingModalOpen(false);
+    showToast(`Confirmed! 20-min consult booked with ${selectedExpert?.name || 'Expert'}. Calendar invite dispatched.`);
+  };
 
-  const handleTogglePolicy = (policyId: number) => {
-    setPolicies((prev) =>
-      prev.map((p) => {
-        if (p.id === policyId) {
-          const nextVal = !p.autoAccept;
-          showToast(`Rule "${p.name}": ${nextVal ? 'Active' : 'Paused'}`);
-          return { ...p, autoAccept: nextVal };
-        }
-        return p;
-      })
+  const handleSendManualQueueNote = (e: React.FormEvent) => {
+    e.preventDefault();
+    setManualNoteModalOpen(false);
+    showToast(`Note submitted to ${manualNoteSenior}'s manual triage queue!`);
+    setManualNoteText('');
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // HANDLERS FOR ALUMNI / PROFESSIONAL ACTIONS
+  // ─────────────────────────────────────────────────────────────────────────────
+  const handlePostNewProblem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProblemQuestion.trim()) return;
+
+    const newProblem: AlumniProblem = {
+      id: `prob-${Date.now()}`,
+      category: newProblemCategory,
+      cardVariant: newProblemCategory === 'Housing' || newProblemCategory === 'Consumer Services' ? 'blue' : 'charcoal',
+      question: newProblemQuestion.trim(),
+      alumniName: activeUserName,
+      alumniTitle: 'Senior Engineering Architect',
+      alumniCompany: newProblemCompany.trim() || 'TechCorp',
+      bountyReward: newProblemReward.trim() || '₹25,000 / $300 USDC',
+      rewardType: 'USDC',
+      requiredTech: ['Next.js', 'PostgreSQL', 'Docker', 'FastAPI'],
+      context: newProblemContext.trim() || 'Real production problem statement requiring AST-verified architecture.',
+      starterRepoUrl: newProblemRepo.trim() || 'https://github.com/kin-network/starter',
+      deadline: '7 days left',
+      testCasesCount: 20,
+      status: 'open'
+    };
+
+    setProblems([newProblem, ...problems]);
+    setIsPostProblemModalOpen(false);
+    showToast('New Problem Statement posted to KIN Challenge Board!');
+    setNewProblemQuestion('');
+    setNewProblemContext('');
+  };
+
+  const handleReviewSubmission = (subId: string, action: 'accepted' | 'changes_requested' | 'rejected') => {
+    setCandidateSubmissions((prev) =>
+      prev.map((s) => (s.id === subId ? { ...s, status: action } : s))
     );
+    if (action === 'accepted') {
+      try {
+        confetti({ particleCount: 90, spread: 60, origin: { y: 0.5 } });
+      } catch (e) {}
+      showToast('Candidate PR Accepted! Fast-Track Interview Call invitation generated.');
+    } else if (action === 'changes_requested') {
+      showToast('Changes requested sent to student with test case notes.');
+    } else {
+      showToast('Submission declined.');
+    }
   };
 
-  const handleLikePost = (postId: number) => {
-    setSocialFeed((prev) =>
-      prev.map((item) => {
-        if (item.id === postId) {
-          return { ...item, likes: item.likes + 1 };
-        }
-        return item;
-      })
-    );
-    showToast('Endorsement recorded');
+  const handlePendingQueueAction = (id: string, action: 'approve' | 'decline') => {
+    const student = pendingQueue.find((p) => p.id === id);
+    setPendingQueue((prev) => prev.filter((p) => p.id !== id));
+    showToast(action === 'approve' ? `Connected with ${student?.name}!` : `Declined request from ${student?.name}.`);
   };
 
-  const handleConnectUser = (postId: number, authorName: string) => {
-    setSocialFeed((prev) =>
-      prev.map((item) => {
-        if (item.id === postId) {
-          const nextConnected = !item.connected;
-          showToast(
-            nextConnected
-              ? `Smart handshake requested with ${authorName}`
-              : `Connection with ${authorName} disconnected`
-          );
-          return { ...item, connected: nextConnected };
-        }
-        return item;
-      })
-    );
+  const handleInstantSettlementPayout = () => {
+    showToast('Instant Settlement Triggered: ₹6,000 transferred to linked corporate account via NEFT.');
   };
 
-  const handleCreatePost = (e: React.FormEvent) => {
+  const handleSocialPost = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPostContent.trim()) return;
-
-    const newPost: SocialFeedItem = {
+    const post: SocialFeedItem = {
       id: Date.now(),
       author: {
         name: activeUserName,
-        role: activeUserRole,
+        role: networkRole === 'student' ? 'Student • Batch 2026' : 'Senior SDE @ Uber • Verified Alumni',
         institution: activeUserInstitution,
-        avatar: '/images/hero_builder_avatar.jpg',
-        verified: true,
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+        verified: true
       },
       content: newPostContent.trim(),
       timestamp: 'Just now',
-      mutualConnections: 1,
-      tags: ['#VerifiedBuilder', '#KIN'],
+      mutualConnections: 3,
+      tags: ['#KIN', '#ProofOfWork'],
       likes: 1,
-      connected: true,
+      connected: true
     };
-
-    setSocialFeed([newPost, ...socialFeed]);
+    setSocialFeed([post, ...socialFeed]);
     setNewPostContent('');
-    showToast('Update shared with the network');
+    showToast('Posted to professional network stream.');
   };
 
-  const handleOpenDm = (author: { name: string; role: string }) => {
-    setDmRecipient({ id: author.name, name: author.name, role: author.role });
-    setDmMessages([
-      {
-        id: 'dm-welcome',
-        sender: 'them',
-        text: `Hey Darsh! Great connecting on Kin. Checked your verified AI projects and would love to collaborate.`,
-        time: '10:45 AM'
-      }
-    ]);
+  const handleGhostPost = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGhostText.trim()) return;
+    const gPost = {
+      id: `g-${Date.now()}`,
+      persona: networkRole === 'student' ? 'Ghost-Cadet-108' : 'Ghost-Architect-402',
+      role: networkRole === 'student' ? 'Student • Verified' : 'Staff Architect • Anonymous',
+      content: newGhostText.trim(),
+      timestamp: 'Just now',
+      likes: 1,
+      replies: 0
+    };
+    setGhostPosts([gPost, ...ghostPosts]);
+    setNewGhostText('');
+    showToast('Candid insight posted to Kin Ghost Mode (Zero identity leaked).');
   };
 
-  const handleSendDm = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!newDmText.trim() || !dmRecipient) return;
-    const userText = newDmText.trim();
-    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setDmMessages((prev) => [
-      ...prev,
-      { id: `dm-user-${Date.now()}`, sender: 'me', text: userText, time: nowTime }
-    ]);
-    setNewDmText('');
-    showToast(`Direct message sent to ${dmRecipient.name}`);
+  // Nav Items definition based on role
+  const studentNavItems = [
+    { id: 'overview' as const, label: 'Overview', icon: LayoutGrid },
+    { id: 'problems' as const, label: 'Alumni Problems', icon: Trophy },
+    { id: 'outreach' as const, label: 'Auto-Connect', icon: ShieldCheck },
+    { id: 'time-machine' as const, label: 'Time Machine', icon: History },
+    { id: 'doorway' as const, label: '20-Min Doorway', icon: Briefcase },
+    { id: 'wisdom' as const, label: 'Wisdom Capsule', icon: Sparkles },
+    { id: 'radar' as const, label: 'Talent Radar', icon: Radio },
+    { id: 'community' as const, label: 'Network & Ghost', icon: Users },
+  ];
 
-    setTimeout(() => {
-      setDmMessages((prev) => [
-        ...prev,
-        {
-          id: `dm-reply-${Date.now()}`,
-          sender: 'them',
-          text: `Thanks for the ping! Let's review the code on GitHub or hop on a call.`,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-    }, 1200);
-  };
+  const alumniNavItems = [
+    { id: 'overview' as const, label: 'Command Center', icon: LayoutGrid },
+    { id: 'problems' as const, label: 'Problem Statements', icon: Trophy },
+    { id: 'firewall' as const, label: 'Firewall Shield', icon: ShieldCheck },
+    { id: 'time-machine' as const, label: 'Pathway Publisher', icon: History },
+    { id: 'doorway' as const, label: 'Consults & Payouts', icon: DollarSign },
+    { id: 'wisdom' as const, label: 'Wisdom Cockpit', icon: Sparkles },
+    { id: 'radar' as const, label: 'Talent Scout', icon: Radio },
+    { id: 'community' as const, label: 'Network & Ghost', icon: Users },
+  ];
 
-  const filteredSocialFeed = socialFeed.filter((post) => {
-    const q = searchUserQuery.toLowerCase().trim();
-    const matchesSearch =
-      !q ||
-      post.author.name.toLowerCase().includes(q) ||
-      post.author.role.toLowerCase().includes(q) ||
-      post.content.toLowerCase().includes(q);
+  const activeNavList = networkRole === 'student' ? studentNavItems : alumniNavItems;
+  const currentTourStep = KIN_WALKTHROUGH[mascotStepIndex] || KIN_WALKTHROUGH[0];
 
-    if (!matchesSearch) return false;
-
-    if (communityFilter === 'alumni') {
-      return (
-        post.author.role.toLowerCase().includes('engineer') ||
-        post.author.role.toLowerCase().includes('alumni') ||
-        post.author.role.toLowerCase().includes('intern')
-      );
-    }
-    if (communityFilter === 'builders') {
-      return (
-        post.author.role.toLowerCase().includes('developer') ||
-        post.author.role.toLowerCase().includes('builder') ||
-        post.author.role.toLowerCase().includes('lead')
-      );
-    }
-    if (communityFilter === 'founders') {
-      return (
-        post.author.role.toLowerCase().includes('founder') ||
-        post.author.role.toLowerCase().includes('ceo') ||
-        post.author.role.toLowerCase().includes('partner')
-      );
-    }
-    return true;
+  // Filtered problems list
+  const filteredProblems = problems.filter((p) => {
+    if (problemCategoryFilter === 'All') return true;
+    return p.category.toLowerCase() === problemCategoryFilter.toLowerCase();
   });
 
-  const currentStep = KIN_WALKTHROUGH[mascotStepIndex] || KIN_WALKTHROUGH[0];
-
   return (
-    <div className="relative w-full min-h-screen font-sans text-slate-900 selection:bg-[#E25C38]/20 selection:text-[#E25C38] overflow-x-hidden flex flex-col justify-between">
-      {/* ═══════════════════════════════════════════════════════════════
-          NATURAL DAYLIGHT MODERN LIVING ROOM BACKGROUND (VisionOS Style)
-          ═══════════════════════════════════════════════════════════════ */}
-      <div className="fixed inset-0 w-screen h-screen z-0 pointer-events-none overflow-hidden">
-        <Image
-          src="/images/visionos_interior_bg.jpg"
-          alt="Modern Minimalist Interior Background"
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover object-center w-full h-full filter brightness-[0.98] contrast-[1.02]"
-        />
-        <div className="absolute inset-0 bg-white/5 backdrop-blur-[0.5px]" />
+    <div className="relative min-h-screen w-full bg-[#FFFDF8] text-slate-900 flex flex-col items-center justify-between font-sans selection:bg-[#E25C38] selection:text-white">
+      {/* Warm Ambient Radial Blurs */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div className="absolute -top-[15%] left-[20%] w-[55vw] h-[55vw] rounded-full bg-amber-100/40 blur-[130px]" />
+        <div className="absolute top-[40%] -right-[15%] w-[45vw] h-[45vw] rounded-full bg-orange-100/35 blur-[140px]" />
+        <div className="absolute -bottom-[20%] left-[10%] w-[60vw] h-[60vw] rounded-full bg-amber-50/50 blur-[150px]" />
       </div>
 
-      {/* ─── Toast Notification ─── */}
-      {toastMessage && (
-        <div className="fixed top-5 right-6 z-50 flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-xl text-xs font-semibold animate-in fade-in slide-in-from-top-2 duration-150">
-          <div className="w-2 h-2 rounded-full bg-[#E25C38]" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════
-          RESUME UPLOAD MODAL
-          ═══════════════════════════════════════════════════════════════ */}
-      <ResumeUploadModal
-        isOpen={isUploadResumeModalOpen}
-        onClose={closeUploadResumeModal}
-        onSuccess={(parsed) => {
-          showToast(`Welcome ${parsed.name}! Dashboard updated with your CV.`);
-          setSelectedMilestoneIndex(0);
-        }}
-      />
-
-      {/* ═══════════════════════════════════════════════════════════════
-          MAIN CANVAS: ONE ELEGANT FROSTED GLASS BACKGROUND CONTAINER
-          Inner cards are solid white (not glass on glass!)
-          ═══════════════════════════════════════════════════════════════ */}
+      {/* Main Container */}
       <div className="relative z-10 w-full flex-1 flex flex-col items-center px-3 sm:px-6 lg:px-8 pt-4 pb-24">
-        
-        {/* ─── TOP MINIMAL HEADER BAR (LOGO CENTERED) ─── */}
-        <header className="w-full max-w-[1360px] mb-4 grid grid-cols-3 items-center">
-          {/* Left: Home link and Node Badge */}
-          <div className="flex items-center gap-2 justify-self-start">
+        {/* ─── UNIVERSAL TOPBAR WITH 3D LOGO & EVALUATOR ROLE SWITCHER ─── */}
+        <header className="w-full max-w-[1360px] mb-3 flex flex-wrap items-center justify-between gap-3 bg-white/70 backdrop-blur-xl border border-white/60 p-2.5 px-4 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
+          {/* Left: Home link and 3D Logo & Brand */}
+          <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/85 hover:bg-white border border-slate-200/80 text-xs font-bold text-slate-700 hover:text-slate-900 transition-all shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/85 hover:bg-white border border-slate-200/80 text-xs font-bold text-slate-700 hover:text-slate-900 transition-all shadow-xs"
               title="Return to Home"
             >
               <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
               <span>Home</span>
             </Link>
-            <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/60 text-[10px] font-bold text-emerald-700">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>IIITD Node</span>
-            </div>
-          </div>
 
-          {/* Center: Exact Middle Brand with 3D metallic logo */}
-          <div className="flex items-center justify-center justify-self-center">
-            <Link
-              href="/"
-              className="group inline-flex items-center gap-2.5 px-4 py-1.5 rounded-2xl bg-white/90 backdrop-blur-md border border-white/80 shadow-[0_4px_20px_rgba(0,0,0,0.05)] hover:shadow-md transition-all cursor-pointer"
-            >
-              <Image
-                src="/images/kin_logo.png"
-                alt="KIN Logo"
-                width={32}
-                height={32}
-                priority
-                className="w-7 h-7 object-contain transition-transform duration-300 group-hover:scale-105 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.08)]"
-              />
-              <span className="text-xl font-black tracking-[0.2em] text-slate-900 uppercase leading-none select-none">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="relative w-8 h-8 rounded-xl overflow-hidden filter drop-shadow-sm group-hover:scale-105 transition-transform">
+                <Image
+                  src="/images/kin_logo.png"
+                  alt="KIN Logo"
+                  width={32}
+                  height={32}
+                  priority
+                  className="w-8 h-8 object-contain"
+                />
+              </div>
+              <span className="text-xl font-black tracking-tight text-slate-900 group-hover:text-[#E25C38] transition-colors">
                 KIN
               </span>
             </Link>
           </div>
 
-          {/* Right: Role indicator, Upload Resume & Profile/Logout */}
-          <div className="flex items-center justify-end gap-2 sm:gap-2.5 justify-self-end">
-            <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-full bg-white/80 border border-slate-200 text-[11px] font-bold text-slate-700 capitalize">
-              {networkRole === 'alumni' ? 'Alumni Hub' : 'Student Builder'}
-            </span>
+          {/* Center: Glassmorphic Evaluator Role Switcher Pill */}
+          <div className="flex items-center p-1 rounded-full bg-slate-100/80 border border-slate-200/80 shadow-inner">
+            <button
+              onClick={() => handleRoleToggle('student')}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                networkRole === 'student'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span>🎓 Student Dashboard</span>
+            </button>
+            <button
+              onClick={() => handleRoleToggle('alumni')}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                networkRole === 'alumni'
+                  ? 'bg-[#E25C38] text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span>💼 Professional Dashboard</span>
+            </button>
+          </div>
 
+          {/* Right: Resume Upload & Profile Dropdown */}
+          <div className="flex items-center gap-2">
             <button
               onClick={openUploadResumeModal}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 transition-all shadow-xs cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 transition-all shadow-xs cursor-pointer"
             >
               <UploadCloud className="w-3.5 h-3.5 text-[#E25C38]" />
               <span className="hidden sm:inline">Upload Resume / CV</span>
-              <span className="sm:hidden">Upload</span>
             </button>
 
-            {isLoggedIn ? (
+            {/* User Profile Avatar with Sign Out Popover */}
+            <div className="relative">
               <button
-                onClick={handleLogout}
-                title="Sign Out / Switch Account"
-                className="p-1.5 rounded-full bg-white/80 hover:bg-rose-50 border border-slate-200 text-slate-600 hover:text-rose-600 transition-all shadow-xs cursor-pointer"
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                className="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-900 to-slate-700 text-white text-xs font-black flex items-center justify-center border-2 border-white shadow-xs cursor-pointer"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                {userInitial || 'D'}
               </button>
-            ) : (
-              <button
-                onClick={openAuthModal}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Log In</span>
-              </button>
-            )}
+
+              {profileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-white border border-slate-100 p-2 shadow-2xl z-50 text-slate-900 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-2 border-b border-slate-100">
+                    <p className="text-xs font-bold text-slate-900 truncate">{activeUserName}</p>
+                    <p className="text-[10px] text-slate-500 truncate">{activeUserInstitution}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      openUploadResumeModal();
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-xl flex items-center gap-2 cursor-pointer"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5 text-[#E25C38]" />
+                    <span>Upload New CV</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setProfileMenuOpen(false);
+                      await logout();
+                      showToast('Signed out of KIN.');
+                      router.push('/');
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-xl flex items-center gap-2 cursor-pointer font-bold"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
-        {/* ─── SINGLE FROSTED GLASS BACKDROP CONTAINER ─── */}
+        {/* ─── MAIN CONTENT VIEWPORT ─── */}
         <main className="w-full max-w-[1360px] flex-1 flex flex-col min-h-[calc(100vh-140px)]">
-          {networkRole === 'alumni' ? (
-            <div className="flex-1 w-full rounded-[36px] bg-white/25 border border-white/50 backdrop-blur-2xl shadow-[0_25px_60px_rgba(0,0,0,0.06),_inset_0_1.5px_2px_rgba(255,255,255,0.7)] p-6 sm:p-8 flex flex-col justify-between transition-all">
-              <div>
-                {/* Alumni Header Banner */}
-                <div className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-lg">
-                      A
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-xl font-black text-slate-900 tracking-tight">Alumni Command Center</h2>
-                        <span className="px-2.5 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider">
-                          Alumni Access
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 mt-0.5">
-                        IIIT Delhi Alumni Network • Verified Portal
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2.5">
-                    <button
-                      onClick={() => {
-                        setNetworkRole('student');
-                        localStorage.setItem('kin_network_role', 'student');
-                        showToast('Switched to Student Workspace');
-                      }}
-                      className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
-                    >
-                      Switch to Student View
-                    </button>
-                    <button
-                      onClick={async () => {
-                        await logout();
-                        showToast('Signed out successfully.');
-                        router.push('/');
-                      }}
-                      className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Plain Minimal Alumni Feature Blocks */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Card 1: Student Talent Scouting */}
-                  <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
-                    <div>
-                      <div className="w-10 h-10 rounded-2xl bg-amber-50 text-[#E25C38] flex items-center justify-center mb-4">
-                        <Users className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-base font-bold text-slate-900">Student Talent Scouting</h3>
-                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                        Discover top student builders with AST-verified code repositories, high commit velocities, and specialized skill alignments.
-                      </p>
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
-                      <span>Pipeline: Ready</span>
-                      <span className="text-[#E25C38] font-bold">Awaiting Next Prompt</span>
-                    </div>
-                  </div>
-
-                  {/* Card 2: Endowments & Bounties */}
-                  <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
-                    <div>
-                      <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mb-4">
-                        <Trophy className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-base font-bold text-slate-900">Endowments & Bounties</h3>
-                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                        Post engineering challenges, sponsor student hackathons, and disburse USDC/crypto micro-grants directly into student builder wallets.
-                      </p>
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
-                      <span>Vault: Configured</span>
-                      <span className="text-sky-600 font-bold">Awaiting Next Prompt</span>
-                    </div>
-                  </div>
-
-                  {/* Card 3: Alumni Founder Conduits */}
-                  <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
-                    <div>
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
-                        <Briefcase className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-base font-bold text-slate-900">Alumni Founder Conduits</h3>
-                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                        Connect with fellow graduates leading AI labs, seed-stage startups, and venture syndicates across the global network.
-                      </p>
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
-                      <span>Network: Global</span>
-                      <span className="text-emerald-600 font-bold">Awaiting Next Prompt</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Plain Status Placeholder */}
-                <div className="mt-6 rounded-3xl p-8 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col items-center justify-center text-center">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                    <Sparkles className="w-6 h-6 text-slate-700" />
-                  </div>
-                  <h4 className="text-base font-bold text-slate-900">Alumni Dashboard Initialized</h4>
-                  <p className="text-xs text-slate-600 max-w-md mt-1">
-                    Your alumni dashboard workspace is ready. Tell us the exact features, filters, or actions you would like to have here in your next prompt.
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-6 text-center text-xs text-slate-500">
-                KIN Career Engine & Alumni Network • IIIT Delhi
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 w-full rounded-[36px] bg-white/18 border border-white/40 backdrop-blur-2xl shadow-[0_25px_60px_rgba(0,0,0,0.06),_inset_0_1.5px_2px_rgba(255,255,255,0.7)] p-5 sm:p-7 flex flex-col justify-between transition-all">
+          <div className="flex-1 w-full rounded-[36px] bg-white/25 border border-white/40 backdrop-blur-2xl shadow-[0_25px_60px_rgba(0,0,0,0.04),_inset_0_1.5px_2px_rgba(255,255,255,0.7)] p-4 sm:p-7 flex flex-col justify-between transition-all">
             
-            {/* Real Resume Notice Banner */}
-            <div className="mb-4 p-3 px-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2.5">
-                <Sparkles className="w-4 h-4 text-[#E25C38] shrink-0" />
-                <span className="text-xs text-slate-700">
-                  Profile loaded: <strong className="text-slate-900">{activeUserName}</strong> ({activeUserRole}) • Verified from CV
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                {activeGithubUrl && (
-                  <a
-                    href={activeGithubUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[11px] font-bold text-slate-700 hover:text-black"
-                  >
-                    <Github className="w-3.5 h-3.5" />
-                    <span>GitHub: {activeGithubUsername}</span>
-                  </a>
-                )}
-                {activeLinkedinUrl && (
-                  <a
-                    href={activeLinkedinUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[11px] font-bold text-sky-700 hover:text-sky-900"
-                  >
-                    <Linkedin className="w-3.5 h-3.5" />
-                    <span>LinkedIn</span>
-                  </a>
-                )}
-              </div>
-            </div>
+            {/* ═══════════════════════════════════════════════════════════════════
+                STUDENT DASHBOARD WORKSPACE (8 DEDICATED TABS)
+                ═══════════════════════════════════════════════════════════════════ */}
+            {networkRole === 'student' && (
+              <div className="flex-1 flex flex-col justify-between w-full">
+                
+                {/* 1. STUDENT OVERVIEW TAB */}
+                {activeTab === 'overview' && (
+                  <div key="student-overview" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    {/* Stats Row */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                      <div className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Career Readiness</span>
+                        <div className="my-2">
+                          <span className="text-2xl sm:text-3xl font-black text-slate-900">68%</span>
+                          <div className="w-full h-2 rounded-full bg-slate-100 mt-2 overflow-hidden">
+                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: '68%' }} />
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-slate-500">Target Role: Staff AI</span>
+                      </div>
 
-            {/* TAB PANELS: Rendered cleanly inside solid white cards */}
-            <div className="flex-1 flex flex-col justify-between w-full">
-              {/* ─────────────────────────────────────────────────────────────
-                  TAB 1: OVERVIEW (Master Cockpit)
-                  Solid white cards for maximum clarity and contrast!
-                  ───────────────────────────────────────────────────────────── */}
-              {activeTab === 'overview' && (
-                <div key="overview" className="flex-1 flex flex-col justify-between gap-5 animate-in fade-in duration-150">
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                    
-                    {/* Left Column (8 cols): Career Journey + Coding Velocity */}
-                    <div className="lg:col-span-8 flex flex-col gap-5">
-                      
-                      {/* Top Row: Career Card + Coding Activity */}
-                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-5">
-                        
-                        {/* Career Journey Card (7 cols) - Solid White */}
-                        <div className="sm:col-span-7 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between transition-all">
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                                Career Journey
-                              </span>
-                              <span className="text-xs font-mono font-bold text-slate-700">
-                                {activeCareerMilestones[selectedMilestoneIndex]?.period || '2026'}
-                              </span>
+                      <div className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Active Bounties Joined</span>
+                        <div className="my-2">
+                          <span className="text-2xl sm:text-3xl font-black text-slate-900">2</span>
+                          <span className="text-xs text-amber-600 font-bold ml-1.5">Open Challenges</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500">₹48,000 Potential Reward</span>
+                      </div>
+
+                      <div className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Eligible Connections</span>
+                        <div className="my-2">
+                          <span className="text-2xl sm:text-3xl font-black text-slate-900">8</span>
+                          <span className="text-xs text-emerald-600 font-bold ml-1.5">Alumni Matching</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500">Uber, Google, Apollo</span>
+                      </div>
+
+                      <div className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Upcoming 20-Min Consult</span>
+                        <div className="my-2">
+                          <span className="text-sm font-black text-slate-900 block truncate">Sat 3:00 PM</span>
+                          <span className="text-xs text-slate-600 truncate block">with Rahul Mehta (Uber)</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-600 font-bold">Confirmed Slot</span>
+                      </div>
+                    </div>
+
+                    {/* Robot Mascot Tip Card */}
+                    <div className="p-4 px-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border border-amber-500/20 shadow-xs flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-2xl bg-white flex items-center justify-center shadow-xs shrink-0">
+                          <Sparkles className="w-5 h-5 text-[#E25C38]" />
+                        </div>
+                        <p className="text-xs sm:text-sm text-slate-800 font-medium">
+                          <strong>Tip from Kin:</strong> Complete your Docker milestone to unlock auto-connect for 4 Senior Engineers at Microsoft and Uber!
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab('problems')}
+                        className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold shrink-0 transition-all cursor-pointer shadow-xs"
+                      >
+                        Solve Docker Problem
+                      </button>
+                    </div>
+
+                    {/* Main 2-Col Grid: Career Timeline + GitHub Velocity */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                      {/* Left: Career Journey Timeline (7 cols) */}
+                      <div className="lg:col-span-7 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <h3 className="text-lg font-bold text-slate-900">Career Trajectory & Transition Milestones</h3>
+                              <p className="text-xs text-slate-500">Verified progress extracted from CV & GitHub</p>
                             </div>
+                            <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-mono font-bold">
+                              {activeCareerMilestones[selectedMilestoneIndex]?.period || '2026'}
+                            </span>
+                          </div>
 
-                            <h3 className="text-xl font-bold text-slate-900 leading-snug">
+                          <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 mb-4">
+                            <h4 className="text-base font-bold text-slate-900">
                               {activeCareerMilestones[selectedMilestoneIndex]?.role || activeUserRole}
-                            </h3>
-                            <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+                            </h4>
+                            <p className="text-xs text-slate-600 mt-0.5">
                               {activeCareerMilestones[selectedMilestoneIndex]?.company || activeUserInstitution}
                             </p>
-
-                            {/* Stat Metrics Box */}
-                            <div className="rounded-2xl p-4 bg-slate-50 border border-slate-100 my-3.5 flex items-center justify-between">
-                              <div>
-                                <div className="text-lg font-black text-slate-900">
-                                  {activeCareerMilestones[selectedMilestoneIndex]?.duration || 'Current'}
-                                </div>
-                                <div className="text-[11px] text-slate-600 font-medium">Timeline Duration</div>
-                              </div>
-                              <div className="w-[1px] h-8 bg-slate-200" />
-                              <div>
-                                <div className="text-lg font-black text-[#E25C38]">
-                                  {activeCareerMilestones[selectedMilestoneIndex]?.velocityScore || 94}% Match
-                                </div>
-                                <div className="text-[11px] text-slate-600 font-medium">Role Fit</div>
-                              </div>
-                            </div>
-
-                            {/* Key Verified Skills */}
-                            <div className="space-y-1.5">
-                              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                                Skills from CV
-                              </span>
-                              <div className="flex flex-wrap gap-1.5">
-                                {(activeCareerMilestones[selectedMilestoneIndex]?.acquiredSkills || profile.skills.slice(0, 5)).map(
-                                  (skill: string, sIdx: number) => (
-                                    <span
-                                      key={`overview-skill-${skill}-${sIdx}`}
-                                      className="px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs"
-                                    >
-                                      {skill}
-                                    </span>
-                                  )
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Timeline Slider / Selector */}
-                            <div className="mt-4 pt-3 border-t border-slate-100">
-                              <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[11px] text-slate-600 font-medium">Verified Milestones:</span>
-                                <span className="text-[11px] font-bold text-slate-900">
-                                  {selectedMilestoneIndex + 1} of {activeCareerMilestones.length}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                {activeCareerMilestones.map((m: any, idx: number) => (
-                                  <button
-                                    key={`overview-milestone-btn-${m.id || idx}`}
-                                    onClick={() => setSelectedMilestoneIndex(idx)}
-                                    className={`h-2 flex-1 rounded-full transition-all cursor-pointer ${
-                                      selectedMilestoneIndex === idx
-                                        ? 'bg-[#E25C38]'
-                                        : selectedMilestoneIndex > idx
-                                        ? 'bg-slate-400'
-                                        : 'bg-slate-200 hover:bg-slate-300'
-                                    }`}
-                                    title={m.role}
-                                  />
-                                ))}
-                              </div>
-                            </div>
+                            <p className="text-xs text-slate-700 mt-2 leading-relaxed">
+                              {activeCareerMilestones[selectedMilestoneIndex]?.description || 'Building production-grade full-stack architectures and AI model pipelines with automated test suites.'}
+                            </p>
                           </div>
 
-                          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 mt-2">
-                            <span className="truncate pr-2">
-                              Verified: <strong className="text-slate-900">{activeCareerMilestones[selectedMilestoneIndex]?.verifiedBy || 'LaunchED Global'}</strong>
-                            </span>
-                            <button
-                              onClick={() => {
-                                setActiveTab('time-machine');
-                                showToast('Opening Career Journey');
-                              }}
-                              className="font-bold text-slate-900 hover:text-[#E25C38] flex items-center gap-1 transition-colors cursor-pointer shrink-0"
-                            >
-                              <span>Explore Full Path</span>
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </button>
+                          {/* Milestone Step Selector */}
+                          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                            {activeCareerMilestones.map((m: any, idx: number) => (
+                              <button
+                                key={`milestone-${m.period || 'p'}-${idx}`}
+                                onClick={() => setSelectedMilestoneIndex(idx)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                                  selectedMilestoneIndex === idx
+                                    ? 'bg-slate-900 text-white shadow-xs'
+                                    : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+                                }`}
+                              >
+                                {m.period}: {m.role.split(' ')[0]}
+                              </button>
+                            ))}
                           </div>
                         </div>
 
-                        {/* Coding Velocity (5 cols) - Solid White with GitHub Integration */}
-                        <div className="sm:col-span-5 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between transition-all">
-                          <div>
-                            <div className="flex items-center justify-between mb-3">
-                              <div>
-                                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                                  GitHub Commits & Activity
-                                </span>
-                                <span className="text-xs font-bold text-slate-800">@{activeGithubUsername}</span>
-                              </div>
-                              <span className="text-xs font-mono font-bold text-[#0284c7] px-2.5 py-0.5 rounded-full bg-sky-50 border border-sky-200 shadow-xs">
-                                {githubData?.recentPushesCount ? `${githubData.recentPushesCount * 8} Commits` : '169 Peak'}
-                              </span>
-                            </div>
+                        <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                          <span>Verification Source: Local AST Parser & GitHub</span>
+                          <span className="font-bold text-emerald-600">Active Pipeline</span>
+                        </div>
+                      </div>
 
-                            {/* Bar Chart */}
-                            <div className="flex items-end justify-between h-32 pt-2 px-2">
-                              {[
-                                { month: 'Jan', value: 55, active: false },
-                                { month: 'Feb', value: 75, active: false },
-                                { month: 'Mar', value: 100, active: true },
-                                { month: 'Apr', value: 65, active: false },
-                                { month: 'May', value: 85, active: false },
-                                { month: 'Jun', value: 70, active: false },
-                              ].map((bar) => (
-                                <div key={bar.month} className="flex flex-col items-center gap-1.5 flex-1">
-                                  <div className="w-full h-24 flex items-end justify-center">
-                                    <div
-                                      style={{ height: `${bar.value}%` }}
-                                      className={`w-3.5 sm:w-4 rounded-full transition-all ${
-                                        bar.active
-                                          ? 'bg-[#0284c7] shadow-sm'
-                                          : 'bg-slate-200 hover:bg-slate-300'
-                                      }`}
-                                    />
-                                  </div>
-                                  <span className={`text-[10px] font-bold ${bar.active ? 'text-slate-900' : 'text-slate-500'}`}>
-                                    {bar.month}
-                                  </span>
-                                </div>
+                      {/* Right: GitHub Velocity & Telemetry (5 cols) */}
+                      <div className="lg:col-span-5 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                              <Github className="w-4 h-4 text-slate-900" />
+                              <span>GitHub Proof-of-Work</span>
+                            </h3>
+                            <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+                              AST Verified
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 mb-4">
+                            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase">Commits Analyzed</span>
+                              <p className="text-xl font-black text-slate-900 mt-1">
+                                {githubData?.stats?.recentCommitsCount || '48'}
+                              </p>
+                            </div>
+                            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase">Code Velocity</span>
+                              <p className="text-xl font-black text-emerald-600 mt-1">Top 4%</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <span className="text-xs font-bold text-slate-700 block">Verified Tech Stack</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {['TypeScript', 'Next.js', 'Python', 'FastAPI', 'PostgreSQL', 'TailwindCSS'].map((tech) => (
+                                <span key={tech} className="text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-100 text-slate-800">
+                                  {tech}
+                                </span>
                               ))}
                             </div>
-
-                            {/* Real GitHub Repos */}
-                            {githubData?.topRepositories && (
-                              <div className="mt-2.5 pt-2 border-t border-slate-100 flex flex-col gap-1">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                  Active Repos:
-                                </span>
-                                <div className="flex flex-wrap gap-1">
-                                  {githubData.topRepositories.slice(0, 2).map((repo: any) => (
-                                    <a
-                                      key={repo.name}
-                                      href={repo.url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center gap-1"
-                                    >
-                                      <GitBranch className="w-2.5 h-2.5" />
-                                      <span>{repo.name}</span>
-                                    </a>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
                           </div>
+                        </div>
 
-                          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs mt-2">
-                            <span className="text-slate-600 font-medium">Push Velocity</span>
-                            <span className="text-[#0284c7] font-bold flex items-center gap-1">
-                              <TrendingUp className="w-3.5 h-3.5" />
-                              <span>{githubData?.velocityScore || 96}% Consistent</span>
-                            </span>
-                          </div>
+                        <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                          <span className="text-slate-500">Synced user: {activeGithubUsername}</span>
+                          <a href={activeGithubUrl} target="_blank" rel="noreferrer" className="font-bold text-slate-900 hover:text-[#E25C38] flex items-center gap-1">
+                            <span>Open Profile</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
                         </div>
                       </div>
-
-                      {/* Bottom Row: Paid Challenges Preview - Solid White */}
-                      <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between transition-all">
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <Trophy className="w-4 h-4 text-[#E25C38]" />
-                              <h4 className="text-sm font-bold text-slate-900">Paid Coding Challenges</h4>
-                            </div>
-                            <button
-                              onClick={() => setActiveTab('bounties')}
-                              className="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer"
-                            >
-                              View all ({activeBounties.length})
-                            </button>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {activeBounties.slice(0, 2).map((b: SkillBounty, bIdx: number) => (
-                              <div
-                                key={`overview-bounty-${b.id || bIdx}`}
-                                onClick={() => {
-                                  setSelectedBounty(b);
-                                  setSubmitPrModalOpen(true);
-                                }}
-                                className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100/80 border border-slate-100 transition-all cursor-pointer flex flex-col justify-between group"
-                              >
-                                <div>
-                                  <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-xs font-bold text-[#E25C38] font-mono">
-                                      {b.reward || (b.rewardUsdc ? `$${b.rewardUsdc}` : '$500')}
-                                    </span>
-                                    <span className="text-[10px] text-slate-500 font-semibold">
-                                      {b.sponsor || b.organization || 'Verified Partner'}
-                                    </span>
-                                  </div>
-                                  <h5 className="text-xs font-bold text-slate-900 line-clamp-1 group-hover:text-[#E25C38] transition-colors">
-                                    {b.title}
-                                  </h5>
-                                </div>
-                                <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-200/60 text-[11px] text-slate-600">
-                                  <span>{b.difficulty}</span>
-                                  <span className="font-semibold text-slate-800 flex items-center gap-0.5">
-                                    Solve & Earn <ChevronRight className="w-3 h-3" />
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-
-                    {/* Right Column (4 cols): Auto-Connect & Talent Radar */}
-                    <div className="lg:col-span-4 flex flex-col gap-5">
-                      
-                      {/* Smart Connection Card - Solid White (No auto accept for students) */}
-                      <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between transition-all">
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                              Inbound Matching
-                            </span>
-                            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                              <span>Live</span>
-                            </div>
-                          </div>
-
-                          <h4 className="text-base font-bold text-slate-900 leading-snug">
-                            Verified Inbound Inquiries
-                          </h4>
-                          <p className="text-xs text-slate-600 mt-1">
-                            Receive direct inquiries from alumni & founders matching your verified code projects.
-                          </p>
-
-                          <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs font-semibold text-slate-700">Minimum Score Cutoff</span>
-                              <span className="text-xs font-mono font-bold text-slate-900">{autoAcceptThreshold}%</span>
-                            </div>
-                            <input
-                              type="range"
-                              min="50"
-                              max="95"
-                              value={autoAcceptThreshold}
-                              onChange={(e) => setAutoAcceptThreshold(Number(e.target.value))}
-                              className="w-full accent-[#E25C38] cursor-pointer"
-                            />
-                            <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-semibold">
-                              <span>Broad (50%)</span>
-                              <span>Strict (95%)</span>
-                            </div>
-                          </div>
-
-                          <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
-                            <span>Inbound Review:</span>
-                            <span className="font-bold text-emerald-700">
-                              Manual Review Active
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="pt-3 border-t border-slate-100 mt-4 flex items-center justify-between">
-                          <button
-                            onClick={() => {
-                              setActiveTab('auto-connect');
-                              showToast('Viewing Inbound Criteria');
-                            }}
-                            className="text-xs font-bold text-[#E25C38] hover:underline flex items-center gap-1 cursor-pointer"
-                          >
-                            <span>Configure Match Rules</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Talent Radar Card - Solid White */}
-                      <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between transition-all">
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                              Hidden Opportunities Radar
-                            </span>
-                            <Radio className="w-4 h-4 text-[#E25C38] animate-pulse" />
-                          </div>
-
-                          <h4 className="text-base font-bold text-slate-900 leading-snug">
-                            Matched for your Stack
-                          </h4>
-                          <p className="text-xs text-slate-600 mt-1">
-                            Discovered from verified achievements and GitHub repository analysis.
-                          </p>
-
-                          <div className="mt-3.5 space-y-2">
-                            {activeRadarOpportunities.slice(0, 2).map((opp: any, oIdx: number) => (
-                              <div
-                                key={opp.id || `radar-opp-${oIdx}`}
-                                className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between"
-                              >
-                                <div>
-                                  <div className="text-xs font-bold text-slate-900">{opp.role || opp.title}</div>
-                                  <div className="text-[11px] text-slate-500">{opp.company || opp.organization} • {opp.location || 'Remote'}</div>
-                                </div>
-                                <div className="text-right">
-                                  <span className="text-xs font-mono font-bold text-[#E25C38] block">{opp.matchScore}%</span>
-                                  <span className="text-[10px] text-slate-500">{opp.stipend || '$1,200/mo'}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="pt-3 border-t border-slate-100 mt-4 flex items-center justify-between">
-                          <button
-                            onClick={() => {
-                              setActiveTab('radar');
-                              showToast('Opening Talent Radar');
-                            }}
-                            className="text-xs font-bold text-[#E25C38] hover:underline flex items-center gap-1 cursor-pointer"
-                          >
-                            <span>View Radar Stream</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                    </div>
-
-                  </div>
-                </div>
-              )}
-
-              {/* ─────────────────────────────────────────────────────────────
-                  TAB 2: CAREER TIME MACHINE (Solid White Cards)
-                  ───────────────────────────────────────────────────────────── */}
-              {activeTab === 'time-machine' && (
-                <div key="time-machine" className="flex-1 flex flex-col justify-between gap-6 animate-in fade-in duration-150">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
-                    <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Career Journey</h2>
-                      <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                        Track verified milestones from your CV and simulate future roles.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-500">Current Readiness:</span>
-                      <span className="text-xs font-mono font-bold text-[#E25C38] px-3 py-1 rounded-full bg-[#E25C38]/10 border border-[#E25C38]/20">
-                        {targetReadinessScore}% Senior Ready
-                      </span>
                     </div>
                   </div>
+                )}
 
-                  {/* Career Timeline Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    {activeCareerMilestones.map((m: any, idx: number) => (
-                      <div
-                        key={m.id || idx}
-                        onClick={() => setSelectedMilestoneIndex(idx)}
-                        className={`rounded-3xl p-6 bg-white border transition-all cursor-pointer flex flex-col justify-between shadow-[0_4px_25px_rgba(0,0,0,0.03)] ${
-                          selectedMilestoneIndex === idx
-                            ? 'border-[#E25C38] ring-2 ring-[#E25C38]/20'
-                            : 'border-slate-100 hover:border-slate-300'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-[11px] font-mono font-bold text-[#E25C38]">{m.period}</span>
-                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                              {m.duration}
-                            </span>
-                          </div>
-                          <h3 className="text-base font-bold text-slate-900 leading-snug">{m.role}</h3>
-                          <p className="text-xs text-slate-600 mt-1">{m.company}</p>
-                          <p className="text-xs text-slate-700 mt-3 line-clamp-3 leading-relaxed">
-                            {m.keyAchievement}
-                          </p>
-                        </div>
-
-                        <div className="mt-5 pt-3 border-t border-slate-100 flex flex-wrap gap-1.5">
-                          {m.acquiredSkills.map((s: string) => (
-                            <span key={s} className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-slate-100 text-slate-700">
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Skills to Learn Next Box */}
-                  <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                    <div className="flex items-center justify-between mb-3">
+                {/* 2. STUDENT ALUMNI PROBLEMS TAB (IMAGE 3 UI) */}
+                {activeTab === 'problems' && (
+                  <div key="student-problems" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    {/* Header & Category Filters */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
-                        <h4 className="text-sm font-bold text-slate-900">Recommended Skills to Unlock Next Role</h4>
-                        <p className="text-xs text-slate-600">Based on industry demand for {activeUserRole}</p>
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                          Alumni Problem Statements & Architecture Bounties
+                        </h2>
+                        <p className="text-xs text-slate-600 mt-1">
+                          Real bottlenecks posted by verified senior alumni. Click any card to submit your project or GitHub repository for review.
+                        </p>
+                      </div>
+
+                      {/* Category Filter Pills */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+                        {['All', 'Healthcare', 'Blockchain', 'FinTech', 'Fake News', 'Hardware', 'Automotive', 'Housing', 'Career'].map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => setProblemCategoryFilter(cat)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                              problemCategoryFilter === cat
+                                ? 'bg-slate-900 text-white shadow-xs'
+                                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {activeSkillGap.missingSkills.map((skill: any, sIdx: number) => {
-                        const skillName = skill.name || skill.skill || 'Advanced Systems';
-                        const priority = skill.priority || (skill.weight ? `Weight: ${skill.weight}` : 'HIGH');
+
+                    {/* Image 3 High-Contrast Bento Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {filteredProblems.map((prob) => {
+                        const isBlue = prob.cardVariant === 'blue';
+                        const isCharcoal = prob.cardVariant === 'charcoal';
+                        const isWhite = prob.cardVariant === 'white';
+
                         return (
-                          <div key={`missing-skill-${sIdx}-${skillName}`} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                          <div
+                            key={prob.id}
+                            onClick={() => {
+                              setSelectedProblem(prob);
+                              setIsSubmitSolutionModalOpen(true);
+                            }}
+                            className={`rounded-3xl p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-1 group relative ${
+                              isBlue
+                                ? 'bg-[#0047FF] text-white shadow-[0_8px_30px_rgba(0,71,255,0.22)]'
+                                : isCharcoal
+                                ? 'bg-[#181A20] text-white border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.25)]'
+                                : 'bg-white text-slate-900 border border-slate-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)]'
+                            }`}
+                          >
+                            {/* Card Top: Category Pill + Circular Arrow */}
                             <div>
-                              <div className="text-xs font-bold text-slate-900">{skillName}</div>
-                              <div className="text-[10px] text-slate-500">Priority: {priority}</div>
+                              <div className="flex items-center justify-between mb-4">
+                                <span
+                                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                                    isBlue
+                                      ? 'bg-white/20 text-white border border-white/20'
+                                      : isCharcoal
+                                      ? 'bg-white/10 text-white border border-white/10'
+                                      : 'bg-slate-100 text-slate-800 border border-slate-200/60'
+                                  }`}
+                                >
+                                  {prob.category}
+                                </span>
+
+                                <div
+                                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:translate-x-0.5 ${
+                                    isBlue
+                                      ? 'border border-white/30 text-white'
+                                      : isCharcoal
+                                      ? 'border border-white/20 text-white'
+                                      : 'border border-slate-300 text-slate-700'
+                                  }`}
+                                >
+                                  <ArrowRight className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
+
+                              {/* Provocative Question in Punchy Typography */}
+                              <h3
+                                className={`text-base font-bold leading-snug tracking-tight mb-4 ${
+                                  isBlue || isCharcoal ? 'text-white' : 'text-slate-900'
+                                }`}
+                              >
+                                {prob.question}
+                              </h3>
                             </div>
-                            <button
-                              onClick={() => {
-                                setActiveTab('bounties');
-                                showToast(`Finding bounties for ${skillName}`);
-                              }}
-                              className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-black text-white text-[10px] font-bold cursor-pointer"
-                            >
-                              Solve Bounty
-                            </button>
+
+                            {/* Card Footer: Alumni Poster & Reward */}
+                            <div className="pt-3 border-t border-current/10 flex flex-col gap-1.5">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className={isBlue || isCharcoal ? 'text-white/80' : 'text-slate-600'}>
+                                  {prob.alumniName}
+                                </span>
+                                <span className="font-bold text-[11px] truncate max-w-[130px]">
+                                  {prob.alumniCompany}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between mt-1">
+                                <span
+                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                                    isBlue
+                                      ? 'bg-white text-[#0047FF]'
+                                      : isCharcoal
+                                      ? 'bg-[#E25C38] text-white'
+                                      : 'bg-slate-900 text-white'
+                                  }`}
+                                >
+                                  {prob.bountyReward}
+                                </span>
+
+                                <span
+                                  className={`text-[11px] font-bold flex items-center gap-1 group-hover:underline ${
+                                    isBlue || isCharcoal ? 'text-white' : 'text-[#E25C38]'
+                                  }`}
+                                >
+                                  <span>Submit Solution</span>
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* ─────────────────────────────────────────────────────────────
-                  TAB 3: PAID CODING CHALLENGES (Solid White Cards)
-                  ───────────────────────────────────────────────────────────── */}
-              {activeTab === 'bounties' && (
-                <div key="bounties" className="flex-1 flex flex-col justify-between gap-6 animate-in fade-in duration-150">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
+                {/* 3. STUDENT AUTO-CONNECT & SENIOR OUTREACH TAB */}
+                {activeTab === 'outreach' && (
+                  <div key="student-outreach" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Paid Coding Challenges</h2>
-                      <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                        Solve real-world open issues, submit a PR, and receive verified USDC rewards upon automated merge.
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                        Alumni Outreach & Instant Connection Eligibility (The Unlocker)
+                      </h2>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Verified alumni deploy automated criteria firewalls. Match their score to connect instantly or send a personalized note to their manual queue.
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold text-slate-700 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-2xs">
-                        Escrow: {profile.stats?.escrowVolume || '$4,200'}
-                      </span>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                      {/* Left: Senior Cards */}
+                      <div className="lg:col-span-2 space-y-4">
+                        {[
+                          {
+                            name: 'Rahul Mehta',
+                            role: 'Staff Platform Engineer @ Uber',
+                            req: 'Requires ≥ 75% match, React, Docker, and min 15 GitHub commits.',
+                            currentMatch: 62,
+                            targetMatch: 75,
+                            met: ['React (AST Verified)', '18 Commits (Met)'],
+                            missing: ['Docker (Missing on profile)']
+                          },
+                          {
+                            name: 'Dr. Priya Sharma',
+                            role: 'Lead Bioinformatician @ Apollo & Epic',
+                            req: 'Requires ≥ 70% match, Python, FHIR Standards, and min 20 commits.',
+                            currentMatch: 78,
+                            targetMatch: 70,
+                            met: ['Python (Verified)', 'FHIR Linkage (Met)', '22 Commits (Met)'],
+                            missing: []
+                          },
+                          {
+                            name: 'Siddharth Verma',
+                            role: 'Web3 Protocol Lead @ Polygon',
+                            req: 'Requires ≥ 80% match, Solidity, ERC-4337, and min 25 commits.',
+                            currentMatch: 58,
+                            targetMatch: 80,
+                            met: ['JavaScript (Met)'],
+                            missing: ['Solidity', 'Account Abstraction']
+                          }
+                        ].map((sr) => (
+                          <div key={sr.name} className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                              <div>
+                                <h3 className="text-base font-bold text-slate-900">{sr.name}</h3>
+                                <p className="text-xs text-slate-600 font-medium">{sr.role}</p>
+                              </div>
+                              <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full ${
+                                sr.currentMatch >= sr.targetMatch
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                Match: {sr.currentMatch}% / {sr.targetMatch}%
+                              </span>
+                            </div>
+
+                            <p className="text-xs text-slate-600 mb-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                              <strong>Policy:</strong> {sr.req}
+                            </p>
+
+                            {/* Checklist */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 text-xs">
+                              <div>
+                                <span className="font-bold text-emerald-600 block mb-1">✓ Met Criteria:</span>
+                                {sr.met.map((m) => (
+                                  <div key={m} className="text-slate-700 flex items-center gap-1.5">• {m}</div>
+                                ))}
+                              </div>
+                              {sr.missing.length > 0 && (
+                                <div>
+                                  <span className="font-bold text-rose-600 block mb-1">✗ Missing to Unlock Auto-Accept:</span>
+                                  {sr.missing.map((m) => (
+                                    <div key={m} className="text-slate-700 flex items-center gap-1.5">• {m}</div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2.5">
+                              {sr.currentMatch >= sr.targetMatch ? (
+                                <button
+                                  onClick={() => showToast(`Smart Auto-Connect handshake triggered with ${sr.name}! Accepted.`)}
+                                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Instant Connect (Shield Passed)</span>
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setManualNoteSenior(sr.name);
+                                      setManualNoteModalOpen(true);
+                                    }}
+                                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                                  >
+                                    Submit to {sr.name.split(' ')[0]}&apos;s Manual Queue
+                                  </button>
+                                  <button
+                                    onClick={() => setActiveTab('problems')}
+                                    className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#E25C38] text-xs font-bold transition-all border border-amber-200 cursor-pointer"
+                                  >
+                                    Solve Bounty to Unlock Auto-Connect
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Right: Tip & Telemetry */}
+                      <div className="space-y-4">
+                        <div className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                          <div className="w-10 h-10 rounded-2xl bg-amber-50 text-[#E25C38] flex items-center justify-center mb-3">
+                            <ShieldCheck className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-base font-bold text-slate-900">Why Auto-Connect Works</h3>
+                          <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                            Senior alumni receive dozens of cold LinkedIn messages daily. Kin&apos;s AST validator proves your code quality upfront so seniors auto-accept you without hesitation.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {activeBounties.map((b: SkillBounty) => (
-                      <div
-                        key={b.id}
-                        className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between transition-all hover:border-slate-300 group"
-                      >
+                {/* 4. STUDENT CAREER TIME MACHINE TAB */}
+                {activeTab === 'time-machine' && (
+                  <div key="student-time-machine" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                          Career Time Machine (The Skill-Gap Explorer)
+                        </h2>
+                        <p className="text-xs text-slate-600 mt-1">
+                          Benchmark your trajectory against alumni who successfully stepped into senior leadership.
+                        </p>
+                      </div>
+
+                      {/* Target Role Dropdown */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-700">Target Role:</span>
+                        <select
+                          value={targetRoleSelection}
+                          onChange={(e) => setTargetRoleSelection(e.target.value)}
+                          className="px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 shadow-xs focus:outline-none"
+                        >
+                          <option value="Staff AI Engineer">Staff AI Engineer</option>
+                          <option value="FinTech Quant">FinTech Quant Lead</option>
+                          <option value="Founding Frontend Engineer">Founding Frontend Engineer</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                      {/* Timeline Progression */}
+                      <div className="lg:col-span-7 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
+                        <h3 className="text-base font-bold text-slate-900">Alumni Verified Milestone Path for {targetRoleSelection}</h3>
+                        
+                        <div className="space-y-3">
+                          {[
+                            { year: 'Year 1: University & Intern', desc: 'Shipped Next.js full-stack apps, mastered React & relational schemas. 300+ GitHub commits.' },
+                            { year: 'Year 2: Associate SDE', desc: 'Implemented Docker containerization, Kafka event pipelines, and production CI/CD.' },
+                            { year: 'Year 4: Senior SDE', desc: 'Designed high-availability microservices handling 25k req/sec with sub-50ms p99 latency.' },
+                            { year: 'Year 6: Staff Architect', desc: 'Technical strategy, cross-org distributed consensus design, and mentorship of 18 engineers.' },
+                          ].map((step, idx) => (
+                            <div key={step.year} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex gap-3">
+                              <span className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                                {idx + 1}
+                              </span>
+                              <div>
+                                <h4 className="text-xs font-bold text-slate-900">{step.year}</h4>
+                                <p className="text-xs text-slate-600 mt-0.5">{step.desc}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Deterministic Skill Gap Analysis */}
+                      <div className="lg:col-span-5 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
                         <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-black font-mono text-[#E25C38]">
-                              {b.reward || (b.rewardUsdc ? `$${b.rewardUsdc}` : '$500')}
-                            </span>
-                            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                              {b.sponsor || b.organization || 'Verified Partner'}
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-base font-bold text-slate-900">Deterministic Skill Gap</h3>
+                            <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                              64% Match
                             </span>
                           </div>
-                          <h3 className="text-base font-bold text-slate-900 group-hover:text-[#E25C38] transition-colors">
-                            {b.title}
-                          </h3>
-                          <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                            {b.description || `Verified task in ${b.category || 'Engineering'} with automated test verification.`}
-                          </p>
 
-                          <div className="mt-4 flex flex-wrap gap-1.5">
-                            {b.requiredSkills.map((s) => (
-                              <span key={s} className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-slate-100 text-slate-700">
-                                {s}
-                              </span>
-                            ))}
+                          <div className="space-y-3 text-xs">
+                            <div className="space-y-1">
+                              <div className="flex justify-between font-bold">
+                                <span>React & Frontend Engineering</span>
+                                <span className="text-emerald-600">100% (Verified)</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: '100%' }} />
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex justify-between font-bold">
+                                <span>FastAPI & Python AI Pipelines</span>
+                                <span className="text-emerald-600">85% (Verified)</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: '85%' }} />
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex justify-between font-bold">
+                                <span>Docker & Container Orchestration</span>
+                                <span className="text-rose-600">Missing on Profile</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-rose-500 rounded-full" style={{ width: '20%' }} />
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex justify-between font-bold">
+                                <span>High-Throughput Kafka Streams</span>
+                                <span className="text-amber-600">In Progress (40%)</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-amber-500 rounded-full" style={{ width: '40%' }} />
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                          <span className="text-xs font-semibold text-slate-500">{b.difficulty}</span>
+                        <button
+                          onClick={() => setActiveTab('problems')}
+                          className="mt-6 w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <span>Solve Docker Bounty to Close Gap</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. STUDENT 20-MINUTE DOORWAY TAB */}
+                {activeTab === 'doorway' && (
+                  <div key="student-doorway" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    <div>
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                        20-Minute Doorway (Book a Verified Mentorship Session)
+                      </h2>
+                      <p className="text-xs text-slate-600 mt-1">
+                        High-leverage, 100% human-verified 20-min consults protected by Kin&apos;s anti-AI-slop guarantee.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      {[
+                        { name: 'Rahul Mehta', role: 'Staff SDE @ Uber', fee: '₹800 for 20 mins', rating: '4.9 ★', specialty: 'System Design Drill', exp: '8 yrs exp' },
+                        { name: 'Dr. Priya Sharma', role: 'Lead Bioinformatician @ Apollo', fee: '₹950 for 20 mins', rating: '5.0 ★', specialty: 'AI / Healthcare Architecture', exp: '10 yrs exp' },
+                        { name: 'Siddharth Verma', role: 'Protocol Lead @ Polygon', fee: '₹1,000 for 20 mins', rating: '4.9 ★', specialty: 'Web3 & Smart Contract Audit', exp: '6 yrs exp' }
+                      ].map((exp) => (
+                        <div key={exp.name} className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                                {exp.specialty}
+                              </span>
+                              <span className="text-xs font-bold text-slate-900">{exp.rating}</span>
+                            </div>
+
+                            <h3 className="text-base font-bold text-slate-900 mt-2">{exp.name}</h3>
+                            <p className="text-xs text-slate-600">{exp.role}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{exp.exp}</p>
+
+                            <div className="my-4 p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700">
+                              <span className="font-bold text-slate-900 block">{exp.fee}</span>
+                              <span className="text-[10px] text-slate-500">50% supports student endowments</span>
+                            </div>
+                          </div>
+
                           <button
                             onClick={() => {
-                              setSelectedBounty(b);
-                              setSubmitPrModalOpen(true);
+                              setSelectedExpert(exp);
+                              setBookingModalOpen(true);
                             }}
-                            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                            className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                           >
-                            <span>Submit Pull Request</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>Book 20-Min Slot</span>
                           </button>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* ─────────────────────────────────────────────────────────────
-                  TAB 4: SMART AUTO-CONNECT (Solid White Cards)
-                  ───────────────────────────────────────────────────────────── */}
-              {activeTab === 'auto-connect' && (
-                <div key="auto-connect" className="flex-1 flex flex-col justify-between gap-6 animate-in fade-in duration-150">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
+                {/* 6. STUDENT WISDOM CAPSULE TAB */}
+                {activeTab === 'wisdom' && (
+                  <div key="student-wisdom" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Smart Match Criteria</h2>
-                      <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                        Define qualification cutoffs for inbound messages and mentorship requests from alumni.
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                        Wisdom Capsule (90-Second Mock Arena)
+                      </h2>
+                      <p className="text-xs text-slate-600 mt-1">
+                        High-velocity practice prompts. Deliver concise technical explanations in 90 seconds and receive evaluated scorecards.
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-600">Cutoff:</span>
-                      <span className="text-xs font-mono font-bold text-[#E25C38] bg-white px-3 py-1 rounded-full border border-slate-200">
-                        {autoAcceptThreshold}% Match
-                      </span>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    {policies.map((policy) => (
-                      <div
-                        key={policy.id}
-                        className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between"
-                      >
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                      {/* Prompter & Timer Screen */}
+                      <div className="lg:col-span-7 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
                         <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                              Rule #{policy.id}
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-xs font-mono font-bold text-[#E25C38] uppercase">Prompt #104 • Distributed Systems</span>
+                            <span className="text-lg font-mono font-black text-slate-900 bg-slate-100 px-3 py-1 rounded-xl">
+                              {Math.floor(wisdomTimer / 60)}:{String(wisdomTimer % 60).padStart(2, '0')}
                             </span>
-                            <button
-                              onClick={() => handleTogglePolicy(policy.id)}
-                              className={`px-2.5 py-0.5 rounded-full text-xs font-bold cursor-pointer transition-colors ${
-                                policy.autoAccept
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-slate-100 text-slate-600 border border-slate-200'
-                              }`}
-                            >
-                              {policy.autoAccept ? 'Active' : 'Paused'}
-                            </button>
                           </div>
 
-                          <h3 className="text-base font-bold text-slate-900 leading-snug">{policy.name}</h3>
-                          <div className="mt-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-1.5 text-xs">
-                            <div className="flex justify-between text-slate-600">
-                              <span>Target Focus:</span>
-                              <strong className="text-slate-900 truncate max-w-[150px]">
-                                {policy.targetRole || policy.requiredSkills?.join(', ') || 'Full-Stack & AI'}
-                              </strong>
-                            </div>
-                            <div className="flex justify-between text-slate-600">
-                              <span>Min Match Score:</span>
-                              <strong className="text-[#E25C38]">
-                                {policy.minMatchScore || policy.qualificationScoreThreshold || 75}%
-                              </strong>
-                            </div>
-                            <div className="flex justify-between text-slate-600">
-                              <span>Verified Only:</span>
-                              <strong className="text-slate-900">
-                                {policy.verifiedOnly !== undefined ? (policy.verifiedOnly ? 'Yes' : 'No') : 'Yes'}
-                              </strong>
-                            </div>
-                          </div>
-                        </div>
+                          <h3 className="text-lg font-bold text-slate-900 mb-4 leading-snug">
+                            &ldquo;{wisdomActivePrompt}&rdquo;
+                          </h3>
 
-                        <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
-                          <span>{policy.autoAccept ? 'Listening for candidate matches (Manual Review)' : 'Rule is paused'}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ─────────────────────────────────────────────────────────────
-                  TAB 5: HIDDEN OPPORTUNITIES (Solid White Cards)
-                  ───────────────────────────────────────────────────────────── */}
-              {activeTab === 'radar' && (
-                <div key="radar" className="flex-1 flex flex-col justify-between gap-6 animate-in fade-in duration-150">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
-                    <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Hidden Career Opportunities</h2>
-                      <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                        High-growth technical teams seeking verified talent with proven code repositories.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {activeRadarOpportunities.map((opp: any) => (
-                      <div
-                        key={opp.id}
-                        className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-xs font-mono font-bold text-[#E25C38] px-2.5 py-0.5 rounded-full bg-[#E25C38]/10">
-                              {opp.matchScore}% Match
-                            </span>
-                            <span className="text-xs font-bold text-slate-700">{opp.stipend}</span>
-                          </div>
-                          <h3 className="text-base font-bold text-slate-900 leading-snug">{opp.title || opp.role}</h3>
-                          <p className="text-xs text-slate-600 mt-1">
-                            <strong className="text-slate-900">{opp.organization || opp.company}</strong> • {opp.location} {opp.industry ? `• ${opp.industry}` : ''}
-                          </p>
-                          <p className="text-xs text-slate-700 mt-3 leading-relaxed">
-                            {opp.reasoning || opp.skillsNeeded}
-                          </p>
-                          {opp.bridgeSkills && opp.bridgeSkills.length > 0 && (
-                            <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
-                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block w-full mb-0.5">
-                                Latent Bridge Skills
-                              </span>
-                              {opp.bridgeSkills.map((skill: string) => (
-                                <span
-                                  key={skill}
-                                  className="px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] font-semibold text-slate-700 shadow-2xs"
-                                >
-                                  {skill}
-                                </span>
-                              ))}
+                          {isRecordingWisdom && (
+                            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5 mb-4 animate-pulse">
+                              <span className="w-3 h-3 rounded-full bg-rose-600" />
+                              <span className="font-bold">Recording simulated audio answer... Speak clearly into microphone.</span>
                             </div>
                           )}
                         </div>
 
-                        <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
-                          <span className="text-xs font-semibold text-slate-500">Autonomous Radar</span>
+                        <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+                          {!isRecordingWisdom ? (
+                            <button
+                              onClick={() => {
+                                setWisdomTimer(90);
+                                setIsRecordingWisdom(true);
+                                showToast('Recording started! 90 seconds begins now.');
+                              }}
+                              className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-2"
+                            >
+                              <Play className="w-3.5 h-3.5" />
+                              <span>Start 90s Recording</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setIsRecordingWisdom(false);
+                                showToast('Recording submitted for AI & Alumni scorecard evaluation!');
+                              }}
+                              className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-2"
+                            >
+                              <Pause className="w-3.5 h-3.5" />
+                              <span>Finish & Submit</span>
+                            </button>
+                          )}
                           <button
-                            onClick={() => showToast(`Signal transmitted to ${opp.organization || opp.company}`)}
-                            className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer transition-all"
+                            onClick={() => {
+                              setIsRecordingWisdom(false);
+                              setWisdomTimer(90);
+                            }}
+                            className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
                           >
-                            Express Interest
+                            <RotateCcw className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {/* ─────────────────────────────────────────────────────────────
-                  TAB 6: ALUMNI & BUILDER NETWORK (Solid White Cards)
-                  ───────────────────────────────────────────────────────────── */}
-              {activeTab === 'community' && (
-                <div key="community" className="flex-1 flex flex-col justify-between gap-6 animate-in fade-in duration-150">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
+                      {/* Past Scorecards Archive */}
+                      <div className="lg:col-span-5 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
+                        <h3 className="text-base font-bold text-slate-900">Evaluated Scorecard from Staff SDE</h3>
+                        
+                        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3 text-xs">
+                          <div className="flex justify-between">
+                            <span className="font-medium text-slate-700">Technical Depth:</span>
+                            <span className="font-bold text-slate-900">4 / 5</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-medium text-slate-700">Clarity & Communication:</span>
+                            <span className="font-bold text-slate-900">4.5 / 5</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-medium text-slate-700">Structure & Brevity:</span>
+                            <span className="font-bold text-slate-900">4 / 5</span>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-200 text-slate-700 leading-relaxed">
+                            <strong>Alumni Feedback:</strong> &ldquo;Strong breakdown of circuit breakers and database connection pooling. Recommend mentioning exact latency metrics (e.g. p99 sub-30ms) earlier in the pitch.&rdquo;
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 7. STUDENT RADAR TAB */}
+                {activeTab === 'radar' && (
+                  <div key="student-radar" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Alumni & Builder Network</h2>
-                      <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                        Verified peer accomplishments, open-source shipping feeds, and 1-tap peer endorsements.
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                        Talent Radar (Transferable Opportunities)
+                      </h2>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Mapping your software engineering skills to high-yield adjacent fields that recruiters overlook.
                       </p>
                     </div>
 
-                    {/* Search & Filter Bar */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="relative">
-                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          value={searchUserQuery}
-                          onChange={(e) => setSearchUserQuery(e.target.value)}
-                          placeholder="Search builders, skills..."
-                          className="pl-8 pr-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E25C38] w-48 sm:w-56 shadow-2xs"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1 bg-white p-1 rounded-full border border-slate-200 shadow-2xs">
-                        {(['all', 'alumni', 'builders', 'founders'] as const).map((filter) => (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      {[
+                        { domain: 'Autonomous Robotics', match: '84% Match', skills: 'C++, Real-Time Sockets, Computer Vision', comp: '₹35L - ₹55L CTC', comps: 'Skydio, GreyOrange, Tesla Autopilot' },
+                        { domain: 'Quantitative Trading', match: '78% Match', skills: 'Low Latency Python, Time Series, Concurrency', comp: '₹45L - ₹90L CTC', comps: 'Tower Research, Jane Street, Graviton' },
+                        { domain: 'Genomics & Neurotech', match: '72% Match', skills: 'FastAPI, Vector Similarity, FHIR Standards', comp: '₹30L - ₹50L CTC', comps: 'Apollo Health AI, 10x Genomics, Neuralink' }
+                      ].map((rad) => (
+                        <div key={rad.domain} className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+                                {rad.match}
+                              </span>
+                              <span className="text-xs font-bold text-slate-900">{rad.comp}</span>
+                            </div>
+
+                            <h3 className="text-base font-bold text-slate-900">{rad.domain}</h3>
+                            <p className="text-xs text-slate-600 mt-2"><strong>Transferable Tech:</strong> {rad.skills}</p>
+                            <p className="text-xs text-slate-500 mt-1"><strong>Hiring Labs:</strong> {rad.comps}</p>
+                          </div>
+
                           <button
-                            key={filter}
-                            onClick={() => setCommunityFilter(filter)}
-                            className={`px-2.5 py-1 rounded-full text-[11px] font-bold capitalize transition-all cursor-pointer ${
-                              communityFilter === filter
-                                ? 'bg-slate-900 text-white shadow-xs'
-                                : 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                            onClick={() => showToast(`Scout alert subscribed for ${rad.domain} roles!`)}
+                            className="mt-6 w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                          >
+                            Set Radar Alert
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 8. STUDENT & PROFESSIONAL COMMUNITY & SOCIAL TAB */}
+                {activeTab === 'community' && (
+                  <div key="student-community" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                          Professional & Ghost Social Network
+                        </h2>
+                        <p className="text-xs text-slate-600 mt-1">
+                          Share engineering milestones or switch to Kin Ghost Mode for candid, anonymous insights.
+                        </p>
+                      </div>
+
+                      {/* Sub-Tab Switcher */}
+                      <div className="flex items-center p-1 rounded-full bg-slate-100 border border-slate-200">
+                        <button
+                          onClick={() => setCommunitySubTab('feed')}
+                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                            communitySubTab === 'feed' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                          }`}
+                        >
+                          🌐 Public Feed
+                        </button>
+                        <button
+                          onClick={() => setCommunitySubTab('ghost')}
+                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                            communitySubTab === 'ghost' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+                          }`}
+                        >
+                          👻 Kin Ghost Mode
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                      {/* Left: Feed Stream (8 cols) */}
+                      <div className="lg:col-span-8 space-y-4">
+                        {communitySubTab === 'feed' ? (
+                          <>
+                            {/* Public Composer */}
+                            <form onSubmit={handleSocialPost} className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                              <textarea
+                                value={newPostContent}
+                                onChange={(e) => setNewPostContent(e.target.value)}
+                                placeholder="Share a project breakthrough, question, or milestone with verified alumni..."
+                                rows={2}
+                                className="w-full text-xs text-slate-900 placeholder-slate-400 bg-transparent resize-none focus:outline-none"
+                              />
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                                <span className="text-[10px] text-slate-500 font-bold">Posting as: {activeUserName} (Student)</span>
+                                <button
+                                  type="submit"
+                                  className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                                >
+                                  <Send className="w-3 h-3" />
+                                  <span>Post</span>
+                                </button>
+                              </div>
+                            </form>
+
+                            {/* Public Posts */}
+                            {socialFeed.map((post) => (
+                              <div key={post.id} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">
+                                      {post.author.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                      <h4 className="text-xs font-bold text-slate-900">{post.author.name}</h4>
+                                      <span className="text-[10px] text-slate-500">{post.author.role}</span>
+                                    </div>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400">{post.timestamp}</span>
+                                </div>
+                                <p className="text-xs text-slate-800 leading-relaxed my-2">{post.content}</p>
+                                <div className="pt-2 border-t border-slate-100 flex items-center gap-4 text-xs text-slate-500 font-medium">
+                                  <button onClick={() => showToast('Endorsed post!')} className="hover:text-[#E25C38] flex items-center gap-1 cursor-pointer">
+                                    <Heart className="w-3.5 h-3.5" />
+                                    <span>{post.likes}</span>
+                                  </button>
+                                  <button onClick={() => showToast('Opening comments...')} className="hover:text-slate-900 flex items-center gap-1 cursor-pointer">
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                    <span>Comment</span>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        ) : (
+                          <>
+                            {/* Ghost Mode Composer */}
+                            <form onSubmit={handleGhostPost} className="p-4 rounded-3xl bg-[#181A20] text-white border border-white/10 shadow-lg">
+                              <div className="flex items-center gap-2 mb-2 text-xs font-mono text-amber-400">
+                                <span>👻 Posting as: Ghost-Cadet-108 (Cryptographically Pseudonymous)</span>
+                              </div>
+                              <textarea
+                                value={newGhostText}
+                                onChange={(e) => setNewGhostText(e.target.value)}
+                                placeholder="Ask candid questions about placement realities, real compensation, or imposter syndrome safely..."
+                                rows={2}
+                                className="w-full text-xs text-white placeholder-slate-400 bg-transparent resize-none focus:outline-none"
+                              />
+                              <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                                <span className="text-[10px] text-slate-400">Zero corporate or college affiliation leaked</span>
+                                <button
+                                  type="submit"
+                                  className="px-4 py-1.5 rounded-xl bg-[#E25C38] hover:bg-[#c94927] text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                                >
+                                  <Send className="w-3 h-3" />
+                                  <span>Post Ghost Insight</span>
+                                </button>
+                              </div>
+                            </form>
+
+                            {/* Ghost Posts */}
+                            {ghostPosts.map((g) => (
+                              <div key={g.id} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center font-mono">
+                                      👻
+                                    </span>
+                                    <span className="text-xs font-mono font-bold text-slate-900">{g.persona}</span>
+                                    <span className="text-[10px] text-slate-500">• {g.role}</span>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400">{g.timestamp}</span>
+                                </div>
+                                <p className="text-xs text-slate-800 leading-relaxed my-2">{g.content}</p>
+                                <div className="pt-2 border-t border-slate-100 flex items-center gap-4 text-xs text-slate-500">
+                                  <button onClick={() => showToast('Upvoted anonymous insight!')} className="hover:text-[#E25C38] flex items-center gap-1 cursor-pointer">
+                                    <Heart className="w-3.5 h-3.5" />
+                                    <span>{g.likes}</span>
+                                  </button>
+                                  <span>{g.replies} replies</span>
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </div>
+
+                      {/* Right: People You May Know (4 cols) */}
+                      <div className="lg:col-span-4 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
+                        <h3 className="text-base font-bold text-slate-900">People You May Know</h3>
+                        <p className="text-xs text-slate-500">Alumni from your department & batchmates</p>
+
+                        <div className="space-y-3">
+                          {[
+                            { name: 'Kavya Verma', role: 'SDE-1 @ Zomato', dept: 'IIITD CSE 2024' },
+                            { name: 'Aditya Nair', role: 'Quant Analyst @ Tower', dept: 'IIITD CSAM 2023' },
+                            { name: 'Pooja Iyer', role: 'Bioinformatician @ Fortis', dept: 'IIITD CB 2024' }
+                          ].map((p) => (
+                            <div key={p.name} className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50">
+                              <div>
+                                <h4 className="text-xs font-bold text-slate-900">{p.name}</h4>
+                                <span className="text-[10px] text-slate-500 block">{p.role}</span>
+                              </div>
+                              <button
+                                onClick={() => showToast(`Smart connect requested with ${p.name}!`)}
+                                className="px-3 py-1 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 hover:bg-slate-100 cursor-pointer shadow-2xs"
+                              >
+                                Connect
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════════════
+                WORKING PROFESSIONAL COMMAND CENTER WORKSPACE (8 DEDICATED TABS)
+                ═══════════════════════════════════════════════════════════════════ */}
+            {networkRole === 'alumni' && (
+              <div className="flex-1 flex flex-col justify-between w-full">
+                
+                {/* 1. ALUMNI OVERVIEW TAB */}
+                {activeTab === 'overview' && (
+                  <div key="alumni-overview" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    {/* Stats Row */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                      <div className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Connection Shield</span>
+                        <div className="my-2">
+                          <span className="text-2xl sm:text-3xl font-black text-emerald-600">Active</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500">Firewall filtering cold spam</span>
+                      </div>
+
+                      <div className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Pending Student Requests</span>
+                        <div className="my-2">
+                          <span className="text-2xl sm:text-3xl font-black text-slate-900">{pendingQueue.length}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500">Awaiting manual triage</span>
+                      </div>
+
+                      <div className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Bounties Sponsored</span>
+                        <div className="my-2">
+                          <span className="text-2xl sm:text-3xl font-black text-slate-900">1</span>
+                          <span className="text-xs text-amber-600 font-bold ml-1">$150 open</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500">2 candidate solutions</span>
+                      </div>
+
+                      <div className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Consultation Earnings (50%)</span>
+                        <div className="my-2">
+                          <span className="text-2xl sm:text-3xl font-black text-slate-900">₹4,800</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-600 font-bold">Ready for instant payout</span>
+                      </div>
+                    </div>
+
+                    {/* Tip from Kin */}
+                    <div className="p-4 px-5 rounded-3xl bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-transparent border border-orange-500/20 shadow-xs flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-2xl bg-white flex items-center justify-center shadow-xs shrink-0">
+                          <Sparkles className="w-5 h-5 text-[#E25C38]" />
+                        </div>
+                        <p className="text-xs sm:text-sm text-slate-800 font-medium">
+                          <strong>Tip from Kin:</strong> You have 2 candidate PRs waiting for review on your &apos;Patient Duplicate Records&apos; problem!
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab('problems')}
+                        className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold shrink-0 transition-all cursor-pointer shadow-xs"
+                      >
+                        Review PRs
+                      </button>
+                    </div>
+
+                    {/* Quick Command Panels */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      <div className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <div>
+                          <h3 className="text-base font-bold text-slate-900">Post Engineering Bounty</h3>
+                          <p className="text-xs text-slate-600 mt-1">Sponsor challenge statement with USDC or referrals.</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setActiveTab('problems');
+                            setIsPostProblemModalOpen(true);
+                          }}
+                          className="mt-4 w-full py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-black transition-all cursor-pointer"
+                        >
+                          + Post New Problem Statement
+                        </button>
+                      </div>
+
+                      <div className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <div>
+                          <h3 className="text-base font-bold text-slate-900">Adjust Outreach Firewall</h3>
+                          <p className="text-xs text-slate-600 mt-1">Tweak match threshold & minimum commit requirements.</p>
+                        </div>
+                        <button
+                          onClick={() => setActiveTab('firewall')}
+                          className="mt-4 w-full py-2 rounded-xl bg-slate-100 text-slate-800 text-xs font-bold hover:bg-slate-200 transition-all cursor-pointer"
+                        >
+                          Configure Firewall Shield
+                        </button>
+                      </div>
+
+                      <div className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <div>
+                          <h3 className="text-base font-bold text-slate-900">Consultation Settlements</h3>
+                          <p className="text-xs text-slate-600 mt-1">₹6,000 net earned across 12 completed sessions.</p>
+                        </div>
+                        <button
+                          onClick={handleInstantSettlementPayout}
+                          className="mt-4 w-full py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer"
+                        >
+                          Request Instant Payout
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. ALUMNI PROBLEMS & PR SUBMISSION REVIEW CONSOLE */}
+                {activeTab === 'problems' && (
+                  <div key="alumni-problems" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                          Company Problem Statements & Submission Review
+                        </h2>
+                        <p className="text-xs text-slate-600 mt-1">
+                          Review candidate GitHub repositories, inspect diffs, and grant interview referrals.
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => setIsPostProblemModalOpen(true)}
+                        className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>+ Post New Problem Statement</span>
+                      </button>
+                    </div>
+
+                    {/* Candidate Submissions Review Console */}
+                    <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-base font-bold text-slate-900">Candidate PR & Solution Queue</h3>
+                        <span className="text-xs font-mono font-bold text-slate-500">
+                          {candidateSubmissions.length} Submissions Received
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs text-slate-700">
+                          <thead className="text-[10px] uppercase font-bold text-slate-500 bg-slate-50 border-y border-slate-100">
+                            <tr>
+                              <th className="py-2.5 px-3">Student Builder</th>
+                              <th className="py-2.5 px-3">Problem Statement</th>
+                              <th className="py-2.5 px-3">Repo & Test Pass</th>
+                              <th className="py-2.5 px-3">Status</th>
+                              <th className="py-2.5 px-3 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {candidateSubmissions.map((sub) => (
+                              <tr key={sub.id} className="hover:bg-slate-50/60 transition-colors">
+                                <td className="py-3 px-3">
+                                  <span className="font-bold text-slate-900 block">{sub.studentName}</span>
+                                  <span className="text-[10px] text-slate-500">{sub.studentCollege}</span>
+                                </td>
+                                <td className="py-3 px-3 max-w-xs">
+                                  <span className="font-medium truncate block">{sub.problemQuestion}</span>
+                                  <span className="text-[10px] text-slate-500">{sub.submittedAt}</span>
+                                </td>
+                                <td className="py-3 px-3">
+                                  <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="font-bold text-slate-900 hover:text-[#E25C38] flex items-center gap-1">
+                                    <Github className="w-3.5 h-3.5" />
+                                    <span>View GitHub Repo</span>
+                                  </a>
+                                  <span className="text-[10px] font-bold text-emerald-600 block mt-0.5">
+                                    {sub.testsPassed}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3">
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    sub.status === 'accepted' ? 'bg-emerald-100 text-emerald-800' :
+                                    sub.status === 'changes_requested' ? 'bg-amber-100 text-amber-800' :
+                                    sub.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
+                                    'bg-slate-100 text-slate-700'
+                                  }`}>
+                                    {sub.status.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3 text-right">
+                                  {sub.status === 'pending' ? (
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <button
+                                        onClick={() => handleReviewSubmission(sub.id, 'accepted')}
+                                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] cursor-pointer"
+                                      >
+                                        Accept & Refer
+                                      </button>
+                                      <button
+                                        onClick={() => handleReviewSubmission(sub.id, 'changes_requested')}
+                                        className="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-[11px] cursor-pointer"
+                                      >
+                                        Changes
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span className="text-[11px] text-slate-400 font-bold">Reviewed</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. ALUMNI AUTO-CONNECT FIREWALL TAB */}
+                {activeTab === 'firewall' && (
+                  <div key="alumni-firewall" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    <div>
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                        Outreach Firewall & Automated Acceptance Policies (The Gatekeeper)
+                      </h2>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Block unverified cold outreach. Candidates meeting your automated policy are admitted directly into your network.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                      {/* Policy Control Console */}
+                      <div className="lg:col-span-6 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                          <div>
+                            <h3 className="text-base font-bold text-slate-900">Firewall Shield Policy</h3>
+                            <p className="text-xs text-slate-500">Automated gatekeeper rule set</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setFirewallActive(!firewallActive);
+                              showToast(`Firewall shield ${!firewallActive ? 'Enabled' : 'Disabled'}`);
+                            }}
+                            className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer ${
+                              firewallActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
                             }`}
                           >
-                            {filter}
+                            {firewallActive ? 'Shield Active' : 'Shield Off'}
                           </button>
+                        </div>
+
+                        {/* Threshold Slider */}
+                        <div>
+                          <div className="flex justify-between text-xs font-bold mb-1">
+                            <span>Auto-Accept Match Threshold:</span>
+                            <span className="text-[#E25C38]">{firewallThreshold}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="50"
+                            max="100"
+                            value={firewallThreshold}
+                            onChange={(e) => setFirewallThreshold(Number(e.target.value))}
+                            className="w-full accent-[#E25C38]"
+                          />
+                          <span className="text-[10px] text-slate-400">Students scoring ≥ {firewallThreshold}% bypass cold queues immediately.</span>
+                        </div>
+
+                        {/* Minimum GitHub Commits */}
+                        <div>
+                          <div className="flex justify-between text-xs font-bold mb-1">
+                            <span>Minimum GitHub Commits Required:</span>
+                            <span className="text-[#E25C38]">{firewallMinCommits} Commits</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="50"
+                            value={firewallMinCommits}
+                            onChange={(e) => setFirewallMinCommits(Number(e.target.value))}
+                            className="w-full accent-[#E25C38]"
+                          />
+                        </div>
+
+                        {/* Required Skill Chips */}
+                        <div>
+                          <span className="text-xs font-bold text-slate-700 block mb-2">Mandatory Verified Skills (Select to require):</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {['React', 'Python', 'Go', 'Docker', 'PostgreSQL', 'FastAPI', 'Kubernetes'].map((sk) => {
+                              const active = selectedFirewallSkills.includes(sk);
+                              return (
+                                <button
+                                  key={sk}
+                                  type="button"
+                                  onClick={() => {
+                                    if (active) setSelectedFirewallSkills(selectedFirewallSkills.filter((s) => s !== sk));
+                                    else setSelectedFirewallSkills([...selectedFirewallSkills, sk]);
+                                  }}
+                                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                    active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                  }`}
+                                >
+                                  {sk} {active ? '✓' : '+'}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => showToast('Firewall policies saved and deployed to live gateway!')}
+                          className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                        >
+                          Save Policy Configuration
+                        </button>
+                      </div>
+
+                      {/* Pending Review Queue Table */}
+                      <div className="lg:col-span-6 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-base font-bold text-slate-900">Manual Triage Queue ({pendingQueue.length})</h3>
+                          <span className="text-[10px] text-slate-500">Did not meet automated threshold</span>
+                        </div>
+
+                        {pendingQueue.length === 0 ? (
+                          <div className="p-8 text-center text-xs text-slate-400">
+                            No pending connection requests in queue.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {pendingQueue.map((item) => (
+                              <div key={item.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <span className="font-bold text-slate-900">{item.name}</span>
+                                    <span className="text-[10px] text-slate-500 ml-1.5">({item.college})</span>
+                                  </div>
+                                  <span className="font-mono font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">
+                                    {item.match}% Match
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-rose-600 font-semibold mt-1">Missing: {item.missing}</p>
+                                <p className="text-xs text-slate-700 mt-1 italic">&ldquo;{item.note}&rdquo;</p>
+                                
+                                <div className="mt-3 pt-2 border-t border-slate-200 flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => handlePendingQueueAction(item.id, 'decline')}
+                                    className="px-3 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold cursor-pointer"
+                                  >
+                                    Decline
+                                  </button>
+                                  <button
+                                    onClick={() => handlePendingQueueAction(item.id, 'approve')}
+                                    className="px-3 py-1 rounded-lg bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
+                                  >
+                                    Approve & Connect
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. ALUMNI CAREER TIME MACHINE PUBLISHER TAB */}
+                {activeTab === 'time-machine' && (
+                  <div key="alumni-publisher" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    <div>
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                        Your Authentic Journey & Mentorship Footprint (Pathway Publisher)
+                      </h2>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Publish your real career progression milestones so juniors can benchmark their skill path against reality.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                      <div className="lg:col-span-8 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-base font-bold text-slate-900">Published Career Progression</h3>
+                          <button
+                            onClick={() => showToast('Opening milestone editor...')}
+                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-800 cursor-pointer"
+                          >
+                            + Add Career Milestone
+                          </button>
+                        </div>
+
+                        <div className="space-y-3">
+                          {[
+                            { period: '2020 - 2021', role: 'Software Engineer Intern', comp: 'Microsoft', hurdles: 'Overcame multithreading race conditions in C++ telemetry services.' },
+                            { period: '2021 - 2023', role: 'SDE-1', comp: 'Uber Core Platform', hurdles: 'Built asynchronous webhook retry workers processing 40M events/day.' },
+                            { period: '2023 - Present', role: 'Senior Systems Architect', comp: 'Uber / TechCorp', hurdles: 'Driving zero-downtime database sharding and mentoring junior engineers.' }
+                          ].map((step, idx) => (
+                            <div key={`step-${step.period || 'p'}-${idx}`} className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                              <div className="flex justify-between items-center text-xs font-bold text-slate-900">
+                                <span>{step.role} • {step.comp}</span>
+                                <span className="font-mono text-slate-500">{step.period}</span>
+                              </div>
+                              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                                <strong>Hurdle Overcome:</strong> {step.hurdles}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="lg:col-span-4 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <div>
+                          <div className="w-10 h-10 rounded-2xl bg-amber-50 text-[#E25C38] flex items-center justify-center mb-3">
+                            <Users className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-base font-bold text-slate-900">Student Benchmark Footprint</h3>
+                          <div className="my-3">
+                            <span className="text-3xl font-black text-slate-900">148</span>
+                            <span className="text-xs text-slate-600 block mt-1">Students used your timeline as their target benchmark this month.</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-100 text-xs text-slate-500">
+                          Kin verified trajectory footprint
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. ALUMNI 20-MINUTE DOORWAY HOST & PAYOUTS TAB */}
+                {activeTab === 'doorway' && (
+                  <div key="alumni-doorway" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    <div>
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                        Consultation Availability & Financial Settlement
+                      </h2>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Host 20-minute paid sessions. 50% settles directly to your bank, 50% funds student hackathon endowments.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      {/* Rate Settings */}
+                      <div className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
+                        <h3 className="text-base font-bold text-slate-900">Consultation Pricing</h3>
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Set Fee per 20 Minutes:</label>
+                          <input
+                            type="text"
+                            value={consultFeeSetting}
+                            onChange={(e) => setConsultFeeSetting(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none"
+                          />
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Your earnings: <strong>50%</strong> (e.g. ₹500/session). The remaining 50% funds competitive student grants.
+                        </p>
+                        <button
+                          onClick={() => showToast('Consultation schedule & fee updated!')}
+                          className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
+                        >
+                          Save Pricing & Hours
+                        </button>
+                      </div>
+
+                      {/* Revenue Ledger */}
+                      <div className="md:col-span-2 p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-base font-bold text-slate-900">Financial Ledger (50/50 Revenue Split)</h3>
+                            <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                              Verified Settlements
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-3 mb-4 text-xs">
+                            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                              <span className="text-[10px] text-slate-500 font-bold uppercase">Sessions Done</span>
+                              <p className="text-2xl font-black text-slate-900 mt-1">{totalSessionsConducted}</p>
+                            </div>
+                            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                              <span className="text-[10px] text-slate-500 font-bold uppercase">Gross Revenue</span>
+                              <p className="text-2xl font-black text-slate-900 mt-1">₹12,000</p>
+                            </div>
+                            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-100">
+                              <span className="text-[10px] text-emerald-700 font-bold uppercase">Your 50% Share</span>
+                              <p className="text-2xl font-black text-emerald-700 mt-1">₹6,000</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                          <span className="text-xs text-slate-600">Pending Instant Settlement: <strong>₹6,000</strong></span>
+                          <button
+                            onClick={handleInstantSettlementPayout}
+                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                          >
+                            Request Instant Settlement Payout
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. ALUMNI WISDOM CAPSULE INTERVIEWER COCKPIT TAB */}
+                {activeTab === 'wisdom' && (
+                  <div key="alumni-wisdom" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    <div>
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                        Wisdom Capsule Interviewer Cockpit
+                      </h2>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Listen to candidate 90-second voice pitches and grade them on technical depth and brevity.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                      <div className="lg:col-span-7 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-mono font-bold text-slate-500">Candidate: Darsh Ohri (IIIT Delhi)</span>
+                          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">New Submission</span>
+                        </div>
+
+                        <h3 className="text-base font-bold text-slate-900">
+                          Prompt: &ldquo;Explain distributed consensus failure recovery in 90 seconds.&rdquo;
+                        </h3>
+
+                        <div className="p-4 rounded-2xl bg-slate-900 text-white flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => showToast('Playing simulated candidate audio recording...')}
+                              className="w-9 h-9 rounded-full bg-white text-slate-900 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+                            >
+                              <Play className="w-4 h-4 ml-0.5" />
+                            </button>
+                            <div>
+                              <span className="text-xs font-bold block">Darsh_Ohri_Consensus_Answer.wav</span>
+                              <span className="text-[10px] text-slate-400">1:28 duration • Waveform clear</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Grading Sliders */}
+                        <div className="space-y-3 pt-2">
+                          <div>
+                            <div className="flex justify-between text-xs font-bold mb-1">
+                              <span>Technical Depth:</span>
+                              <span className="text-[#E25C38]">{wisdomDepthScore}/5</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="1"
+                              max="5"
+                              value={wisdomDepthScore}
+                              onChange={(e) => setWisdomDepthScore(Number(e.target.value))}
+                              className="w-full accent-[#E25C38]"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between text-xs font-bold mb-1">
+                              <span>Clarity & Communication:</span>
+                              <span className="text-[#E25C38]">{wisdomClarityScore}/5</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="1"
+                              max="5"
+                              value={wisdomClarityScore}
+                              onChange={(e) => setWisdomClarityScore(Number(e.target.value))}
+                              className="w-full accent-[#E25C38]"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between text-xs font-bold mb-1">
+                              <span>Structure & Brevity:</span>
+                              <span className="text-[#E25C38]">{wisdomBrevityScore}/5</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="1"
+                              max="5"
+                              value={wisdomBrevityScore}
+                              onChange={(e) => setWisdomBrevityScore(Number(e.target.value))}
+                              className="w-full accent-[#E25C38]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Feedback Submission */}
+                      <div className="lg:col-span-5 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+                        <div>
+                          <h3 className="text-base font-bold text-slate-900 mb-2">Provide Feedback & Tags</h3>
+                          
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {['Strong architectural thinking', 'Add quantifiable metrics', 'Clear latency trade-offs', 'Great vocal pacing'].map((tag) => (
+                              <button
+                                key={tag}
+                                onClick={() => setWisdomFeedbackAdvice((prev) => prev ? `${prev} ${tag}.` : `${tag}.`)}
+                                className="text-[10px] font-bold px-2.5 py-1 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer"
+                              >
+                                + {tag}
+                              </button>
+                            ))}
+                          </div>
+
+                          <textarea
+                            value={wisdomFeedbackAdvice}
+                            onChange={(e) => setWisdomFeedbackAdvice(e.target.value)}
+                            placeholder="Write constructive tactical advice for Darsh..."
+                            rows={4}
+                            className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none"
+                          />
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            showToast('Scorecard & tactical advice submitted to candidate!');
+                            setWisdomFeedbackAdvice('');
+                          }}
+                          className="mt-4 w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
+                        >
+                          Submit Scorecard to Student
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 7. ALUMNI TALENT SCOUT RADAR TAB */}
+                {activeTab === 'radar' && (
+                  <div key="alumni-radar" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    <div>
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                        Unclaimed Talent Scout (Radar)
+                      </h2>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Discover high-performing students who have top commit velocity and bounty wins but are from non-target colleges or unplaced branches.
+                      </p>
+                    </div>
+
+                    <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-base font-bold text-slate-900">Unplaced Top Builders (AST Verified)</h3>
+                        <span className="text-xs text-slate-500">Sorted by Commit Velocity & Bounty Wins</span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {[
+                          { name: 'Darsh Ohri', college: 'IIIT Delhi (CSE Data Science)', velocity: 'Top 4% Velocity', topSkill: 'FastAPI, FHIR, Vector Search', bountyWins: '2 Bounties Won' },
+                          { name: 'Aarav Sharma', college: 'Tier 3 Govt College (Electrical)', velocity: 'Top 2% Velocity', topSkill: 'Rust, WebUSB, Account Abstraction', bountyWins: '3 Bounties Won' },
+                          { name: 'Sanya Mirza', college: 'SGSITS Indore (IT)', velocity: 'Top 5% Velocity', topSkill: 'Next.js, Solr, Predictive ML', bountyWins: '1 Bounty Won' }
+                        ].map((cand) => (
+                          <div key={cand.name} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-xs font-bold text-slate-900">{cand.name}</h4>
+                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                  {cand.velocity}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-600">{cand.college}</p>
+                              <p className="text-[11px] text-slate-500 mt-0.5"><strong>Core:</strong> {cand.topSkill} • {cand.bountyWins}</p>
+                            </div>
+
+                            <button
+                              onClick={() => showToast(`Direct referral interview invite sent to ${cand.name}!`)}
+                              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap"
+                            >
+                              Send Direct Referral
+                            </button>
+                          </div>
                         ))}
                       </div>
                     </div>
                   </div>
+                )}
 
-                  {/* Share an update input */}
-                  <form onSubmit={handleCreatePost} className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex gap-3">
-                    <input
-                      type="text"
-                      value={newPostContent}
-                      onChange={(e) => setNewPostContent(e.target.value)}
-                      placeholder="Share a project launch or code milestone with the network..."
-                      className="flex-1 px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E25C38]"
-                    />
-                    <button
-                      type="submit"
-                      className="px-5 py-2.5 rounded-2xl bg-slate-900 hover:bg-black text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
-                    >
-                      <span>Share</span>
-                      <Send className="w-3.5 h-3.5" />
-                    </button>
-                  </form>
+                {/* 8. ALUMNI COMMUNITY & SOCIAL TAB */}
+                {activeTab === 'community' && (
+                  <div key="alumni-community" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                          Professional & Ghost Social Network
+                        </h2>
+                        <p className="text-xs text-slate-600 mt-1">
+                          Share architectural learnings with peers or share industry compensation realities in Ghost Mode.
+                        </p>
+                      </div>
 
-                  {/* Network Feed */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {filteredSocialFeed.map((post) => (
-                      <div
-                        key={post.id}
-                        className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-9 h-9 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs">
-                                {post.author.name.charAt(0).toUpperCase()}
+                      {/* Sub-Tab Switcher */}
+                      <div className="flex items-center p-1 rounded-full bg-slate-100 border border-slate-200">
+                        <button
+                          onClick={() => setCommunitySubTab('feed')}
+                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                            communitySubTab === 'feed' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                          }`}
+                        >
+                          🌐 Public Feed
+                        </button>
+                        <button
+                          onClick={() => setCommunitySubTab('ghost')}
+                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                            communitySubTab === 'ghost' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+                          }`}
+                        >
+                          👻 Kin Ghost Mode
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                      <div className="lg:col-span-8 space-y-4">
+                        {communitySubTab === 'feed' ? (
+                          <>
+                            <form onSubmit={handleSocialPost} className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                              <textarea
+                                value={newPostContent}
+                                onChange={(e) => setNewPostContent(e.target.value)}
+                                placeholder="Share engineering architectures, hiring openings, or tech updates..."
+                                rows={2}
+                                className="w-full text-xs text-slate-900 placeholder-slate-400 bg-transparent resize-none focus:outline-none"
+                              />
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                                <span className="text-[10px] text-slate-500 font-bold">Posting as: Verified Alumni (Uber)</span>
+                                <button
+                                  type="submit"
+                                  className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
+                                >
+                                  Post Update
+                                </button>
                               </div>
-                              <div>
-                                <div className="text-xs font-bold text-slate-900">{post.author.name}</div>
-                                <div className="text-[11px] text-slate-500">{post.author.role}</div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => handleOpenDm(post.author)}
-                                className="p-1.5 rounded-full text-slate-400 hover:text-slate-900 transition-colors cursor-pointer"
-                                title={`Message ${post.author.name}`}
-                              >
-                                <MessageSquare className="w-4 h-4 stroke-[2]" />
-                                <span className="sr-only">Message {post.author.name}</span>
-                              </button>
-                              <button
-                                onClick={() => handleConnectUser(post.id, post.author.name)}
-                                className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                                  post.connected
-                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                    : 'bg-slate-900 hover:bg-black text-white'
-                                }`}
-                              >
-                                {post.connected ? 'Connected' : 'Connect'}
-                              </button>
-                            </div>
-                          </div>
-                          <p className="text-xs text-slate-700 leading-relaxed">{post.content}</p>
-                        </div>
+                            </form>
 
-                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                          <span>{post.mutualConnections} mutual connections</span>
-                          <button
-                            onClick={() => handleLikePost(post.id)}
-                            className="flex items-center gap-1.5 font-semibold text-slate-700 hover:text-red-600 transition-colors cursor-pointer"
-                          >
-                            <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500/20" />
-                            <span>{post.likes}</span>
-                          </button>
+                            {socialFeed.map((post) => (
+                              <div key={post.id} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div>
+                                    <h4 className="text-xs font-bold text-slate-900">{post.author.name}</h4>
+                                    <span className="text-[10px] text-slate-500">{post.author.role}</span>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400">{post.timestamp}</span>
+                                </div>
+                                <p className="text-xs text-slate-800 leading-relaxed my-2">{post.content}</p>
+                              </div>
+                            ))}
+                          </>
+                        ) : (
+                          <>
+                            <form onSubmit={handleGhostPost} className="p-4 rounded-3xl bg-[#181A20] text-white border border-white/10 shadow-lg">
+                              <span className="text-xs font-mono text-amber-400 block mb-2">👻 Posting as: Ghost-Architect-402 (Zero Employer Trace)</span>
+                              <textarea
+                                value={newGhostText}
+                                onChange={(e) => setNewGhostText(e.target.value)}
+                                placeholder="Share unfiltered industry advice, real salary bands, or layoff warnings..."
+                                rows={2}
+                                className="w-full text-xs text-white placeholder-slate-400 bg-transparent resize-none focus:outline-none"
+                              />
+                              <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                                <span className="text-[10px] text-slate-400">Identity protected</span>
+                                <button
+                                  type="submit"
+                                  className="px-4 py-1.5 rounded-xl bg-[#E25C38] text-white text-xs font-bold cursor-pointer"
+                                >
+                                  Post Ghost Insight
+                                </button>
+                              </div>
+                            </form>
+
+                            {ghostPosts.map((g) => (
+                              <div key={g.id} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-mono font-bold text-slate-900">👻 {g.persona}</span>
+                                  <span className="text-[10px] text-slate-400">{g.timestamp}</span>
+                                </div>
+                                <p className="text-xs text-slate-800 leading-relaxed my-2">{g.content}</p>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </div>
+
+                      <div className="lg:col-span-4 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
+                        <h3 className="text-base font-bold text-slate-900">Talent to Watch</h3>
+                        <p className="text-xs text-slate-500">Students with highest commit momentum</p>
+                        <div className="space-y-3">
+                          {[
+                            { name: 'Darsh Ohri', metric: '48 commits / 14 days' },
+                            { name: 'Aarav Sharma', metric: '36 commits / 14 days' }
+                          ].map((t) => (
+                            <div key={t.name} className="p-2.5 rounded-2xl bg-slate-50 flex justify-between items-center text-xs">
+                              <span className="font-bold text-slate-900">{t.name}</span>
+                              <span className="text-emerald-600 font-mono font-bold text-[10px]">{t.metric}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            </div>
-          )}
-        </main>
-
-        {/* ═══════════════════════════════════════════════════════════════
-            FLOATING BOTTOM DOCK WITH PEEKING KIN MASCOT
-            Kin is situated BEHIND the navigation bar, with its upper half
-            peeking out from the top center edge. Clicking it interacts with us!
-            ═══════════════════════════════════════════════════════════════ */}
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center pointer-events-none">
-          {/* Peeking Kin Mascot Behind Dock */}
-          <button
-            onClick={() => {
-              setShowMascotTour(true);
-              setMascotStepIndex(0);
-            }}
-            className="relative -mb-4 z-10 pointer-events-auto group cursor-pointer transition-transform duration-300 hover:-translate-y-2 focus:outline-none"
-            title="Kin AI Guide • Click me to interact! 👋"
-          >
-            {/* Interactive tooltip */}
-            <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-slate-200/80 shadow-md text-[10px] font-bold text-slate-800 whitespace-nowrap pointer-events-none">
-              Kin Guide • Click me 👋
-            </div>
-
-            <div className="w-14 h-14 relative filter drop-shadow-[0_4px_14px_rgba(0,0,0,0.1)]">
-              <KinMascot pose={activeTab as any} size={56} />
-            </div>
-          </button>
-
-          {/* Frosted Glass Nav Bar in Front */}
-          <nav
-            aria-label="Dashboard Navigation"
-            className="relative z-20 pointer-events-auto flex items-center gap-1.5 sm:gap-2 py-1.5 px-3.5 rounded-full bg-white/75 hover:bg-white/85 border border-white/80 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1),_inset_0_1.5px_2px_rgba(255,255,255,0.8)] transition-all"
-          >
-            {navItems.map((item) => {
-              const IconComponent = item.icon;
-              const isActive = activeTab === item.id;
-
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setProfileMenuOpen(false);
-                  }}
-                  className={`relative p-2.5 sm:p-3 rounded-full transition-all duration-200 group cursor-pointer ${
-                    isActive
-                      ? 'bg-[#121826] text-white shadow-[0_8px_20px_rgba(18,24,38,0.35)] scale-105'
-                      : 'text-slate-700 hover:text-slate-950 hover:bg-white/50'
-                  }`}
-                  title={item.label}
-                >
-                  <IconComponent className="w-5 h-5 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
-
-                  {/* Subtle indicator dot for active tab */}
-                  {isActive && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#E25C38]" />
-                  )}
-                </button>
-              );
-            })}
-
-            <div className="w-[1px] h-6 bg-slate-400/30 mx-1" />
-
-          {/* Profile Popover Menu in Bottom Dock */}
-          <div className="relative">
-            <button
-              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-900 border-2 border-white/80 shadow-md flex items-center justify-center text-white text-xs font-bold hover:scale-105 transition-all cursor-pointer overflow-hidden"
-              title="Profile & Options"
-            >
-              <span>{activeUserName.charAt(0).toUpperCase()}</span>
-            </button>
-
-            {profileMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setProfileMenuOpen(false)}
-                />
-                <div className="absolute bottom-14 right-0 z-50 w-64 rounded-3xl p-4 bg-white border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.15)] text-slate-900 animate-in fade-in slide-in-from-bottom-2 duration-150">
-                  <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-                    <div className="w-10 h-10 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-sm">
-                      {activeUserName.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="overflow-hidden">
-                      <div className="font-bold text-xs text-slate-900 truncate">{activeUserName}</div>
-                      <div className="text-[11px] text-slate-500 truncate">{activeUserEmail}</div>
                     </div>
                   </div>
-
-                  <div className="py-2 space-y-1">
-                    <button
-                      onClick={() => {
-                        setProfileMenuOpen(false);
-                        openUploadResumeModal();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                    >
-                      <UploadCloud className="w-4 h-4 text-[#E25C38]" />
-                      <span>Upload / Update CV</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setProfileMenuOpen(false);
-                        setActiveTab('auto-connect');
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                    >
-                      <Settings className="w-4 h-4 text-slate-500" />
-                      <span>Match Settings</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setProfileMenuOpen(false);
-                        setShowMascotTour(true);
-                        setMascotStepIndex(0);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                    >
-                      <HelpCircle className="w-4 h-4 text-[#E25C38]" />
-                      <span>Replay Mascot Guide</span>
-                    </button>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100">
-                    <button
-                      onClick={async () => {
-                        await logout();
-                        setProfileMenuOpen(false);
-                        showToast('Signed out successfully.');
-                        router.push('/');
-                        window.location.href = '/';
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
-                </div>
-              </>
+                )}
+              </div>
             )}
           </div>
-          </nav>
-        </div>
-
+        </main>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════
-          INTERACTIVE KIN MASCOT WALKTHROUGH
-          1) On first load: Dims background, Kin appears in DEAD CENTER without any BG
-             Says: "Hi, I'm Kin", "Welcome to your dashboard"
-          2) On Next: Smoothly glides to each feature with minimal punchy chats!
-          ═══════════════════════════════════════════════════════════════ */}
-      {showMascotTour && (
-        <>
-          {/* STEP 0: Initial Welcome in Dead Center with Dimmed Backdrop */}
-          {mascotStepIndex === 0 && (
-            <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-[3px] flex flex-col items-center justify-center p-4 transition-opacity duration-300">
-              <div className="flex flex-col items-center text-center relative max-w-sm w-full animate-in fade-in zoom-in-95 duration-200">
-                {/* Chat speech bubble right above Kin */}
-                <div className="mb-4 p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_25px_60px_rgba(0,0,0,0.35)] text-slate-900 relative w-full">
-                  <button
-                    onClick={() => setShowMascotTour(false)}
-                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
-                    title="Skip Guide"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+      {/* ─── TOAST NOTIFICATION BANNER ─── */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 15 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-full bg-slate-900 text-white text-xs font-bold shadow-2xl flex items-center gap-2 border border-slate-800"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#E25C38]" />
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-                    Hi, I'm Kin 👋
-                  </h3>
-                  <p className="text-sm font-semibold text-slate-600 mt-1">
-                    Welcome to your dashboard
-                  </p>
+      {/* ─── BOTTOM FLOATING GLASS DOCK (SINGLE KIN MASCOT BEHIND DOCK) ─── */}
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center pointer-events-none">
+        
+        {/* PEEKING KIN MASCOT BEHIND DOCK: ONLY RENDERED WHEN TOUR IS NOT ACTIVE! */}
+        <AnimatePresence mode="wait">
+          {!showMascotTour && (
+            <motion.button
+              key="dock-mascot-peek"
+              initial={{ opacity: 0, y: 28, scale: 0.85 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 28, scale: 0.85 }}
+              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              onClick={() => {
+                setMascotStepIndex(0);
+                setShowMascotTour(true);
+              }}
+              className="relative -mb-4 z-10 pointer-events-auto group cursor-pointer transition-transform duration-300 hover:-translate-y-2 focus:outline-none"
+              title="Kin AI Guide • Click me to interact! 👋"
+            >
+              <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-slate-200 shadow-md text-[10px] font-bold text-slate-800 whitespace-nowrap pointer-events-none">
+                Kin Guide • Click me 👋
+              </div>
 
-                  <div className="mt-5 flex items-center justify-center gap-2">
+              <div className="w-14 h-14 relative filter drop-shadow-[0_4px_14px_rgba(0,0,0,0.1)]">
+                <KinMascot pose={activeTab as any} size={56} />
+              </div>
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        {/* FROSTED GLASS NAV DOCK */}
+        <nav
+          aria-label="Dashboard Navigation"
+          className="relative z-20 pointer-events-auto flex items-center gap-1 sm:gap-2 py-1.5 px-3.5 rounded-full bg-white/75 hover:bg-white/85 border border-white/80 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1),_inset_0_1.5px_2px_rgba(255,255,255,0.8)] transition-all"
+        >
+          {activeNavList.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = activeTab === item.id;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setProfileMenuOpen(false);
+                }}
+                className={`relative p-2.5 sm:p-3 rounded-full transition-all duration-200 group cursor-pointer ${
+                  isActive
+                    ? 'text-white bg-slate-900 shadow-md'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+                }`}
+                title={item.label}
+              >
+                <IconComponent className="w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform group-hover:scale-110" />
+
+                {/* Floating tooltip */}
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap pointer-events-none">
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* ─── KIN MASCOT TOUR MODAL / OVERLAY (SINGLE KIN) ─── */}
+      <AnimatePresence>
+        {showMascotTour && (
+          <>
+            {/* STEP 0: Centered Welcome Mascot */}
+            {mascotStepIndex === 0 && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-md">
+                <div className="relative flex flex-col items-center max-w-sm w-full animate-in fade-in zoom-in-95 duration-200">
+                  {/* Speech bubble */}
+                  <div className="w-full rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.2)] text-slate-900 mb-4 text-center relative">
+                    <button
+                      onClick={() => setShowMascotTour(false)}
+                      className="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    <h3 className="text-xl font-black text-slate-900">Hi, I&apos;m Kin 👋</h3>
+                    <p className="text-xs text-slate-600 mt-1 mb-4 leading-relaxed font-medium">
+                      Welcome to your dashboard! Let me introduce you to your role features and problem bounties.
+                    </p>
                     <button
                       onClick={() => {
                         setMascotStepIndex(1);
-                        setActiveTab('overview');
+                        setActiveTab(KIN_WALKTHROUGH[1].tabId);
                       }}
-                      className="w-full py-2.5 px-5 rounded-2xl bg-[#E25C38] hover:bg-[#d04e2e] text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                     >
                       <span>Show me around</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white rotate-45 border-r border-b border-slate-100" />
                   </div>
 
-                  {/* Downward pointer */}
+                  {/* Character Model (Zero Hands, Clean Shadow) */}
+                  <div className="relative filter drop-shadow-[0_20px_35px_rgba(0,0,0,0.3)]">
+                    <KinMascot pose="welcome" size={200} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 1+: Tour Guide Hovering Above Bottom Dock */}
+            {mascotStepIndex > 0 && (
+              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center pointer-events-none w-full max-w-sm sm:max-w-md px-4">
+                <div className="pointer-events-auto w-full rounded-3xl p-5 bg-white border border-slate-100 shadow-[0_25px_60px_rgba(0,0,0,0.2)] text-slate-900 mb-2 relative animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <button
+                    onClick={() => setShowMascotTour(false)}
+                    className="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+
+                  <h4 className="text-sm font-bold text-slate-900 mb-1">{currentTourStep.title}</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed mb-3">
+                    {currentTourStep.lines.join(' ')}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-1">
+                      {KIN_WALKTHROUGH.slice(1).map((step, idx) => (
+                        <div
+                          key={step.id}
+                          className={`h-1.5 rounded-full transition-all ${
+                            mascotStepIndex - 1 === idx ? 'w-4 bg-slate-900' : 'w-1.5 bg-slate-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const prev = mascotStepIndex - 1;
+                          setMascotStepIndex(prev);
+                          if (prev > 0) setActiveTab(KIN_WALKTHROUGH[prev].tabId);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (mascotStepIndex < KIN_WALKTHROUGH.length - 1) {
+                            const next = mascotStepIndex + 1;
+                            setMascotStepIndex(next);
+                            setActiveTab(KIN_WALKTHROUGH[next].tabId);
+                          } else {
+                            setShowMascotTour(false);
+                            showToast('Walkthrough complete! Kin is resting behind the dock navigation.');
+                          }
+                        }}
+                        className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                      >
+                        <span>{mascotStepIndex === KIN_WALKTHROUGH.length - 1 ? 'Finish Tour' : 'Next'}</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white rotate-45 border-r border-b border-slate-100" />
                 </div>
 
-                {/* Pure robot character model with transparent background! */}
-                <div className="relative filter drop-shadow-[0_25px_40px_rgba(0,0,0,0.35)] animate-bounce-subtle">
-                  <KinMascot pose="welcome" size={210} />
+                {/* Pure Mascot hovering above dock */}
+                <div className="relative filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.2)]">
+                  <KinMascot pose={currentTourStep.tabId as any} size={84} />
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </>
+        )}
+      </AnimatePresence>
 
-          {/* STEP 1+: Kin Floats Above Bottom Dock and Explains Each Feature */}
-          {mascotStepIndex > 0 && (
-            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center pointer-events-none w-full max-w-sm sm:max-w-md px-4 transition-all duration-300">
-              {/* Speech dialog bubble */}
-              <div className="pointer-events-auto w-full rounded-3xl p-5 bg-white border border-slate-100 shadow-[0_25px_60px_rgba(0,0,0,0.18)] text-slate-900 mb-2 relative animate-in fade-in slide-in-from-bottom-2 duration-200">
+      {/* ─── MODAL 1: SUBMIT SOLUTION / GITHUB REPO TO ALUMNI ─── */}
+      <AnimatePresence>
+        {isSubmitSolutionModalOpen && selectedProblem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="max-w-lg w-full rounded-[32px] bg-white border border-slate-100 p-6 sm:p-7 shadow-2xl text-slate-900 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-mono font-bold text-[#E25C38] bg-orange-50 px-2.5 py-1 rounded-full border border-orange-200">
+                  {selectedProblem.category} Bounty • {selectedProblem.bountyReward}
+                </span>
                 <button
-                  onClick={() => setShowMascotTour(false)}
-                  className="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
-                  title="Close Guide"
+                  onClick={() => setIsSubmitSolutionModalOpen(false)}
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
-
-                <h4 className="text-base font-bold text-slate-900 mb-1">{currentStep.title}</h4>
-                <p className="text-xs text-slate-700 leading-relaxed font-normal mb-3">
-                  {currentStep.lines.join(' ')}
-                </p>
-
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                  <div className="flex items-center gap-1.5">
-                    {KIN_WALKTHROUGH.slice(1).map((step, idx) => (
-                      <div
-                        key={step.id || `dot-${idx}`}
-                        className={`h-1.5 rounded-full transition-all ${
-                          mascotStepIndex - 1 === idx ? 'w-4 bg-slate-900' : 'w-1.5 bg-slate-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        const prev = mascotStepIndex - 1;
-                        setMascotStepIndex(prev);
-                        if (prev > 0) setActiveTab(KIN_WALKTHROUGH[prev].tabId);
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
-                    >
-                      Back
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (mascotStepIndex < KIN_WALKTHROUGH.length - 1) {
-                          const next = mascotStepIndex + 1;
-                          setMascotStepIndex(next);
-                          setActiveTab(KIN_WALKTHROUGH[next].tabId);
-                        } else {
-                          setShowMascotTour(false);
-                          showToast('Walkthrough complete! ✨');
-                        }
-                      }}
-                      className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
-                    >
-                      <span>{mascotStepIndex === KIN_WALKTHROUGH.length - 1 ? 'Finish Tour' : 'Next'}</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Downward pointer */}
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white rotate-45 border-r border-b border-slate-100 shadow-xs" />
               </div>
 
-              {/* Pure robot character hovering above bottom dock */}
-              <div
-                className="pointer-events-auto cursor-pointer"
-                onClick={() => showToast("Hi! Click 'Next' in the bubble to continue the tour!")}
-              >
-                <div className="relative filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.2)] animate-bounce-subtle">
-                  <KinMascot pose={currentStep.tabId || 'overview'} size={88} />
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+              <h3 className="text-lg font-black text-slate-900 leading-snug mb-2">
+                {selectedProblem.question}
+              </h3>
+              <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+                {selectedProblem.context}
+              </p>
 
-      {/* ─── Submit PR Modal ─── */}
-      {submitPrModalOpen && selectedBounty && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md">
-          <div className="max-w-md w-full rounded-3xl bg-white border border-slate-100 p-6 shadow-2xl text-slate-900 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-mono text-[#E25C38] font-bold">Automatic Code Verification</span>
-              <button
-                onClick={() => {
-                  setSubmitPrModalOpen(false);
-                  setPrUrlInput('');
-                }}
-                className="text-slate-500 hover:text-slate-900 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <h3 className="text-base font-bold text-slate-900 mb-2">{selectedBounty.title}</h3>
-            <p className="text-xs text-slate-600 mb-4">
-              Paste your GitHub Pull Request link. Our automated test runner will test your code in seconds.
-            </p>
-            <input
-              type="text"
-              value={prUrlInput}
-              onChange={(e) => setPrUrlInput(e.target.value)}
-              placeholder="https://github.com/org/repo/pull/42"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E25C38] mb-4"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setSubmitPrModalOpen(false);
-                  setPrUrlInput('');
-                }}
-                className="px-4 py-2 rounded-xl text-xs text-slate-600 hover:text-slate-900 font-semibold cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setSubmitPrModalOpen(false);
-                  setPrUrlInput('');
-                  showToast(`PR queued for automatic test verification on ${selectedBounty.title}`);
-                }}
-                className="px-5 py-2 rounded-xl bg-[#E25C38] hover:bg-[#d04e2e] text-white text-xs font-bold shadow-xs cursor-pointer"
-              >
-                Submit PR
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Direct Message (DM) Modal ─── */}
-      {dmRecipient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md">
-          <div className="max-w-md w-full rounded-3xl bg-white border border-slate-100 p-6 shadow-2xl text-slate-900 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs">
-                  {dmRecipient.name.charAt(0).toUpperCase()}
-                </div>
+              {/* Alumni Recipient Card */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">{dmRecipient.name}</h3>
-                  <div className="text-[11px] text-slate-500">{dmRecipient.role}</div>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Reviewing Alumni:</span>
+                  <span className="text-xs font-bold text-slate-900">{selectedProblem.alumniName}</span>
+                  <span className="text-[10px] text-slate-600 block">{selectedProblem.alumniTitle} @ {selectedProblem.alumniCompany}</span>
+                </div>
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+                  Direct Triage
+                </span>
+              </div>
+
+              <form onSubmit={handleSubmitProjectSolution} className="space-y-3.5">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    GitHub Repository Link <span className="text-[#E25C38]">*</span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <Github className="absolute left-3.5 w-4 h-4 text-slate-400" />
+                    <input
+                      type="url"
+                      required
+                      value={repoUrlInput}
+                      onChange={(e) => setRepoUrlInput(e.target.value)}
+                      placeholder="https://github.com/your-username/repo-name"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E25C38]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    Live Demo or Video URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={liveUrlInput}
+                    onChange={(e) => setLiveUrlInput(e.target.value)}
+                    placeholder="https://your-demo.vercel.app"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E25C38]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    Technical Architecture & Solution Summary
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={approachSummaryInput}
+                    onChange={(e) => setApproachSummaryInput(e.target.value)}
+                    placeholder="Explain your approach, core algorithmic trade-offs, and test evidence..."
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E25C38]"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submittingSolution}
+                  className="w-full py-3 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{submittingSolution ? 'Submitting to Alumni...' : 'Submit Solution Directly to Alumni'}</span>
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── MODAL 2: ALUMNI POST NEW PROBLEM STATEMENT ─── */}
+      <AnimatePresence>
+        {isPostProblemModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="max-w-md w-full rounded-[32px] bg-white border border-slate-100 p-6 sm:p-7 shadow-2xl text-slate-900 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-bold text-slate-900">Post New Problem Statement</h3>
+                <button
+                  onClick={() => setIsPostProblemModalOpen(false)}
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handlePostNewProblem} className="space-y-3.5">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    Problem Question (Punchy Provocative Question) <span className="text-[#E25C38]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newProblemQuestion}
+                    onChange={(e) => setNewProblemQuestion(e.target.value)}
+                    placeholder="e.g. Why can't micro-merchants settle cross-border stablecoins without gas spikes?"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E25C38]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">Category</label>
+                    <select
+                      value={newProblemCategory}
+                      onChange={(e) => setNewProblemCategory(e.target.value as any)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none"
+                    >
+                      <option value="Healthcare">Healthcare</option>
+                      <option value="Blockchain">Blockchain</option>
+                      <option value="FinTech">FinTech</option>
+                      <option value="Fake News">Fake News</option>
+                      <option value="Hardware">Hardware</option>
+                      <option value="Automotive">Automotive</option>
+                      <option value="Housing">Housing</option>
+                      <option value="Career">Career</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">Reward</label>
+                    <input
+                      type="text"
+                      value={newProblemReward}
+                      onChange={(e) => setNewProblemReward(e.target.value)}
+                      placeholder="₹25,000 / $300 USDC"
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    Organization / Company Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newProblemCompany}
+                    onChange={(e) => setNewProblemCompany(e.target.value)}
+                    placeholder="e.g. Uber Platform Labs"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    Architecture Background & Acceptance Criteria
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={newProblemContext}
+                    onChange={(e) => setNewProblemContext(e.target.value)}
+                    placeholder="Describe the production context, test requirements, and acceptance thresholds..."
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Publish Problem Statement</span>
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── MODAL 3: 20-MIN CONSULTATION BOOKING ─── */}
+      <AnimatePresence>
+        {bookingModalOpen && selectedExpert && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="max-w-md w-full rounded-[32px] bg-white border border-slate-100 p-6 shadow-2xl text-slate-900"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-mono font-bold text-[#E25C38]">20-Minute Doorway</span>
+                <button
+                  onClick={() => setBookingModalOpen(false)}
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <h3 className="text-lg font-bold text-slate-900 mb-1">
+                Book 1-on-1 with {selectedExpert.name}
+              </h3>
+              <p className="text-xs text-slate-600 mb-4">{selectedExpert.role}</p>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 mb-4 text-xs space-y-2">
+                <div className="flex justify-between font-bold">
+                  <span>Session Type:</span>
+                  <span>{selectedExpert.specialty}</span>
+                </div>
+                <div className="flex justify-between font-bold">
+                  <span>Price:</span>
+                  <span className="text-emerald-700">{selectedExpert.fee}</span>
                 </div>
               </div>
-              <button
-                onClick={() => setDmRecipient(null)}
-                className="text-slate-400 hover:text-slate-900 p-1 rounded-lg transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            {/* Message Thread */}
-            <div className="flex-1 overflow-y-auto py-4 space-y-3 min-h-[160px] max-h-[280px]">
-              {dmMessages.map((msg, mIdx) => (
-                <div
-                  key={`dm-msg-${mIdx}`}
-                  className={`flex flex-col ${msg.sender === 'me' ? 'items-end' : 'items-start'}`}
+              <div className="mb-4">
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">Select Time Slot:</label>
+                <select
+                  value={selectedSlot}
+                  onChange={(e) => setSelectedSlot(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none"
                 >
-                  <div
-                    className={`max-w-[80%] px-3.5 py-2 rounded-2xl text-xs leading-relaxed ${
-                      msg.sender === 'me'
-                        ? 'bg-slate-900 text-white rounded-br-xs'
-                        : 'bg-slate-100 text-slate-900 rounded-bl-xs'
-                    }`}
-                  >
-                    {msg.text}
-                  </div>
-                  <span className="text-[9px] text-slate-400 mt-0.5 px-1">{msg.time}</span>
-                </div>
-              ))}
-            </div>
+                  <option value="Saturday, 3:00 PM - 3:20 PM">Saturday, 3:00 PM - 3:20 PM</option>
+                  <option value="Saturday, 4:00 PM - 4:20 PM">Saturday, 4:00 PM - 4:20 PM</option>
+                  <option value="Sunday, 11:00 AM - 11:20 AM">Sunday, 11:00 AM - 11:20 AM</option>
+                </select>
+              </div>
 
-            {/* Compose & Send */}
-            <div className="pt-3 border-t border-slate-100 flex gap-2">
-              <input
-                type="text"
-                value={newDmText}
-                onChange={(e) => setNewDmText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSendDm();
-                  }
-                }}
-                placeholder={`Message ${dmRecipient.name}...`}
-                className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E25C38]"
-              />
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800 mb-4">
+                ✓ 100% human-verified session, protected by Kin&apos;s anti-AI-slop guarantee.
+              </div>
+
               <button
-                onClick={() => handleSendDm()}
-                className="px-4 py-2 rounded-xl bg-[#E25C38] hover:bg-[#d04e2e] text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                onClick={handleConfirmConsultBooking}
+                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
               >
-                <span>Send</span>
-                <Send className="w-3 h-3" />
+                Confirm Booking & Dispatch Invite
               </button>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
+      {/* ─── MODAL 4: SUBMIT MANUAL NOTE TO SENIOR QUEUE ─── */}
+      <AnimatePresence>
+        {manualNoteModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="max-w-md w-full rounded-[32px] bg-white border border-slate-100 p-6 shadow-2xl text-slate-900"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-mono font-bold text-[#E25C38]">Manual Triage Submission</span>
+                <button
+                  onClick={() => setManualNoteModalOpen(false)}
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <h3 className="text-base font-bold text-slate-900 mb-1">
+                Send Note to {manualNoteSenior}&apos;s Queue
+              </h3>
+              <p className="text-xs text-slate-600 mb-4">
+                Attach proof-of-work context to explain why you should connect even though your profile hasn&apos;t met the automated threshold yet.
+              </p>
+
+              <form onSubmit={handleSendManualQueueNote} className="space-y-3.5">
+                <textarea
+                  rows={4}
+                  required
+                  value={manualNoteText}
+                  onChange={(e) => setManualNoteText(e.target.value)}
+                  placeholder={`Hi ${manualNoteSenior.split(' ')[0]}! I've been building...`}
+                  className="w-full p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none"
+                />
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
+                >
+                  Submit Note to Queue
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Resume Upload Modal */}
+      <ResumeUploadModal
+        isOpen={isUploadResumeModalOpen}
+        onClose={closeUploadResumeModal}
+        onSuccess={(newProf) => {
+          setParsedProfile(newProf);
+          showToast('CV successfully analyzed & profile updated with Gemini AI!');
+        }}
+      />
     </div>
   );
 }

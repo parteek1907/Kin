@@ -128,10 +128,10 @@ export default function KinMascot({
         );
 
       case 'auto-connect':
-        // Wink: Left eye is a horizontal happy line/semicircle, right eye is the normal dot
+      case 'time-machine':
+        // Both eyes subtle calm curved visor (^ ^)
         return (
           <>
-            {/* Left Eye: Wink curve */}
             <div
               className="absolute pointer-events-none flex items-center justify-center"
               style={{
@@ -144,36 +144,9 @@ export default function KinMascot({
             >
               <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
                 <path
-                  d="M 3 16 C 5 9, 19 9, 21 16"
+                  d="M 3 17 C 3 7, 21 7, 21 17"
                   stroke="#11131A"
                   strokeWidth="4.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
-            {/* Right eye remains the natural open dot with subtle specular shine */}
-          </>
-        );
-
-      case 'time-machine':
-        // Semicircle looking through time / retro curved visor
-        return (
-          <>
-            <div
-              className="absolute pointer-events-none flex items-center justify-center"
-              style={{
-                top: '33.8%',
-                left: '37.8%',
-                width: '7.5%',
-                height: '14.8%',
-                backgroundColor: faceBg,
-              }}
-            >
-              <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M 4 10 C 4 19, 20 19, 20 10"
-                  stroke="#11131A"
-                  strokeWidth="4"
                   strokeLinecap="round"
                 />
               </svg>
@@ -190,9 +163,9 @@ export default function KinMascot({
             >
               <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
                 <path
-                  d="M 4 10 C 4 19, 20 19, 20 10"
+                  d="M 3 17 C 3 7, 21 7, 21 17"
                   stroke="#11131A"
-                  strokeWidth="4"
+                  strokeWidth="4.5"
                   strokeLinecap="round"
                 />
               </svg>
@@ -203,7 +176,7 @@ export default function KinMascot({
       case 'welcome':
       case 'overview':
       default:
-        // Subtle natural blink on the bot's own two dots
+        // Subtle natural blink on the bot's own two dots (both eyes together, symmetric and professional)
         return (
           <>
             <motion.div
@@ -241,26 +214,11 @@ export default function KinMascot({
     }
   };
 
-  // Body motion & waving hand:
+  // Body motion: subtle minimal professional floating (no goofy tilting)
   const getBodyMotion = () => {
-    if (pose === 'welcome') {
-      // Gentle friendly tilt waving
-      return {
-        rotate: [0, -3, 3, -1, 0],
-        y: [0, -4, 0],
-        transition: { repeat: Infinity, duration: 3.5, ease: 'easeInOut' }
-      };
-    }
-    if (pose === 'community') {
-      // Joyful bounce
-      return {
-        y: [0, -5, 0],
-        transition: { repeat: Infinity, duration: 2, ease: 'easeInOut' }
-      };
-    }
     return {
       y: [0, -3, 0],
-      transition: { repeat: Infinity, duration: 3, ease: 'easeInOut' }
+      transition: { repeat: Infinity, duration: 3.5, ease: 'easeInOut' }
     };
   };
 
@@ -271,17 +229,8 @@ export default function KinMascot({
       className={`relative select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
       style={{ width: size, height: size }}
     >
-      {/* Hand up when in welcome or auto-connect mode */}
-      {(pose === 'welcome' || pose === 'auto-connect') && (
-        <motion.div
-          animate={{ rotate: [0, 18, -8, 14, 0] }}
-          transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
-          className="absolute -top-[2%] right-[10%] w-[15%] h-[20%] pointer-events-none z-10 origin-bottom-left"
-        >
-          {/* Cute white wave hand pill with black outline */}
-          <div className="w-full h-full rounded-full bg-white border-2 border-slate-800 shadow-xs" />
-        </motion.div>
-      )}
+      {/* Clean, soft, luxury ground shadow */}
+      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-[52%] h-[6px] rounded-full bg-slate-900/10 blur-[2px] pointer-events-none" />
 
       {/* Main Clean Robot PNG */}
       <div className="relative w-full h-full">
