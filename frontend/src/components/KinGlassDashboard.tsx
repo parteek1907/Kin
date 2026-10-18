@@ -1078,9 +1078,9 @@ export default function KinGlassDashboard() {
         try {
           confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
         } catch {}
-        showToast(`🎉 Gemini ATS Passed! Match: ${result.currentMatch}% / ${result.targetMatch}%. You can Instant Connect!`);
+        showToast(`🎉 ATS Firewall Passed! Match: ${result.currentMatch}% / ${result.targetMatch}%. You can Instant Connect!`);
       } else {
-        showToast(`Gemini ATS Score: ${result.currentMatch}% / ${result.targetMatch}%. Added to your Outreach list.`);
+        showToast(`ATS Firewall Score: ${result.currentMatch}% / ${result.targetMatch}%. Added to your Outreach list.`);
       }
 
       setIsSendCvModalOpen(false);
@@ -1889,7 +1889,7 @@ export default function KinGlassDashboard() {
                             </div>
                             <h3 className="text-base font-bold text-slate-900">No Alumni Outreach Submissions Yet</h3>
                             <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-                              You haven&apos;t submitted your CV to any verified alumni yet. Find alumni in the Community Directory, inspect their live criteria firewall, and submit your CV for instant Gemini AI review.
+                              You haven&apos;t submitted your CV to any verified alumni yet. Find alumni in the Community Directory, inspect their live criteria firewall, and submit your CV for instant review.
                             </p>
                             <div className="pt-2 flex items-center justify-center">
                               <button
@@ -2021,12 +2021,9 @@ export default function KinGlassDashboard() {
                           <h2 className="text-2xl font-black text-slate-900 tracking-tight">
                             Career Time Machine (The Skill-Gap Explorer)
                           </h2>
-                          <span className="px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-[#E25C38] text-[10px] font-bold">
-                            Powered by Gemini 2.5
-                          </span>
                         </div>
                         <p className="text-xs text-slate-600">
-                          Ask Gemini AI to build an authentic year-by-year trajectory for any dream role & compute your deterministic skill gap.
+                          Build an authentic year-by-year trajectory for any dream role & compute your deterministic skill gap.
                         </p>
                       </div>
 
@@ -2073,12 +2070,12 @@ export default function KinGlassDashboard() {
                           {isGeneratingPathway ? (
                             <>
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>AI Building Pathway...</span>
+                              <span>Building Pathway...</span>
                             </>
                           ) : (
                             <>
                               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                              <span>Ask AI to Build Pathway</span>
+                              <span>Build Pathway</span>
                             </>
                           )}
                         </button>
@@ -2098,7 +2095,7 @@ export default function KinGlassDashboard() {
                           </h3>
                           {activePathwayData && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              AI Synthesized
+                              Verified Roadmap
                             </span>
                           )}
                         </div>
@@ -4111,7 +4108,7 @@ export default function KinGlassDashboard() {
 
               {/* Engine description */}
               <p className="text-[11px] text-slate-500 leading-relaxed italic">
-                Kin&apos;s Google Gemini 2.5 Flash ATS engine evaluates semantic project relevance, verified GitHub commits, and syntax AST checks strictly against {selectedProForCv.name.split(' ')[0]}&apos;s live gatekeeper policy.
+                Kin&apos;s automated ATS evaluation engine checks semantic project relevance, verified GitHub commits, and syntax AST checks strictly against {selectedProForCv.name.split(' ')[0]}&apos;s live gatekeeper policy.
               </p>
 
               {/* Action Button */}
@@ -4124,12 +4121,12 @@ export default function KinGlassDashboard() {
                 {isEvaluatingAts ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                    <span>Gemini AI Analyzing CV against Firewall Criteria...</span>
+                    <span>Analyzing CV against Firewall Criteria...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 text-amber-400" />
-                    <span>Run Gemini AI ATS Review & Submit CV</span>
+                    <span>Run ATS Review & Submit CV</span>
                   </>
                 )}
               </button>
@@ -4284,7 +4281,7 @@ export default function KinGlassDashboard() {
         onClose={closeUploadResumeModal}
         onSuccess={(newProf) => {
           setParsedProfile(newProf);
-          showToast('CV successfully analyzed & profile updated with Gemini AI!');
+          showToast('CV successfully analyzed & profile updated!');
         }}
       />
     </div>

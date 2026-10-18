@@ -116,7 +116,7 @@ export default function ResumeUploadModal({ isOpen, onClose, onSuccess }: Resume
           <div>
             <h2 className="text-xl font-black text-slate-900 tracking-tight">Upload Your CV / Resume</h2>
             <p className="text-xs text-slate-600 mt-0.5">
-              Powered by Kin AI • Automatically populates your personalized dashboard
+              Automatically parses skills, experience, and populates your personalized dashboard
             </p>
           </div>
         </div>
