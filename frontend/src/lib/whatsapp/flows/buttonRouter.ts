@@ -91,6 +91,8 @@ export async function handleButtonOrListReply(ctx: FlowContext): Promise<FlowRes
       lastReq.mustHaveSkills = JSON.stringify(skills);
     }
 
+    if (!lastReq) return { handled: true };
+
     await waClient.sendText(phone, `🔍 Finding candidates with skills: *${skills.join(', ')}*...`);
     const matches = await findTopCandidates(lastReq, 5, 0);
     await deliverCandidateMatches(phone, lastReq, matches);

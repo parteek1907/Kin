@@ -149,6 +149,15 @@ export async function handleRequestIntro(
     } as any;
   }
 
+  if (!requirement) {
+    return {
+      success: false,
+      message: 'Requirement profile not found.',
+    };
+  }
+
+  const activeRequirement = requirement;
+
   let candidate = await prisma.candidate.findUnique({
     where: { id: candidateId },
   }).catch(() => null);
@@ -225,8 +234,8 @@ export async function handleRequestIntro(
 
 
   // Fetch alumnus profile if available
-  const alumnus = requirement.alumnusId
-    ? await prisma.alumni.findUnique({ where: { id: requirement.alumnusId } })
+  const alumnus = activeRequirement.alumnusId
+    ? await prisma.alumni.findUnique({ where: { id: activeRequirement.alumnusId } })
     : null;
 
   const alumnusName = alumnus?.name || alumnusContact.name || 'A fellow alumnus';
@@ -238,7 +247,7 @@ export async function handleRequestIntro(
     const components = templateDef.buildComponents({
       alumnusName,
       institution: alumnusInstitution,
-      requirementTitle: requirement.title,
+      requirementTitle: activeRequirement.title,
       matchId: match.id,
     });
 
@@ -254,7 +263,7 @@ export async function handleRequestIntro(
     // If template not approved in local dev, send free-form with quick reply buttons
     await waClient.sendInteractiveButtons(
       candidate.phoneE164,
-      `🤝 *${alumnusName}* from *${alumnusInstitution}* is looking for *${requirement.title}* on KIN.\n\nAre you interested in connecting?`,
+      `🤝 *${alumnusName}* from *${alumnusInstitution}* is looking for *${activeRequirement.title}* on KIN.\n\nAre you interested in connecting?`,
       [
         { id: `intro_yes_${match.id}`, title: 'Yes' },
         { id: `intro_no_${match.id}`, title: 'Not now' },

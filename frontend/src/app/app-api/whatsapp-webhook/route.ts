@@ -7,7 +7,8 @@ export async function GET(req: NextRequest) {
   const hubChallenge = searchParams.get('hub.challenge');
   const hubVerifyToken = searchParams.get('hub.verify_token');
 
-  if (hubMode === 'subscribe' && hubVerifyToken === 'kin_campus_secret') {
+  const expectedToken = process.env.WA_VERIFY_TOKEN || 'kin_campus_secret';
+  if (hubMode === 'subscribe' && hubVerifyToken === expectedToken) {
     return new NextResponse(hubChallenge, { status: 200 });
   }
 

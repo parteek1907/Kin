@@ -38,8 +38,10 @@ export async function processInboundTextJob(payload: BackgroundJobPayload): Prom
     }
   }
 
+  if (!contact) return;
+
   // Check if contact has opted out
-  if (contact?.optedOutAt) {
+  if (contact.optedOutAt) {
     const cmd = resolveCommand(text);
     if (cmd === 'START') {
       await handleStartCommand(contact);

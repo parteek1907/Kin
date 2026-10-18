@@ -12,15 +12,15 @@ import {
 } from "firebase/auth";
 import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
 
-// Kin Firebase Configuration
+// Kin Firebase Configuration (Secured via environment variables)
 const firebaseConfig = {
-  apiKey: "AIzaSyBFYcMQ2AniVLsNxEFfG5NgvpOoQUynK58",
-  authDomain: "akin-1024c.firebaseapp.com",
-  projectId: "akin-1024c",
-  storageBucket: "akin-1024c.firebasestorage.app",
-  messagingSenderId: "288142308477",
-  appId: "1:288142308477:web:1b2458517e0a38bf89ed14",
-  measurementId: "G-2E01HB5L75"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "akin-1024c.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "akin-1024c",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "akin-1024c.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "288142308477",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:288142308477:web:1b2458517e0a38bf89ed14",
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-2E01HB5L75"
 };
 
 // Initialize Firebase (Next.js SSR safe singleton)
