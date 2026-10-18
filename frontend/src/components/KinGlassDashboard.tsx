@@ -633,7 +633,19 @@ export default function KinGlassDashboard() {
   const activeUserName = user?.name || parsedProfile?.name || 'Verified Member';
   const activeUserRole = user?.role || user?.headline || parsedProfile?.role || (networkRole === 'alumni' ? 'Senior Technical Leader & Mentor' : 'Full-Stack Software Developer');
   const activeUserInstitution = user?.institution || parsedProfile?.institution || (networkRole === 'alumni' ? 'Global Technology Syndicate' : 'IIIT Delhi');
-  const activeUserEmail = user?.email || parsedProfile?.email || 'builder@kin.network';
+  const activeUserEmail =
+    user?.email ||
+    parsedProfile?.email ||
+    (typeof window !== 'undefined'
+      ? (() => {
+          try {
+            const s = localStorage.getItem('kin_completed_profile') || localStorage.getItem('kin_user_auth');
+            return s ? JSON.parse(s).email : '';
+          } catch {
+            return '';
+          }
+        })()
+      : '');
   const activeLinkedinUrl = user?.linkedinUrl || parsedProfile?.linkedinUrl;
   const activeGithubUrl = user?.githubUrl || parsedProfile?.githubUrl;
   const activeGithubUsername = user?.githubUsername || (activeGithubUrl ? activeGithubUrl.replace(/^https?:\/\/(?:www\.)?github\.com\//i, '').replace(/\/$/, '') : '');
@@ -2439,7 +2451,7 @@ export default function KinGlassDashboard() {
                 {/* 8. STUDENT & PROFESSIONAL COMMUNITY & SOCIAL TAB (LIVE DATABASE BACKED) */}
                 {activeTab === 'community' && (
                   <LiveCommunityNetwork
-                    currentUserEmail={user?.email || 'aditya@iiitd.ac.in'}
+                    currentUserEmail={activeUserEmail}
                     currentUserName={activeUserName}
                     currentUserRole={activeUserRole}
                     currentUserInstitution={activeUserInstitution}
@@ -3347,7 +3359,7 @@ export default function KinGlassDashboard() {
                 {/* 8. ALUMNI COMMUNITY & GHOST MODE TAB (LIVE DATABASE BACKED) */}
                 {activeTab === 'community' && (
                   <LiveCommunityNetwork
-                    currentUserEmail={user?.email || 'parth.arora@deepmind.com'}
+                    currentUserEmail={activeUserEmail}
                     currentUserName={activeUserName}
                     currentUserRole={activeUserRole}
                     currentUserInstitution={activeUserInstitution}
@@ -4214,7 +4226,7 @@ export default function KinGlassDashboard() {
 
       {/* ─── Floating Real-Time Inbox Widget (Bottom Right) ─── */}
       <FloatingInboxWidget
-        currentUserEmail={user?.email || (networkRole === 'alumni' ? 'parth.arora@deepmind.com' : 'aditya@iiitd.ac.in')}
+        currentUserEmail={activeUserEmail}
         currentUserName={activeUserName}
         externalTargetUser={inboxTargetUser}
         onClearExternalTarget={() => setInboxTargetUser(null)}

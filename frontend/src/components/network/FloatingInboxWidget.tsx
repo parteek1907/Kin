@@ -11,8 +11,6 @@ import {
   CheckCheck, 
   Check, 
   Loader2, 
-  ExternalLink,
-  ChevronDown,
   Sparkles,
   User,
   GraduationCap,
@@ -58,6 +56,16 @@ interface FloatingInboxWidgetProps {
   onClearExternalTarget?: () => void;
 }
 
+const getMemberAvatar = (user: { name?: string; email?: string; avatarUrl?: string }) => {
+  if (user.name?.toLowerCase().includes('aditya sharma')) {
+    return '/images/aditya_sharma.jpg';
+  }
+  if (user.avatarUrl && !user.avatarUrl.includes('aditya_sharma.jpg')) {
+    return user.avatarUrl;
+  }
+  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name || user.email || 'Member')}&backgroundColor=e25c38,1e293b&textColor=ffffff`;
+};
+
 export default function FloatingInboxWidget({
   currentUserEmail,
   currentUserName,
@@ -101,7 +109,7 @@ export default function FloatingInboxWidget({
   const fetchInbox = async () => {
     if (!currentUserEmail) return;
     try {
-      const res = await fetch(`/api/direct-messages?currentUserEmail=${encodeURIComponent(currentUserEmail)}`);
+      const res = await fetch(`/api/direct-messages?currentUserEmail=${encodeURIComponent(currentUserEmail.trim().toLowerCase())}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.conversations)) {
         setConversations(data.conversations);
@@ -112,15 +120,17 @@ export default function FloatingInboxWidget({
     }
   };
 
-  // Fetch suggested members for zero state
+  // Fetch real registered members for directory listing
   const fetchSuggestedMembers = async () => {
     try {
-      const res = await fetch(`/api/members?role=all`);
+      const emailParam = currentUserEmail ? `&currentUserEmail=${encodeURIComponent(currentUserEmail.trim().toLowerCase())}` : '';
+      const res = await fetch(`/api/members?role=all${emailParam}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.members)) {
+        const myEmail = currentUserEmail?.trim().toLowerCase();
         const filtered = data.members
-          .filter((m: any) => m.email?.toLowerCase() !== currentUserEmail?.toLowerCase())
-          .slice(0, 6);
+          .filter((m: any) => m.email?.trim().toLowerCase() !== myEmail)
+          .slice(0, 10);
         setSuggestedMembers(filtered);
       }
     } catch {
@@ -134,7 +144,7 @@ export default function FloatingInboxWidget({
     if (!silent) setIsLoadingMessages(true);
     try {
       const res = await fetch(
-        `/api/direct-messages?currentUserEmail=${encodeURIComponent(currentUserEmail)}&otherUserId=${encodeURIComponent(activePartner.id)}`
+        `/api/direct-messages?currentUserEmail=${encodeURIComponent(currentUserEmail.trim().toLowerCase())}&otherUserId=${encodeURIComponent(activePartner.id)}`
       );
       const data = await res.json();
       if (data.success && Array.isArray(data.messages)) {
@@ -185,8 +195,9 @@ export default function FloatingInboxWidget({
         const res = await fetch(`/api/members?search=${encodeURIComponent(searchQuery.trim())}`);
         const data = await res.json();
         if (data.success && Array.isArray(data.members)) {
+          const myEmail = currentUserEmail?.trim().toLowerCase();
           const filtered = data.members.filter(
-            (m: any) => m.email?.toLowerCase() !== currentUserEmail?.toLowerCase()
+            (m: any) => m.email?.trim().toLowerCase() !== myEmail
           );
           setSearchResults(filtered);
         }
@@ -202,7 +213,7 @@ export default function FloatingInboxWidget({
   // Send message
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!inputText.trim() || !activePartner || isSending) return;
+    if (!inputText.trim() || !activePartner || isSending || !currentUserEmail) return;
 
     const messageContent = inputText.trim();
     setInputText('');
@@ -227,10 +238,10 @@ export default function FloatingInboxWidget({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          senderEmail: currentUserEmail,
-          senderName: currentUserName,
+          senderEmail: currentUserEmail.trim().toLowerCase(),
+          senderName: currentUserName || currentUserEmail.split('@')[0],
           receiverId: activePartner.id,
-          receiverEmail: activePartner.email,
+          receiverEmail: activePartner.email?.trim().toLowerCase(),
           content: messageContent,
         }),
       });
@@ -244,14 +255,6 @@ export default function FloatingInboxWidget({
     } finally {
       setIsSending(false);
     }
-  };
-
-  // WhatsApp helper
-  const openWhatsApp = (partner?: DMTargetUser | null, prefillMsg?: string) => {
-    const name = partner?.name || 'Peer';
-    const text = prefillMsg || `Hi ${name}, connecting with you from Kin Network (${currentUserName || 'Student Builder'})! Looking forward to chatting.`;
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const formatTimestamp = (iso: string) => {
@@ -292,20 +295,9 @@ export default function FloatingInboxWidget({
             )}
           </div>
 
-          <span className="text-xs sm:text-sm font-bold tracking-tight">Inbox</span>
+          <span className="text-xs sm:text-sm font-bold tracking-tight">Messages</span>
 
-          {/* Quick WhatsApp integrated badge */}
-          <div 
-            onClick={(e) => {
-              e.stopPropagation();
-              openWhatsApp(null, `Hi, connecting to Kin WhatsApp network from ${currentUserName || 'Campus Builder'}!`);
-            }}
-            title="Launch WhatsApp direct"
-            className="flex items-center gap-1 pl-1.5 pr-2 py-0.5 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold transition-all"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            <span>WA</span>
-          </div>
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Direct Network Active" />
         </motion.button>
       </div>
 
@@ -331,7 +323,7 @@ export default function FloatingInboxWidget({
                     <ArrowLeft className="w-4 h-4" />
                   </button>
                   <img
-                    src={activePartner.avatarUrl || '/images/aditya_sharma.jpg'}
+                    src={getMemberAvatar(activePartner)}
                     alt={activePartner.name}
                     className="w-8 h-8 rounded-full object-cover border border-slate-200"
                   />
@@ -341,7 +333,7 @@ export default function FloatingInboxWidget({
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                     </h3>
                     <p className="text-[10px] text-slate-500 truncate">
-                      {activePartner.headline || activePartner.institution || 'Verified Member'}
+                      {activePartner.headline || activePartner.institution || 'Registered Member'}
                     </p>
                   </div>
                 </div>
@@ -351,54 +343,28 @@ export default function FloatingInboxWidget({
                     <MessageSquare className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-900">KIN Network Inbox</h3>
+                    <h3 className="text-xs font-bold text-slate-900">KIN Network Messages</h3>
                     <p className="text-[10px] text-slate-500 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      Live Peer-to-Peer & WhatsApp
+                      Direct Peer-to-Peer Messaging
                     </p>
                   </div>
                 </div>
               )}
 
-              <div className="flex items-center gap-1.5">
-                {/* WHATSAPP ACTION BUTTON */}
-                <button
-                  onClick={() => openWhatsApp(activePartner)}
-                  title="Open on WhatsApp"
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold shadow-xs transition-all cursor-pointer"
-                >
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
-                  </svg>
-                  <span>WhatsApp</span>
-                </button>
-
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-1.5 rounded-lg hover:bg-slate-200/70 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-                  title="Close inbox"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-200/70 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                title="Close inbox"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             {/* ─── INBOX BODY (SEARCH / CONVERSATIONS OR CHAT) ─── */}
             {activePartner ? (
               /* VIEW 2: ACTIVE CHAT THREAD */
               <div className="flex-1 flex flex-col min-h-0 bg-slate-50/50">
-                {/* WhatsApp Direct Transition Banner */}
-                <div 
-                  onClick={() => openWhatsApp(activePartner)}
-                  className="px-3 py-1.5 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between text-[11px] text-emerald-800 cursor-pointer hover:bg-emerald-100/70 transition-colors"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span>Prefer WhatsApp? Chat with <strong>{activePartner.name}</strong></span>
-                  </div>
-                  <ExternalLink className="w-3 h-3 text-emerald-600" />
-                </div>
-
                 {/* Messages Container */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {isLoadingMessages ? (
@@ -415,15 +381,8 @@ export default function FloatingInboxWidget({
                         Start conversation with {activePartner.name}
                       </p>
                       <p className="text-[11px] text-slate-500 mt-1 max-w-xs">
-                        Messages are delivered instantly on Kin and can be continued on WhatsApp at any time.
+                        Direct, end-to-end messaging across the KIN network. Any message you send here will appear in their account when they log in.
                       </p>
-                      <button
-                        onClick={() => openWhatsApp(activePartner)}
-                        className="mt-3 px-3 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-                      >
-                        <span>Say Hello on WhatsApp</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </button>
                     </div>
                   ) : (
                     messages.map((m) => {
@@ -504,7 +463,7 @@ export default function FloatingInboxWidget({
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search members by name, institution..."
+                      placeholder="Search registered members by name, institution..."
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-[#E25C38] focus:bg-white transition-all"
                     />
                     {searchQuery && (
@@ -524,7 +483,7 @@ export default function FloatingInboxWidget({
                     /* Search results */
                     <div>
                       <div className="px-3.5 py-2 bg-slate-50/70 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                        {isSearching ? 'Searching directory...' : `Search Results (${searchResults.length})`}
+                        {isSearching ? 'Searching registered members...' : `Search Results (${searchResults.length})`}
                       </div>
 
                       {searchResults.length === 0 && !isSearching ? (
@@ -543,7 +502,7 @@ export default function FloatingInboxWidget({
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               <img
-                                src={user.avatarUrl || '/images/aditya_sharma.jpg'}
+                                src={getMemberAvatar(user)}
                                 alt={user.name}
                                 className="w-9 h-9 rounded-full object-cover border border-slate-200"
                               />
@@ -552,7 +511,7 @@ export default function FloatingInboxWidget({
                                   {user.name}
                                 </h4>
                                 <p className="text-[10px] text-slate-500 truncate">
-                                  {user.headline || user.institution || 'Verified Member'}
+                                  {user.headline || user.institution || 'Registered Member'}
                                 </p>
                               </div>
                             </div>
@@ -580,7 +539,7 @@ export default function FloatingInboxWidget({
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="relative">
                                   <img
-                                    src={c.partner.avatarUrl || '/images/aditya_sharma.jpg'}
+                                    src={getMemberAvatar(c.partner)}
                                     alt={c.partner.name}
                                     className="w-10 h-10 rounded-full object-cover border border-slate-200"
                                   />
@@ -610,63 +569,54 @@ export default function FloatingInboxWidget({
                         </div>
                       ) : null}
 
-                      {/* Suggested Directory Members */}
+                      {/* Registered Platform Members */}
                       <div className="p-3">
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                            Verified Network Members
+                            Registered Members on KIN
                           </h4>
-                          <span className="text-[10px] text-slate-400">Tap to start chat</span>
+                          <span className="text-[10px] text-slate-400">Tap to message</span>
                         </div>
 
-                        <div className="space-y-1.5">
-                          {suggestedMembers.map((m) => (
-                            <div
-                              key={m.id}
-                              onClick={() => setActivePartner(m)}
-                              className="p-2.5 rounded-xl hover:bg-slate-50 border border-slate-100 flex items-center justify-between cursor-pointer transition-colors"
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <img
-                                  src={m.avatarUrl || '/images/aditya_sharma.jpg'}
-                                  alt={m.name}
-                                  className="w-8 h-8 rounded-full object-cover border border-slate-200"
-                                />
-                                <div className="min-w-0">
-                                  <p className="text-xs font-bold text-slate-800 truncate">{m.name}</p>
-                                  <p className="text-[10px] text-slate-500 truncate">
-                                    {m.headline || m.institution}
-                                  </p>
+                        {suggestedMembers.length === 0 ? (
+                          <div className="py-6 px-4 text-center rounded-2xl bg-slate-50 border border-slate-100">
+                            <User className="w-7 h-7 text-slate-300 mx-auto mb-1.5" />
+                            <p className="text-xs font-semibold text-slate-700">No other registered accounts yet</p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              When other students or professionals sign up, they will automatically appear here.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {suggestedMembers.map((m) => (
+                              <div
+                                key={m.id}
+                                onClick={() => setActivePartner(m)}
+                                className="p-2.5 rounded-xl hover:bg-slate-50 border border-slate-100 flex items-center justify-between cursor-pointer transition-colors"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <img
+                                    src={getMemberAvatar(m)}
+                                    alt={m.name}
+                                    className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-slate-800 truncate">{m.name}</p>
+                                    <p className="text-[10px] text-slate-500 truncate">
+                                      {m.headline || m.institution || 'Registered Member'}
+                                    </p>
+                                  </div>
                                 </div>
+                                <span className="text-[10px] font-bold text-[#E25C38] px-2 py-0.5 rounded-md bg-orange-50 hover:bg-[#E25C38] hover:text-white transition-all">
+                                  Text
+                                </span>
                               </div>
-                              <span className="text-[10px] font-bold text-[#E25C38] px-2 py-0.5 rounded-md bg-orange-50">
-                                Text
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
-                </div>
-
-                {/* Footer WhatsApp Banner */}
-                <div 
-                  onClick={() => openWhatsApp(null)}
-                  className="p-3 bg-emerald-500/10 border-t border-emerald-500/20 flex items-center justify-between text-xs text-emerald-800 cursor-pointer hover:bg-emerald-500/15 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center">
-                      <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
-                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-bold">Connect on WhatsApp</p>
-                      <p className="text-[10px] text-emerald-700">Instant bridge to mobile chats</p>
-                    </div>
-                  </div>
-                  <ExternalLink className="w-4 h-4 text-emerald-600" />
                 </div>
               </div>
             )}

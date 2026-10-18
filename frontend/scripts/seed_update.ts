@@ -156,83 +156,21 @@ async function run() {
     },
   });
 
-  // 2. Add/Upsert 3 verified alumni
-  await prisma.member.upsert({
-    where: { email: 'rohan.malhotra@alumni.iiitd.ac.in' },
-    update: {
-      name: 'Rohan Malhotra',
-      role: 'alumni',
-      headline: 'Senior Staff Software Engineer @ Google',
-      institution: 'IIIT Delhi (Alumni \'21)',
-      avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=120&auto=format&fit=crop&q=80',
-    },
-    create: {
-      email: 'rohan.malhotra@alumni.iiitd.ac.in',
-      name: 'Rohan Malhotra',
-      role: 'alumni',
-      headline: 'Senior Staff Software Engineer @ Google',
-      institution: 'IIIT Delhi (Alumni \'21)',
-      graduationYear: '2021',
-      verificationStatus: 'verified',
-      avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=120&auto=format&fit=crop&q=80',
-      skills: JSON.stringify(['Distributed Systems', 'Kubernetes', 'Go', 'GCP', 'System Design']),
-      bio: 'IIIT Delhi Class of 2021. Currently leading infrastructure engineering at Google Cloud. Mentoring students on scalable systems, career transitions, and backend architecture.',
-      linkedinUrl: 'https://linkedin.com',
-      githubUrl: 'https://github.com',
+  // Purge mock, fake, and placeholder member records
+  await prisma.member.deleteMany({
+    where: {
+      email: {
+        in: [
+          'builder@kin.network',
+          'rohan.malhotra@alumni.iiitd.ac.in',
+          'vikram.sen@alumni.iiitd.ac.in',
+          'arjun.kapoor@alumni.iiitd.ac.in',
+        ],
+      },
     },
   });
 
-  await prisma.member.upsert({
-    where: { email: 'vikram.sen@alumni.iiitd.ac.in' },
-    update: {
-      name: 'Vikramaditya Sen',
-      role: 'alumni',
-      headline: 'Principal AI Research Engineer @ Anthropic',
-      institution: 'IIIT Delhi (Alumni \'19)',
-      avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=120&auto=format&fit=crop&q=80',
-    },
-    create: {
-      email: 'vikram.sen@alumni.iiitd.ac.in',
-      name: 'Vikramaditya Sen',
-      role: 'alumni',
-      headline: 'Principal AI Research Engineer @ Anthropic',
-      institution: 'IIIT Delhi (Alumni \'19)',
-      graduationYear: '2019',
-      verificationStatus: 'verified',
-      avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=120&auto=format&fit=crop&q=80',
-      skills: JSON.stringify(['PyTorch', 'LLMs', 'RLHF', 'CUDA', 'Python', 'MLOps']),
-      bio: 'IIIT Delhi Alumni \'19. Working on frontier LLM alignment and inference optimization. Passionate about empowering university builders with practical AI skills.',
-      linkedinUrl: 'https://linkedin.com',
-      githubUrl: 'https://github.com',
-    },
-  });
-
-  await prisma.member.upsert({
-    where: { email: 'arjun.kapoor@alumni.iiitd.ac.in' },
-    update: {
-      name: 'Arjun Kapoor',
-      role: 'alumni',
-      headline: 'Engineering Manager @ Stripe',
-      institution: 'IIIT Delhi (Alumni \'20)',
-      avatarUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=120&auto=format&fit=crop&q=80',
-    },
-    create: {
-      email: 'arjun.kapoor@alumni.iiitd.ac.in',
-      name: 'Arjun Kapoor',
-      role: 'alumni',
-      headline: 'Engineering Manager @ Stripe',
-      institution: 'IIIT Delhi (Alumni \'20)',
-      graduationYear: '2020',
-      verificationStatus: 'verified',
-      avatarUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=120&auto=format&fit=crop&q=80',
-      skills: JSON.stringify(['Payments Infra', 'Ruby', 'Java', 'FinTech', 'Engineering Leadership']),
-      bio: 'Alumni \'20. Building global billing and financial infrastructure at Stripe. Happy to review student projects and guide on software engineering leadership.',
-      linkedinUrl: 'https://linkedin.com',
-      githubUrl: 'https://github.com',
-    },
-  });
-
-  // 3. Fix Aditya Sharma's Post author avatar in the database to local Indian male portrait
+  // Fix Aditya Sharma's Post author avatar in the database to local Indian male portrait
   const maleAvatarUrl = '/images/aditya_sharma.jpg';
   await prisma.post.updateMany({
     where: {

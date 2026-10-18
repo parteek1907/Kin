@@ -63,7 +63,17 @@ export async function GET(req: NextRequest) {
     const currentUserEmail = searchParams.get('currentUserEmail');
 
     // Build where clause
-    const where: any = {};
+    const where: any = {
+      email: {
+        notIn: [
+          'builder@kin.network',
+          'rohan.malhotra@alumni.iiitd.ac.in',
+          'vikram.sen@alumni.iiitd.ac.in',
+          'arjun.kapoor@alumni.iiitd.ac.in',
+        ],
+      },
+    };
+
     if (role && role !== 'all') {
       if (role === 'professional' || role === 'alumni') {
         where.role = { in: ['professional', 'alumni'] };
@@ -73,12 +83,16 @@ export async function GET(req: NextRequest) {
     }
 
     if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { headline: { contains: search } },
-        { institution: { contains: search } },
-        { skills: { contains: search } },
-        { bio: { contains: search } },
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: search } },
+            { headline: { contains: search } },
+            { institution: { contains: search } },
+            { skills: { contains: search } },
+            { bio: { contains: search } },
+          ],
+        },
       ];
     }
 
@@ -107,7 +121,7 @@ export async function GET(req: NextRequest) {
     let currentMemberId: string | null = null;
     if (currentUserEmail) {
       const currentMember = await prisma.member.findUnique({
-        where: { email: currentUserEmail },
+        where: { email: currentUserEmail.trim().toLowerCase() },
         select: { id: true },
       });
       if (currentMember) {
@@ -147,6 +161,8 @@ export async function GET(req: NextRequest) {
         parsedSkills = m.skills ? [m.skills] : [];
       }
 
+      const fallbackAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(m.name || m.email)}&backgroundColor=e25c38,1e293b&textColor=ffffff`;
+
       return {
         id: m.id,
         email: m.email,
@@ -166,7 +182,7 @@ export async function GET(req: NextRequest) {
         officeHours: m.officeHours,
         avatarUrl: m.name?.toLowerCase().includes('aditya sharma')
           ? '/images/aditya_sharma.jpg'
-          : (m.avatarUrl || '/images/aditya_sharma.jpg'),
+          : (m.avatarUrl || fallbackAvatar),
         connectionStatus,
         connectionId,
         createdAt: m.createdAt,

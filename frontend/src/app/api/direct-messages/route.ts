@@ -6,13 +6,15 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const currentUserEmail = searchParams.get('currentUserEmail');
+    const rawCurrentUserEmail = searchParams.get('currentUserEmail');
     const otherUserId = searchParams.get('otherUserId');
-    const otherUserEmail = searchParams.get('otherUserEmail');
+    const otherUserEmail = searchParams.get('otherUserEmail')?.trim().toLowerCase();
 
-    if (!currentUserEmail) {
+    if (!rawCurrentUserEmail) {
       return NextResponse.json({ success: false, error: 'currentUserEmail is required' }, { status: 400 });
     }
+
+    const currentUserEmail = rawCurrentUserEmail.trim().toLowerCase();
 
     let currentMember = await prisma.member.findUnique({
       where: { email: currentUserEmail },
@@ -89,7 +91,7 @@ export async function GET(req: NextRequest) {
               institution: partner.institution || 'IIIT Delhi',
               avatarUrl: partner.name?.toLowerCase().includes('aditya sharma')
                 ? '/images/aditya_sharma.jpg'
-                : (partner.avatarUrl || '/images/aditya_sharma.jpg'),
+                : (partner.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(partner.name || partner.email)}&backgroundColor=e25c38,1e293b&textColor=ffffff`),
             },
             lastMessage: {
               id: dm.id,
@@ -174,7 +176,7 @@ export async function GET(req: NextRequest) {
         institution: otherMember.institution || 'IIIT Delhi',
         avatarUrl: otherMember.name?.toLowerCase().includes('aditya sharma')
           ? '/images/aditya_sharma.jpg'
-          : (otherMember.avatarUrl || '/images/aditya_sharma.jpg'),
+          : (otherMember.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(otherMember.name || otherMember.email)}&backgroundColor=e25c38,1e293b&textColor=ffffff`),
       },
       currentMemberId: currentMember.id,
     });
@@ -193,21 +195,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'senderEmail and content are required' }, { status: 400 });
     }
 
+    const normSenderEmail = senderEmail.trim().toLowerCase();
+    const normReceiverEmail = receiverEmail ? receiverEmail.trim().toLowerCase() : undefined;
+
     let sender = await prisma.member.findUnique({
-      where: { email: senderEmail },
+      where: { email: normSenderEmail },
     });
 
     if (!sender) {
       sender = await prisma.member.upsert({
-        where: { email: senderEmail },
+        where: { email: normSenderEmail },
         update: {},
         create: {
-          email: senderEmail,
-          name: senderName?.trim() || senderEmail.split('@')[0],
+          email: normSenderEmail,
+          name: senderName?.trim() || normSenderEmail.split('@')[0],
           role: 'student',
           headline: 'Verified Member',
           institution: 'IIIT Delhi',
-          avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(senderEmail)}&backgroundColor=e25c38,1e293b&textColor=ffffff`,
+          avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(normSenderEmail)}&backgroundColor=e25c38,1e293b&textColor=ffffff`,
         },
       });
     }
@@ -215,8 +220,8 @@ export async function POST(req: NextRequest) {
     let receiver = null;
     if (receiverId) {
       receiver = await prisma.member.findUnique({ where: { id: receiverId } });
-    } else if (receiverEmail) {
-      receiver = await prisma.member.findUnique({ where: { email: receiverEmail } });
+    } else if (normReceiverEmail) {
+      receiver = await prisma.member.findUnique({ where: { email: normReceiverEmail } });
     }
 
     if (!receiver) {

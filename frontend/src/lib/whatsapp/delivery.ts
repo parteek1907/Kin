@@ -108,7 +108,7 @@ export async function handleRequestIntro(
   candidateId: string
 ): Promise<{ success: boolean; message: string }> {
   // Verify ownership server-side with fallback
-  let requirement = await prisma.kinRequirement.findFirst({
+  let requirement: any = await prisma.kinRequirement.findFirst({
     where: {
       id: requirementId,
       contactId: alumnusContact.id,

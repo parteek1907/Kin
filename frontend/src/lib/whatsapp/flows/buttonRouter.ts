@@ -71,7 +71,7 @@ export async function handleButtonOrListReply(ctx: FlowContext): Promise<FlowRes
     if (buttonId === 'skill_python_ai') skills = ['Python', 'PyTorch', 'FastAPI', 'AI'];
     if (buttonId === 'skill_uiux_design') skills = ['Figma', 'UI/UX', 'Design Systems', 'React'];
 
-    let lastReq = await prisma.kinRequirement.findFirst({
+    let lastReq: any = await prisma.kinRequirement.findFirst({
       where: { contactId: ctx.contact.id },
       orderBy: { createdAt: 'desc' },
     }).catch(() => null);

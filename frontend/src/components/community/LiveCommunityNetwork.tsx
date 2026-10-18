@@ -368,39 +368,21 @@ export default function LiveCommunityNetwork({
       const res = await fetch(`/api/members?currentUserEmail=${encodeURIComponent(currentUserEmail)}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.members)) {
-        const priorityNames = [
-          'aditya tanwar',
-          'parteek garg',
-          'darsh ohri',
-          'nipun dhiman',
-          'aditya sharma',
-          'rohan malhotra',
-          'vikramaditya sen',
-          'arjun kapoor',
+        // Exclude mock alumni or fake emails
+        const mockEmails = [
+          'builder@kin.network',
+          'rohan.malhotra@alumni.iiitd.ac.in',
+          'vikram.sen@alumni.iiitd.ac.in',
+          'arjun.kapoor@alumni.iiitd.ac.in',
         ];
-        const sorted = [...data.members].sort((a: LiveMember, b: LiveMember) => {
-          const aIndex = priorityNames.indexOf(a.name.toLowerCase().trim());
-          const bIndex = priorityNames.indexOf(b.name.toLowerCase().trim());
-          if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-          if (aIndex !== -1) return -1;
-          if (bIndex !== -1) return 1;
-          return 0;
-        });
 
-        // Deduplicate by email first, with seed duplicate protection
+        // Deduplicate by email
         const seenEmails = new Set<string>();
-        const seenSeedNames = new Set<string>();
-        const uniqueMembers = sorted.filter((m: LiveMember) => {
+        const uniqueMembers = data.members.filter((m: LiveMember) => {
           const email = m.email?.toLowerCase().trim();
-          const name = m.name?.toLowerCase().trim();
-          if (email) {
-            if (seenEmails.has(email)) return false;
-            seenEmails.add(email);
-          }
-          if (priorityNames.includes(name)) {
-            if (seenSeedNames.has(name)) return false;
-            seenSeedNames.add(name);
-          }
+          if (!email || mockEmails.includes(email)) return false;
+          if (seenEmails.has(email)) return false;
+          seenEmails.add(email);
           return true;
         });
 
