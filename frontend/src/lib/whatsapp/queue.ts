@@ -38,12 +38,12 @@ export async function enqueueJob(
     },
   });
 
-  // Non-blocking trigger to process immediately in the background
-  setImmediate(() => {
-    runJob(job.id).catch((err) => {
-      console.error(`[Queue Run Error] Job ${job.id} failed:`, err);
-    });
-  });
+  // Execute immediately with serverless compatibility
+  try {
+    await runJob(job.id);
+  } catch (err) {
+    console.error(`[Queue Run Error] Job ${job.id} failed:`, err);
+  }
 
   return job.id;
 }

@@ -56,28 +56,26 @@ export async function POST(req: NextRequest) {
     console.warn('[WhatsApp Webhook] Failed to record raw event to DB:', dbErr);
   }
 
-  // 3. Trigger asynchronous background processing (never block the 200 OK response to Meta)
-  (async () => {
-    try {
-      await processWebhookPayload(rawBody);
-      if (webhookEventId) {
-        await prisma.webhookEvent.update({
-          where: { id: webhookEventId },
-          data: { processedAt: new Date() },
-        });
-      }
-    } catch (err: any) {
-      console.error('[WhatsApp Webhook Async Processing Error]:', err);
-      if (webhookEventId) {
-        await prisma.webhookEvent.update({
-          where: { id: webhookEventId },
-          data: { error: err?.message || 'Processing failed' },
-        });
-      }
+  // 3. Process webhook payload before returning (essential in serverless to prevent Lambda freeze)
+  try {
+    await processWebhookPayload(rawBody);
+    if (webhookEventId) {
+      await prisma.webhookEvent.update({
+        where: { id: webhookEventId },
+        data: { processedAt: new Date() },
+      });
     }
-  })();
+  } catch (err: any) {
+    console.error('[WhatsApp Webhook Async Processing Error]:', err);
+    if (webhookEventId) {
+      await prisma.webhookEvent.update({
+        where: { id: webhookEventId },
+        data: { error: err?.message || 'Processing failed' },
+      });
+    }
+  }
 
-  // 4. Return 200 OK immediately within 2 seconds
+  // 4. Return 200 OK immediately
   return NextResponse.json({ status: 'EVENT_RECEIVED' }, { status: 200 });
 }
 
