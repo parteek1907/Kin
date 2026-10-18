@@ -164,18 +164,28 @@ export async function GET(req: NextRequest) {
         topProjectUrl: m.topProjectUrl,
         topProjectDescription: m.topProjectDescription,
         officeHours: m.officeHours,
-        graduationYear: m.graduationYear,
-        avatarUrl: m.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+        avatarUrl: m.name?.toLowerCase().includes('aditya sharma')
+          ? '/images/aditya_sharma.jpg'
+          : (m.avatarUrl || '/images/aditya_sharma.jpg'),
         connectionStatus,
         connectionId,
         createdAt: m.createdAt,
       };
     });
 
+    // Guarantee zero duplicate names in members directory
+    const seenMemberNames = new Set<string>();
+    const deduplicatedMembers = formatted.filter((m: any) => {
+      const key = m.name?.toLowerCase().trim();
+      if (!key || seenMemberNames.has(key)) return false;
+      seenMemberNames.add(key);
+      return true;
+    });
+
     return NextResponse.json({
       success: true,
-      total: formatted.length,
-      members: formatted,
+      total: deduplicatedMembers.length,
+      members: deduplicatedMembers,
     });
   } catch (error: any) {
     console.error('[API /api/members GET Error]', error);

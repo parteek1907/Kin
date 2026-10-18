@@ -1,16 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
+import { useRouter } from 'next/navigation';
 import ConduitHero from '@/components/conduit/ConduitHero';
 import { Feature } from '@/components/ui/feature-section-with-bento-grid';
 import PricingSection3 from '@/components/ui/pricing-section-3';
 
 import KinFooter from '@/components/kin/KinFooter';
-import ToastAlert from '@/components/ToastAlert';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Home() {
-  const { openAuthModal } = useAuth();
+  const { user, isLoggedIn, openAuthModal } = useAuth();
+  const router = useRouter();
+
+  const handleEnterNetwork = () => {
+    if (isLoggedIn || user) {
+      const roleParam =
+        user?.userType === 'professional' || user?.role?.toLowerCase().includes('alumni')
+          ? 'alumni'
+          : 'student';
+      router.push(`/dashboard?role=${roleParam}`);
+    } else {
+      openAuthModal();
+    }
+  };
 
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
@@ -27,7 +40,7 @@ export default function Home() {
         onExplore={() => scrollToSection('how-to-use')}
         onHowItWorks={() => scrollToSection('how-to-use')}
         onForInstitutions={() => scrollToSection('pricing')}
-        onEnterNetwork={openAuthModal}
+        onEnterNetwork={handleEnterNetwork}
       />
 
       {/* 2. HOW TO USE KIN • BENTO GRID FEATURE SECTION */}

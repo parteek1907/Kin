@@ -2,10 +2,15 @@ import { prisma } from './prisma';
 
 /**
  * Ensures required students and alumni are always properly registered in the database,
- * corrupted entries fixed, and default post author avatars have correct male portraits.
+ * corrupted entries fixed, duplicate entries eliminated, and Aditya Sharma has an Indian male portrait.
  */
 export async function ensureDatabaseSeeded() {
   try {
+    // 0. Remove duplicate member records
+    await prisma.member.deleteMany({
+      where: { email: 'builder@kin.network' },
+    });
+
     // 1. Fix corrupted student records
     await prisma.member.updateMany({
       where: {
@@ -55,6 +60,29 @@ export async function ensureDatabaseSeeded() {
       },
     });
 
+    // Ensure Single Aditya Sharma with local Indian male portrait
+    await prisma.member.upsert({
+      where: { email: 'aditya@iiitd.ac.in' },
+      update: {
+        name: 'Aditya Sharma',
+        role: 'student',
+        headline: 'Computer Science & AI Builder',
+        institution: 'IIIT Delhi',
+        avatarUrl: '/images/aditya_sharma.jpg',
+      },
+      create: {
+        email: 'aditya@iiitd.ac.in',
+        name: 'Aditya Sharma',
+        role: 'student',
+        headline: 'Computer Science & AI Builder',
+        institution: 'IIIT Delhi',
+        verificationStatus: 'verified_student',
+        avatarUrl: '/images/aditya_sharma.jpg',
+        skills: JSON.stringify(['React', 'Next.js', 'Python', 'FastAPI', 'PyTorch', 'TypeScript']),
+        bio: 'Undergraduate CS builder at IIIT Delhi specializing in agentic workflows, high-concurrency backends, and full-stack systems.',
+      },
+    });
+
     // Ensure Aditya Tanwar
     await prisma.member.upsert({
       where: { email: 'adityatanwar13827@gmail.com' },
@@ -63,6 +91,7 @@ export async function ensureDatabaseSeeded() {
         role: 'student',
         headline: 'Full-Stack & Systems Builder',
         institution: 'IIIT Delhi',
+        avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
       },
       create: {
         email: 'adityatanwar13827@gmail.com',
@@ -85,6 +114,7 @@ export async function ensureDatabaseSeeded() {
         role: 'student',
         headline: 'AI Systems & Full-Stack Engineer',
         institution: 'IIIT Delhi',
+        avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
       },
       create: {
         email: 'raycray6291@gmail.com',
@@ -129,6 +159,7 @@ export async function ensureDatabaseSeeded() {
         role: 'student',
         headline: 'Computer Science & Cloud Systems',
         institution: 'IIIT Delhi',
+        avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
       },
       create: {
         email: 'nipun2108dhiman@gmail.com',
@@ -219,8 +250,8 @@ export async function ensureDatabaseSeeded() {
       },
     });
 
-    // 3. Fix Aditya Sharma post avatar (male portrait)
-    const maleAvatarUrl = 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80';
+    // 3. Fix Aditya Sharma post avatar (guaranteed local Indian male portrait)
+    const maleAvatarUrl = '/images/aditya_sharma.jpg';
     await prisma.post.updateMany({
       where: {
         OR: [

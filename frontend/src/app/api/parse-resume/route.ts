@@ -161,10 +161,19 @@ Analyze the provided resume and return a valid JSON object matching this schema:
       }
     }
 
-    // 3. Optional Apify GitHub / Builder enrichment if username is present
+    // 3. Pinpoint accurate regex extraction directly from raw text for key profiles
+    const rawGithubMatch = rawText.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9-_]+)/i);
+    const rawLinkedinMatch = rawText.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([a-zA-Z0-9-_%]+)/i);
+    const rawEmailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
+
+    const detectedUsername = rawGithubMatch?.[1] || parsedResult?.githubUsername || (rawText.match(/github\.com\/([a-zA-Z0-9-_]+)/i)?.[1]);
+    const detectedGithubUrl = rawGithubMatch ? `https://github.com/${rawGithubMatch[1]}` : (parsedResult?.githubUrl || (detectedUsername ? `https://github.com/${detectedUsername}` : ''));
+    const detectedLinkedinUrl = rawLinkedinMatch ? `https://linkedin.com/in/${rawLinkedinMatch[1]}` : (parsedResult?.linkedinUrl || '');
+    const detectedEmail = rawEmailMatch ? rawEmailMatch[0] : (parsedResult?.email || DEFAULT_PROFILE_TEMPLATE.email);
+
+    // Optional GitHub Live stats enrichment for verified builder badges
     let liveGithubStats = null;
-    const detectedUsername = parsedResult?.githubUsername || (rawText.match(/github\.com\/([a-zA-Z0-9-_]+)/i)?.[1]);
-    if (detectedUsername && detectedUsername !== 'darshohri') {
+    if (detectedUsername) {
       try {
         const ghRes = await fetch(`https://api.github.com/users/${detectedUsername}`);
         if (ghRes.ok) {
@@ -187,9 +196,10 @@ Analyze the provided resume and return a valid JSON object matching this schema:
         name: (parsedResult.name && parsedResult.name !== 'Not Specified') ? parsedResult.name : DEFAULT_PROFILE_TEMPLATE.name,
         role: (parsedResult.role && parsedResult.role !== 'Not Specified') ? parsedResult.role : DEFAULT_PROFILE_TEMPLATE.role,
         institution: (parsedResult.institution && parsedResult.institution !== 'Not Specified') ? parsedResult.institution : DEFAULT_PROFILE_TEMPLATE.institution,
-        githubUsername: detectedUsername || parsedResult.githubUsername || '',
-        githubUrl: parsedResult.githubUrl || (detectedUsername ? `https://github.com/${detectedUsername}` : ''),
-        linkedinUrl: parsedResult.linkedinUrl || '',
+        email: detectedEmail,
+        githubUsername: detectedUsername || '',
+        githubUrl: detectedGithubUrl,
+        linkedinUrl: detectedLinkedinUrl,
         portfolioUrl: parsedResult.portfolioUrl || '',
         stats: {
           verifiedBuilders: '1',

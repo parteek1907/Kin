@@ -151,6 +151,16 @@ interface LiveCommunityNetworkProps {
   }) => void;
 }
 
+export const getMemberAvatar = (name?: string, avatarUrl?: string | null) => {
+  if (name?.toLowerCase().includes('aditya sharma')) {
+    return '/images/aditya_sharma.jpg';
+  }
+  if (!avatarUrl || avatarUrl.includes('photo-1534528741775-53994a69daeb') || avatarUrl.includes('photo-1539571696357-5a69c17a67c6')) {
+    return 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80';
+  }
+  return avatarUrl;
+};
+
 export default function LiveCommunityNetwork({
   currentUserEmail = 'aditya@iiitd.ac.in',
   currentUserName = 'Aditya Sharma',
@@ -366,7 +376,17 @@ export default function LiveCommunityNetwork({
           if (bIndex !== -1) return 1;
           return 0;
         });
-        setMembers(sorted);
+
+        // Deduplicate by name to prevent duplicate cards/sidebar rows
+        const seenNames = new Set<string>();
+        const uniqueMembers = sorted.filter((m: LiveMember) => {
+          const norm = m.name?.toLowerCase().trim();
+          if (!norm || seenNames.has(norm)) return false;
+          seenNames.add(norm);
+          return true;
+        });
+
+        setMembers(uniqueMembers);
       }
     } catch (err) {
       console.warn('[Fetch Members Error]', err);
@@ -546,7 +566,10 @@ export default function LiveCommunityNetwork({
         setMembers((prev) =>
           prev.map((m) => (m.id === member.id ? { ...m, connectionStatus: 'pending' } : m))
         );
-        onShowToast(`Connection request sent to ${member.name}!`);
+        setSelectedProfileMember((prev) =>
+          prev && prev.id === member.id ? { ...prev, connectionStatus: 'pending' } : prev
+        );
+        // Zero popup toasts on connection sent as requested
       } else {
         onShowToast(data.error || 'Failed to send request.');
       }
@@ -768,7 +791,7 @@ export default function LiveCommunityNetwork({
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <img
-                          src={m.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
+                          src={getMemberAvatar(m.name, m.avatarUrl)}
                           alt={m.name}
                           className="w-10 h-10 rounded-xl object-cover shrink-0 border border-slate-200 group-hover:ring-2 group-hover:ring-[#E25C38] transition-all"
                         />
@@ -960,7 +983,7 @@ export default function LiveCommunityNetwork({
                           title="Click to view full profile & connect"
                         >
                           <img
-                            src={post.author.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
+                            src={getMemberAvatar(post.author.name, post.author.avatar)}
                             alt={post.author.name}
                             className="w-10 h-10 rounded-full object-cover border border-slate-200 group-hover:ring-2 group-hover:ring-[#E25C38] transition-all shadow-2xs"
                           />
@@ -1207,7 +1230,7 @@ export default function LiveCommunityNetwork({
                           title="Click to view full profile & connect"
                         >
                           <img
-                            src={m.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80'}
+                            src={getMemberAvatar(m.name, m.avatarUrl)}
                             alt={m.name}
                             className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200 group-hover:ring-2 group-hover:ring-[#E25C38] transition-all"
                           />
@@ -1232,26 +1255,6 @@ export default function LiveCommunityNetwork({
 
                         {/* Action */}
                         <div className="flex items-center gap-1.5">
-                          {isStudent && m.role !== 'student' && !isSelf && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onSendCvToProfessional?.({
-                                  name: m.name,
-                                  role: m.headline || 'Senior Engineering Leader',
-                                  institution: m.institution,
-                                  avatarUrl: m.avatarUrl,
-                                  skills: m.skills,
-                                })
-                              }
-                              className="px-2 py-1 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#E25C38] border border-orange-200 text-[10px] font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1"
-                              title="Submit CV for AI ATS Review"
-                            >
-                              <FileText className="w-2.5 h-2.5" />
-                              <span>CV</span>
-                            </button>
-                          )}
-
                           {!isSelf && (
                             <button
                               type="button"
@@ -1282,8 +1285,8 @@ export default function LiveCommunityNetwork({
                               <Check className="w-2.5 h-2.5" /> Connected
                             </span>
                           ) : isPending ? (
-                            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full flex items-center gap-0.5">
-                              <Clock className="w-2.5 h-2.5" /> Pending
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200/60">
+                              <Check className="w-2.5 h-2.5 text-emerald-600" /> Sent
                             </span>
                           ) : (
                             <button
@@ -1392,7 +1395,7 @@ export default function LiveCommunityNetwork({
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="relative">
                           <img
-                            src={m.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'}
+                            src={getMemberAvatar(m.name, m.avatarUrl)}
                             alt={m.name}
                             className="w-13 h-13 rounded-2xl object-cover border-2 border-slate-100 shadow-xs"
                           />
@@ -1613,8 +1616,8 @@ export default function LiveCommunityNetwork({
                             <Check className="w-3 h-3" /> Connected
                           </span>
                         ) : isPending ? (
-                          <span className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Pending
+                          <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                            <Check className="w-3 h-3 text-emerald-600" /> Connection Sent
                           </span>
                         ) : (
                           <button
@@ -2068,7 +2071,7 @@ export default function LiveCommunityNetwork({
               <div className="flex items-center gap-3.5">
                 <div className="relative">
                   <img
-                    src={selectedProfileMember.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'}
+                    src={getMemberAvatar(selectedProfileMember.name, selectedProfileMember.avatarUrl)}
                     alt={selectedProfileMember.name}
                     className="w-14 h-14 rounded-2xl object-cover border-2 border-white/20 shadow-lg"
                   />
@@ -2170,9 +2173,13 @@ export default function LiveCommunityNetwork({
                     <Check className="w-3.5 h-3.5" /> Connected
                   </span>
                 ) : selectedProfileMember.connectionStatus === 'pending' ? (
-                  <span className="px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" /> Request Pending
-                  </span>
+                  <button
+                    disabled
+                    className="px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 text-xs font-bold flex items-center gap-1.5 cursor-default transition-all shadow-xs"
+                  >
+                    <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
+                    <span>Connection Sent</span>
+                  </button>
                 ) : (
                   <button
                     onClick={() => handleSendConnection(selectedProfileMember)}

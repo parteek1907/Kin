@@ -145,6 +145,14 @@ const KIN_WALKTHROUGH: WalkthroughStep[] = [
     title: "Professional & Ghost Network",
     lines: ["Connect publicly or switch to pseudonymous Ghost Mode for candid, unfiltered industry discussions."],
     tabId: 'community'
+  },
+  {
+    id: 'profile-setup',
+    title: "Profile Setup & Resume Verification",
+    lines: [
+      "Finally, check out 'Profile Setup' on the top right! Upload your CV here, extract verified proof-of-work skills, sync your LinkedIn and GitHub, and manage your account anytime."
+    ],
+    tabId: 'overview'
   }
 ];
 
@@ -1288,7 +1296,7 @@ export default function KinGlassDashboard() {
         name: activeUserName,
         role: networkRole === 'student' ? 'Student • Batch 2026' : 'Senior SDE @ Uber • Verified Alumni',
         institution: activeUserInstitution,
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+        avatar: activeUserName.toLowerCase().includes('aditya') ? '/images/aditya_sharma.jpg' : (user?.avatarUrl || '/images/aditya_sharma.jpg'),
         verified: true
       },
       content: newPostContent.trim(),
@@ -1430,7 +1438,11 @@ export default function KinGlassDashboard() {
             <button
               id="profile-setup-btn"
               onClick={handleOpenProfileWizard}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer ${
+                showMascotTour && currentTourStep.id === 'profile-setup'
+                  ? 'ring-4 ring-[#E25C38] ring-offset-2 animate-pulse shadow-lg shadow-[#E25C38]/40 scale-105'
+                  : ''
+              }`}
               title="Complete or Edit your 4-Step Profile"
             >
               <User className="w-3.5 h-3.5 text-[#E25C38]" />
@@ -3468,22 +3480,35 @@ export default function KinGlassDashboard() {
                       >
                         Back
                       </button>
-                      <button
-                        onClick={() => {
-                          if (mascotStepIndex < KIN_WALKTHROUGH.length - 1) {
-                            const next = mascotStepIndex + 1;
-                            setMascotStepIndex(next);
-                            setActiveTab(KIN_WALKTHROUGH[next].tabId);
-                          } else {
+                      {currentTourStep.id === 'profile-setup' ? (
+                        <button
+                          onClick={() => {
                             setShowMascotTour(false);
-                            showToast('Walkthrough complete! Kin is here whenever you need guidance.');
-                          }
-                        }}
-                        className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
-                      >
-                        <span>{mascotStepIndex === KIN_WALKTHROUGH.length - 1 ? 'Finish Tour' : 'Next'}</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
+                            handleOpenProfileWizard();
+                          }}
+                          className="px-4 py-1.5 rounded-xl bg-[#E25C38] hover:bg-[#d04e2b] text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5 animate-pulse"
+                        >
+                          <User className="w-3 h-3" />
+                          <span>Open Profile Setup</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (mascotStepIndex < KIN_WALKTHROUGH.length - 1) {
+                              const next = mascotStepIndex + 1;
+                              setMascotStepIndex(next);
+                              setActiveTab(KIN_WALKTHROUGH[next].tabId);
+                            } else {
+                              setShowMascotTour(false);
+                              showToast('Walkthrough complete! Kin is here whenever you need guidance.');
+                            }
+                          }}
+                          className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                        >
+                          <span>{mascotStepIndex === KIN_WALKTHROUGH.length - 1 ? 'Finish Tour' : 'Next'}</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
