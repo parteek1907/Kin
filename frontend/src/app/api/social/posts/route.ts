@@ -52,7 +52,10 @@ export async function GET(req: NextRequest) {
           name: p.authorName,
           role: p.authorRole,
           institution: p.authorInstitution,
-          avatar: p.authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+          avatar:
+            p.authorName?.toLowerCase().includes('aditya') && p.authorAvatar?.includes('photo-1534528741775')
+              ? 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80'
+              : p.authorAvatar || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80',
           verified: true,
         },
         content: p.content,
@@ -137,7 +140,7 @@ export async function POST(req: NextRequest) {
           name: post.authorName,
           role: post.authorRole,
           institution: post.authorInstitution,
-          avatar: post.authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+          avatar: post.authorAvatar || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80',
           verified: true,
         },
         content: post.content,

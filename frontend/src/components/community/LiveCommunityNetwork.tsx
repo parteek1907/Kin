@@ -127,7 +127,7 @@ const DEFAULT_PULSES: KinPulseItem[] = [
     authorName: 'Dr. Alistair Finch',
     authorRole: 'Principal Cryptography & Health Informatics Architect',
     authorInstitution: 'Johns Hopkins / Google Health',
-    authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+    authorAvatar: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=120&auto=format&fit=crop&q=80',
     description: 'Privacy-preserving cryptographic deduplication across hospital networks with ZK proofs and sub-second verification.',
     tags: ['#ZeroKnowledge', '#Cryptography', '#Healthcare', '#FastAPI'],
     likes: 247,
@@ -178,8 +178,24 @@ export default function LiveCommunityNetwork({
     const el = pulsePlayerRef.current;
     if (!el || subTab !== 'pulses') return;
 
+    const handleMouseEnter = () => {
+      if (typeof window !== 'undefined' && window.__lenis) {
+        window.__lenis.stop();
+      }
+    };
+
+    const handleMouseLeave = () => {
+      if (typeof window !== 'undefined' && window.__lenis) {
+        window.__lenis.start();
+      }
+    };
+
     const handleWheel = (e: WheelEvent) => {
+      // Unconditionally stop propagation and prevent default so outer page / Lenis never scroll
       e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
       if (isPulseThrottledRef.current) return;
 
       if (e.deltaY > 15) {
@@ -201,9 +217,17 @@ export default function LiveCommunityNetwork({
       }
     };
 
-    el.addEventListener('wheel', handleWheel, { passive: false });
+    el.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+    el.addEventListener('mouseenter', handleMouseEnter);
+    el.addEventListener('mouseleave', handleMouseLeave);
+
     return () => {
-      el.removeEventListener('wheel', handleWheel);
+      el.removeEventListener('wheel', handleWheel, { capture: true } as any);
+      el.removeEventListener('mouseenter', handleMouseEnter);
+      el.removeEventListener('mouseleave', handleMouseLeave);
+      if (typeof window !== 'undefined' && window.__lenis) {
+        window.__lenis.start();
+      }
     };
   }, [subTab, pulses.length]);
 
@@ -324,7 +348,25 @@ export default function LiveCommunityNetwork({
       const res = await fetch(`/api/members?currentUserEmail=${encodeURIComponent(currentUserEmail)}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.members)) {
-        setMembers(data.members);
+        const priorityNames = [
+          'aditya tanwar',
+          'parteek garg',
+          'darsh ohri',
+          'nipun dhiman',
+          'aditya sharma',
+          'rohan malhotra',
+          'vikramaditya sen',
+          'arjun kapoor',
+        ];
+        const sorted = [...data.members].sort((a: LiveMember, b: LiveMember) => {
+          const aIndex = priorityNames.indexOf(a.name.toLowerCase().trim());
+          const bIndex = priorityNames.indexOf(b.name.toLowerCase().trim());
+          if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+          if (aIndex !== -1) return -1;
+          if (bIndex !== -1) return 1;
+          return 0;
+        });
+        setMembers(sorted);
       }
     } catch (err) {
       console.warn('[Fetch Members Error]', err);
@@ -1149,7 +1191,7 @@ export default function LiveCommunityNetwork({
                 {isLoadingMembers ? (
                   <div className="p-4 text-center text-xs text-slate-400">Loading directory...</div>
                 ) : (
-                  members.slice(0, 5).map((m) => {
+                  members.slice(0, 8).map((m) => {
                     const isSelf = m.connectionStatus === 'self';
                     const isConnected = m.connectionStatus === 'connected';
                     const isPending = m.connectionStatus === 'pending';
@@ -1165,7 +1207,7 @@ export default function LiveCommunityNetwork({
                           title="Click to view full profile & connect"
                         >
                           <img
-                            src={m.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
+                            src={m.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80'}
                             alt={m.name}
                             className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200 group-hover:ring-2 group-hover:ring-[#E25C38] transition-all"
                           />
@@ -1350,7 +1392,7 @@ export default function LiveCommunityNetwork({
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="relative">
                           <img
-                            src={m.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'}
+                            src={m.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'}
                             alt={m.name}
                             className="w-13 h-13 rounded-2xl object-cover border-2 border-slate-100 shadow-xs"
                           />
@@ -1605,9 +1647,20 @@ export default function LiveCommunityNetwork({
       {subTab === 'pulses' && (
         <div className="pb-20 pt-2 flex flex-col items-center justify-center">
           {/* Centered 9:16 Video Player Container */}
-          <div className="w-full max-w-[380px] flex flex-col items-center">
+          <div
+            className="w-full max-w-[380px] flex flex-col items-center"
+            data-lenis-prevent="true"
+            onMouseEnter={() => {
+              if (typeof window !== 'undefined' && window.__lenis) window.__lenis.stop();
+            }}
+            onMouseLeave={() => {
+              if (typeof window !== 'undefined' && window.__lenis) window.__lenis.start();
+            }}
+          >
             <div
               ref={pulsePlayerRef}
+              data-lenis-prevent="true"
+              style={{ overscrollBehavior: 'contain' }}
               onTouchStart={handlePulseTouchStart}
               onTouchEnd={handlePulseTouchEnd}
               tabIndex={0}
@@ -1733,8 +1786,8 @@ export default function LiveCommunityNetwork({
                 </div>
               </div>
 
-              {/* Right Action Bar (Reels-style floating buttons) */}
-              <div className="absolute right-3 bottom-20 z-20 flex flex-col items-center gap-4">
+              {/* Right Action Bar (Reels-style floating buttons - Liquid Glassmorphism) */}
+              <div className="absolute right-3.5 bottom-32 sm:bottom-36 z-20 flex flex-col items-center gap-3.5">
                 {/* Like Button */}
                 <button
                   onClick={() => {
@@ -1754,10 +1807,10 @@ export default function LiveCommunityNetwork({
                   className="flex flex-col items-center gap-1 group/btn cursor-pointer"
                 >
                   <div
-                    className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-lg ${
+                    className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-xl transition-all shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] ${
                       pulses[activePulseIndex].isLiked
-                        ? 'bg-rose-500 text-white scale-110'
-                        : 'bg-black/50 hover:bg-black/80 text-white border border-white/20'
+                        ? 'bg-rose-500/80 hover:bg-rose-500 active:scale-95 text-white border border-rose-300/40 scale-110 shadow-[0_8px_32px_0_rgba(244,63,94,0.35)]'
+                        : 'bg-white/10 hover:bg-white/20 active:scale-95 text-white border border-white/25'
                     }`}
                   >
                     <Heart
@@ -1766,17 +1819,17 @@ export default function LiveCommunityNetwork({
                       }`}
                     />
                   </div>
-                  <span className="text-[10px] font-bold text-white drop-shadow-md">
+                  <span className="text-[10px] font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                     {pulses[activePulseIndex].likes}
                   </span>
                 </button>
 
                 {/* Comments count */}
                 <div className="flex flex-col items-center gap-1">
-                  <div className="w-11 h-11 rounded-full bg-black/50 text-white border border-white/20 flex items-center justify-center backdrop-blur-md">
+                  <div className="w-11 h-11 rounded-full bg-white/10 text-white border border-white/25 flex items-center justify-center backdrop-blur-xl shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]">
                     <MessageSquare className="w-5 h-5" />
                   </div>
-                  <span className="text-[10px] font-bold text-white drop-shadow-md">
+                  <span className="text-[10px] font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                     {pulses[activePulseIndex].commentsCount}
                   </span>
                 </div>
@@ -1789,10 +1842,10 @@ export default function LiveCommunityNetwork({
                   }}
                   className="flex flex-col items-center gap-1 group/btn cursor-pointer"
                 >
-                  <div className="w-11 h-11 rounded-full bg-black/50 hover:bg-black/80 text-white border border-white/20 flex items-center justify-center backdrop-blur-md transition-all">
+                  <div className="w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white border border-white/25 flex items-center justify-center backdrop-blur-xl shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] transition-all">
                     <Share2 className="w-5 h-5" />
                   </div>
-                  <span className="text-[10px] font-bold text-white drop-shadow-md">Share</span>
+                  <span className="text-[10px] font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Share</span>
                 </button>
               </div>
 
