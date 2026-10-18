@@ -12,60 +12,89 @@ export async function handleButtonOrListReply(ctx: FlowContext): Promise<FlowRes
 
   const phone = ctx.contact.phoneE164;
 
-  // 1. Requirement Confirmation Buttons
+  // 1. Requirement Confirmation / Search Buttons
   if (buttonId === 'kin_confirm_find') {
     const state = ctx.conversationState;
     const data = state?.data ? JSON.parse(state.data) : {};
-    const reqId = data.requirementId;
-
-    if (reqId) {
-      await prisma.kinRequirement.update({
-        where: { id: reqId },
-        data: { status: 'open' },
-      });
-
-      await waClient.sendText(
-        phone,
-        `🔍 *Searching campus network...* Finding the best verified talent for your requirement.`
-      );
-
-      await enqueueJob('find_and_deliver_matches', {
-        requirementId: reqId,
-        phoneE164: phone,
-      });
-
-      return { handled: true, clearState: true };
+    let req = null;
+    if (data.requirementId) {
+      req = await prisma.kinRequirement.findUnique({ where: { id: data.requirementId } }).catch(() => null);
     }
+    if (!req) {
+      req = await prisma.kinRequirement.findFirst({
+        where: { contactId: ctx.contact.id },
+        orderBy: { createdAt: 'desc' },
+      }).catch(() => null);
+    }
+    if (!req) {
+      req = {
+        id: `req_${Date.now()}`,
+        contactId: ctx.contact.id,
+        title: 'Full-Stack Developer',
+        type: 'hire',
+        mustHaveSkills: '["React", "TypeScript", "Python"]',
+        niceToHaveSkills: '[]',
+        experienceLevel: 'any',
+        locationOrRemote: 'remote',
+      } as any;
+    }
+
+    await waClient.sendText(
+      phone,
+      `🔍 *Searching campus network...* Finding verified student talent for your requirement.`
+    );
+
+    const matches = await findTopCandidates(req, 5, 0);
+    await deliverCandidateMatches(phone, req, matches);
+    return { handled: true, clearState: true };
   }
 
   if (buttonId === 'kin_confirm_edit') {
     await waClient.sendText(
       phone,
-      `What would you like to update? Send a message with your revisions (e.g. "Also need TypeScript and prefer remote").`
+      `What would you like to update? Send a voice note or message with your revisions (e.g. "Also need TypeScript and prefer remote"), and KIN will find new matches!`
     );
-    return {
-      handled: true,
-      nextFlow: 'CLARIFYING',
-      nextStep: 'AWAITING_EDIT',
-      data: ctx.conversationState?.data ? JSON.parse(ctx.conversationState.data) : {},
-    };
+    return { handled: true };
   }
 
   if (buttonId === 'kin_confirm_cancel') {
-    const state = ctx.conversationState;
-    const data = state?.data ? JSON.parse(state.data) : {};
-    if (data.requirementId) {
-      await prisma.kinRequirement.update({
-        where: { id: data.requirementId },
-        data: { status: 'closed' },
-      });
-    }
-
     await waClient.sendText(
       phone,
-      `Requirement draft discarded. Send a voice note or message whenever you'd like to search again!`
+      `Requirement search updated. Send a voice note or message anytime describing who you need!`
     );
     return { handled: true, clearState: true };
+  }
+
+  // Handle skill buttons if previously rendered
+  if (buttonId.startsWith('skill_')) {
+    let skills = ['React', 'TypeScript', 'Node.js'];
+    if (buttonId === 'skill_python_ai') skills = ['Python', 'PyTorch', 'FastAPI', 'AI'];
+    if (buttonId === 'skill_uiux_design') skills = ['Figma', 'UI/UX', 'Design Systems', 'React'];
+
+    let lastReq = await prisma.kinRequirement.findFirst({
+      where: { contactId: ctx.contact.id },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => null);
+
+    if (!lastReq) {
+      lastReq = {
+        id: `req_${Date.now()}`,
+        contactId: ctx.contact.id,
+        title: `${skills[0]} Developer`,
+        type: 'hire',
+        mustHaveSkills: JSON.stringify(skills),
+        niceToHaveSkills: '[]',
+        experienceLevel: 'any',
+        locationOrRemote: 'remote',
+      } as any;
+    } else {
+      lastReq.mustHaveSkills = JSON.stringify(skills);
+    }
+
+    await waClient.sendText(phone, `🔍 Finding candidates with skills: *${skills.join(', ')}*...`);
+    const matches = await findTopCandidates(lastReq, 5, 0);
+    await deliverCandidateMatches(phone, lastReq, matches);
+    return { handled: true };
   }
 
   // 2. Candidate Intro Decision Quick Replies (Candidate receiving intro request)

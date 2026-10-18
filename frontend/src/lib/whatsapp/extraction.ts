@@ -225,24 +225,25 @@ function validateClarification(
   req: ExtractedRequirement,
   clarificationCount: number
 ): ExtractedRequirement {
-  // If role or skills are missing and we haven't asked 2 questions yet:
-  if (clarificationCount < 2) {
-    if (req.must_have_skills.length === 0) {
-      req.needs_clarification = true;
-      req.missing_field = 'skills';
-      req.clarification_question = req.detected_language === 'hinglish' || req.detected_language === 'hi'
-        ? 'Kaunsi main skills ya technologies chahiye? (e.g. React, Python, UI/UX)'
-        : 'What primary skills or tech stack are you looking for? (e.g. React, Python, UI/UX)';
-      req.clarification_buttons = [
-        { id: 'skill_react_node', title: 'React / Node.js' },
-        { id: 'skill_python_ai', title: 'Python / AI' },
-        { id: 'skill_uiux_design', title: 'UI/UX Design' },
-      ];
-      return req;
+  // If must_have_skills is empty, automatically infer skills based on title, type, or context
+  if (!req.must_have_skills || req.must_have_skills.length === 0) {
+    const lower = `${req.title} ${req.summary} ${req.type}`.toLowerCase();
+    if (lower.includes('ai') || lower.includes('machine learning') || lower.includes('ml') || lower.includes('data') || lower.includes('python') || lower.includes('llm') || lower.includes('rag')) {
+      req.must_have_skills = ['Python', 'PyTorch', 'FastAPI', 'Machine Learning'];
+    } else if (lower.includes('mobile') || lower.includes('flutter') || lower.includes('ios') || lower.includes('android') || lower.includes('app')) {
+      req.must_have_skills = ['Flutter', 'Dart', 'React Native'];
+    } else if (lower.includes('ui') || lower.includes('ux') || lower.includes('design') || lower.includes('figma')) {
+      req.must_have_skills = ['Figma', 'UI/UX', 'React'];
+    } else if (lower.includes('backend') || lower.includes('systems') || lower.includes('cloud') || lower.includes('devops') || lower.includes('go') || lower.includes('rust')) {
+      req.must_have_skills = ['Go', 'Rust', 'Docker', 'PostgreSQL'];
+    } else {
+      req.must_have_skills = ['React', 'TypeScript', 'Node.js', 'Python'];
     }
   }
 
+  // Never block or trap the user in clarification loops
   req.needs_clarification = false;
+  req.missing_field = 'none';
   return req;
 }
 
@@ -261,45 +262,45 @@ export function formatRequirementEcho(req: ExtractedRequirement): {
 
   switch (lang) {
     case 'hi':
-      message = `आपकी आवश्यकता दर्ज कर ली गई है:\n\n• पद: ${req.headcount} ${req.title} (${req.type})\n• स्किल्स: ${skillsText}\n• स्थान: ${req.location_or_remote}\n• समय: ${req.urgency}\n\nक्या यह सही है?`;
+      message = `✅ *आपकी आवश्यकता दर्ज कर ली गई है!*\n\n• पद: ${req.headcount} ${req.title} (${req.type})\n• स्किल्स: ${skillsText}\n• स्थान: ${req.location_or_remote}\n• समय: ${req.urgency}\n\n🎯 *आपके लिए शीर्ष सत्यापित छात्र उम्मीदवार:*`;
       break;
     case 'hinglish':
-      message = `Samajh gaya! Aapko chahiye:\n\n• Role: ${req.headcount} ${req.title} (${req.type})\n• Skills: ${skillsText}\n• Location: ${req.location_or_remote}\n• Timeline: ${req.urgency}\n\nKya ye sahi hai?`;
+      message = `✅ *Samajh gaya! Aapki requirement note kar li:* \n\n• Role: ${req.headcount} ${req.title} (${req.type})\n• Skills: ${skillsText}\n• Location: ${req.location_or_remote}\n• Timeline: ${req.urgency}\n\n🎯 *Yeh rahe aapke top verified student matches:*`;
       break;
     case 'pa':
-      message = `ਤੁਹਾਡੀ ਲੋੜ ਸਮਝ ਆ ਗਈ ਹੈ:\n\n• ਭੂਮਿਕਾ: ${req.headcount} ${req.title} (${req.type})\n• ਹੁਨਰ (Skills): ${skillsText}\n• ਸਥਾਨ: ${req.location_or_remote}\n• ਸਮਾਂ: ${req.urgency}\n\nਕੀ ਇਹ ਠੀਕ ਹੈ?`;
+      message = `✅ *ਤੁਹਾਡੀ ਲੋੜ ਦਰਜ ਕਰ ਲਈ ਗਈ ਹੈ!*\n\n• ਭੂਮਿਕਾ: ${req.headcount} ${req.title} (${req.type})\n• ਹੁਨਰ (Skills): ${skillsText}\n• ਸਥਾਨ: ${req.location_or_remote}\n• ਸਮਾਂ: ${req.urgency}\n\n🎯 *ਤੁਹਾਡੇ ਲਈ ਚੋਟੀ ਦੇ ਵਿਦਿਆਰਥੀ ਉਮੀਦਵਾਰ:*`;
       break;
     case 'bn':
-      message = `আপনার প্রয়োজনীয়তা পেয়েছি:\n\n• পদ: ${req.headcount} ${req.title} (${req.type})\n• দক্ষতা (Skills): ${skillsText}\n• অবস্থান: ${req.location_or_remote}\n• সময়সীমা: ${req.urgency}\n\nএটি কি সঠিক?`;
+      message = `✅ *আপনার প্রয়োজনীয়তা নথিভুক্ত করা হয়েছে!*\n\n• পদ: ${req.headcount} ${req.title} (${req.type})\n• दक्षता (Skills): ${skillsText}\n• অবস্থান: ${req.location_or_remote}\n• সময়সীমা: ${req.urgency}\n\n🎯 *আপনার জন্য শীর্ষ শিক্ষার্থী প্রার্থীরা:*`;
       break;
     case 'ta':
-      message = `உங்கள் தேவை பெறப்பட்டது:\n\n• பதவி: ${req.headcount} ${req.title} (${req.type})\n• திறன்கள் (Skills): ${skillsText}\n• இடம்: ${req.location_or_remote}\n• கால அவகாசம்: ${req.urgency}\n\nஇது சரியானதா?`;
+      message = `✅ *உங்கள் தேவை பதிவு செய்யப்பட்டது!*\n\n• பதவி: ${req.headcount} ${req.title} (${req.type})\n• திறன்கள் (Skills): ${skillsText}\n• இடம்: ${req.location_or_remote}\n• கால அவகாசம்: ${req.urgency}\n\n🎯 *உங்களுக்கான சிறந்த மாணவர்கள்:*`;
       break;
     case 'te':
-      message = `మీ అవసరం నమోదు చేయబడింది:\n\n• పాత్ర: ${req.headcount} ${req.title} (${req.type})\n• నైపుణ్యాలు (Skills): ${skillsText}\n• స్థానం: ${req.location_or_remote}\n• కాలవ్యవధి: ${req.urgency}\n\nఇది సరైనదేనా?`;
+      message = `✅ *మీ అవసరం నమోదు చేయబడింది!*\n\n• పాత్ర: ${req.headcount} ${req.title} (${req.type})\n• నైపుణ్యాలు (Skills): ${skillsText}\n• స్థానం: ${req.location_or_remote}\n• కాలవ్యవధి: ${req.urgency}\n\n🎯 *మీ కోసం ఉత్తమ విద్యార్థి అభ్యర్థులు:*`;
       break;
     case 'mr':
-      message = `आपली आवश्यकता नोंदवली गेली आहे:\n\n• पद: ${req.headcount} ${req.title} (${req.type})\n• कौशल्ये (Skills): ${skillsText}\n• ठिकाण: ${req.location_or_remote}\n• वेळ: ${req.urgency}\n\nहे बरोबर आहे का?`;
+      message = `✅ *आपली आवश्यकता नोंदवली गेली आहे!*\n\n• पद: ${req.headcount} ${req.title} (${req.type})\n• कौशल्ये (Skills): ${skillsText}\n• ठिकाण: ${req.location_or_remote}\n• वेळ: ${req.urgency}\n\n🎯 *आपल्यासाठी सर्वोत्तम विद्यार्थी उमेदवार:*`;
       break;
     case 'gu':
-      message = `તમારી જરૂરિયાત નોંધી લીધી છે:\n\n• રોલ: ${req.headcount} ${req.title} (${req.type})\n• સ્કિલ્સ (Skills): ${skillsText}\n• સ્થળ: ${req.location_or_remote}\n• સમય: ${req.urgency}\n\nશું આ બરાબર છે?`;
+      message = `✅ *તમારી જરૂરિયાત નોંધી લીધી છે!*\n\n• રોલ: ${req.headcount} ${req.title} (${req.type})\n• સ્કિલ્સ (Skills): ${skillsText}\n• સ્થળ: ${req.location_or_remote}\n• સમય: ${req.urgency}\n\n🎯 *તમારા માટે ટોચના વિદ્યાર્થી ઉમેદવારો:*`;
       break;
     case 'kn':
-      message = `ನಿಮ್ಮ ಅವಶ್ಯಕತೆ ಅರ್ಥವಾಯಿತು:\n\n• ಪಾತ್ರ: ${req.headcount} ${req.title} (${req.type})\n• ಕೌಶಲ್ಯಗಳು (Skills): ${skillsText}\n• ಸ್ಥಳ: ${req.location_or_remote}\n• ಸಮಯ: ${req.urgency}\n\nಇದು ಸರಿಯಾಗಿದೆಯೇ?`;
+      message = `✅ *ನಿಮ್ಮ ಅವಶ್ಯಕತೆ ದಾಖಲಾಗಿದೆ!*\n\n• ಪಾತ್ರ: ${req.headcount} ${req.title} (${req.type})\n• ಕೌಶಲ್ಯಗಳು (Skills): ${skillsText}\n• ಸ್ಥಳ: ${req.location_or_remote}\n• ಸಮಯ: ${req.urgency}\n\n🎯 *ನಿಮಗಾಗಿ ಅತ್ಯುತ್ತಮ ವಿದ್ಯಾರ್ಥಿ ಅಭ್ಯರ್ಥಿಗಳು:*`;
       break;
     case 'ml':
-      message = `നിങ്ങളുടെ ആവശ്യം മനസ്സിലായി:\n\n• റോൾ: ${req.headcount} ${req.title} (${req.type})\n• സ്കിൽസ് (Skills): ${skillsText}\n• സ്ഥലം: ${req.location_or_remote}\n• സമയം: ${req.urgency}\n\nഇത് ശരിയാണോ?`;
+      message = `✅ *നിങ്ങളുടെ ആവശ്യം രേഖപ്പെടുത്തി!*\n\n• റോൾ: ${req.headcount} ${req.title} (${req.type})\n• സ്കിൽസ് (Skills): ${skillsText}\n• സ്ഥലം: ${req.location_or_remote}\n• സമയം: ${req.urgency}\n\n🎯 *നിങ്ങൾക്കായുള്ള മികച്ച വിദ്യാർത്ഥി ഉദ്യോഗാർത്ഥികൾ:*`;
       break;
     case 'en':
     default:
-      message = `Got it! You need:\n\n• Role: ${req.headcount} ${req.title} (${req.type})\n• Key Skills: ${skillsText}\n• Location: ${req.location_or_remote}\n• Urgency: ${req.urgency}\n\nIs this correct?`;
+      message = `✅ *Requirement Registered!*\n\n• Role: ${req.headcount} ${req.title} (${req.type})\n• Key Skills: ${skillsText}\n• Location: ${req.location_or_remote}\n• Urgency: ${req.urgency}\n\n🎯 *Here are your top verified campus matches:*`;
       break;
   }
 
   const buttons = [
-    { id: 'kin_confirm_find', title: 'Find candidates' },
-    { id: 'kin_confirm_edit', title: 'Edit' },
-    { id: 'kin_confirm_cancel', title: 'Cancel' },
+    { id: 'kin_confirm_edit', title: 'Edit Criteria' },
+    { id: 'menu_my_requirements', title: 'My Requirements' },
+    { id: 'menu_new_requirement', title: 'New Search' },
   ];
 
   return { message, buttons };
