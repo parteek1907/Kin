@@ -209,9 +209,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       : (payload.businessId ? 'verified_professional' : 'pending');
 
     const backendEndpoints = [
+      '/api/v1/auth/firebase-sync',
+      process.env.NEXT_PUBLIC_BACKEND_URL ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/firebase-sync` : '',
       'http://localhost:8000/api/v1/auth/firebase-sync',
       'http://127.0.0.1:8000/api/v1/auth/firebase-sync',
-    ];
+    ].filter(Boolean) as string[];
 
     let backendSuccess = false;
     let jwtToken = '';

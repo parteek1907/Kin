@@ -10,7 +10,8 @@ export async function GET(req: NextRequest) {
 
     // Dynamically synchronize any real users registered in backend database
     try {
-      const backendRes = await fetch('http://localhost:8000/api/v1/auth/registered-users', {
+      const backendBase = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      const backendRes = await fetch(`${backendBase}/api/v1/auth/registered-users`, {
         headers: { 'Accept': 'application/json' },
         signal: AbortSignal.timeout(1500),
       }).catch(() => null);
