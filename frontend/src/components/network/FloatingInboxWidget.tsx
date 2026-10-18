@@ -16,6 +16,7 @@ import {
   GraduationCap,
   Briefcase
 } from 'lucide-react';
+import KinMascot from '@/components/KinMascot';
 
 export interface DMTargetUser {
   id: string;
@@ -54,6 +55,7 @@ interface FloatingInboxWidgetProps {
   currentUserName: string;
   externalTargetUser?: DMTargetUser | null;
   onClearExternalTarget?: () => void;
+  onOpenKinChat?: () => void;
 }
 
 const getMemberAvatar = (user: { name?: string; email?: string; avatarUrl?: string }) => {
@@ -71,6 +73,7 @@ export default function FloatingInboxWidget({
   currentUserName,
   externalTargetUser,
   onClearExternalTarget,
+  onOpenKinChat,
 }: FloatingInboxWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activePartner, setActivePartner] = useState<DMTargetUser | null>(null);
@@ -479,6 +482,37 @@ export default function FloatingInboxWidget({
 
                 {/* Content: Search Results OR Active Conversations */}
                 <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+                  {/* Pinned Kin AI Copilot Assistant */}
+                  {onOpenKinChat && !searchQuery.trim() && (
+                    <div
+                      onClick={() => {
+                        setIsOpen(false);
+                        onOpenKinChat();
+                      }}
+                      className="p-3 m-2.5 rounded-2xl bg-gradient-to-r from-indigo-50/90 via-purple-50/70 to-pink-50/50 hover:from-indigo-100/90 hover:to-purple-100/80 border border-indigo-100/90 transition-all flex items-center justify-between cursor-pointer group shadow-2xs"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 border border-indigo-100 shadow-xs filter drop-shadow-2xs overflow-hidden">
+                          <KinMascot pose="welcome" size={26} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                              Kin AI Copilot
+                            </h4>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          </div>
+                          <p className="text-[10px] text-slate-500 truncate">
+                            Chat with Kin or take a platform tour ✨
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold text-indigo-600 bg-white px-2 py-1 rounded-full border border-indigo-100 shadow-2xs group-hover:scale-105 transition-all">
+                        Chat
+                      </span>
+                    </div>
+                  )}
+
                   {searchQuery.trim() ? (
                     /* Search results */
                     <div>

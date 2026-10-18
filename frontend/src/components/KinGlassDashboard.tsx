@@ -60,6 +60,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import ResumeUploadModal from './ResumeUploadModal';
 import KinMascot from './KinMascot';
+import KinChatModal from './KinChatModal';
 import ProfileCompletionWizard from './profile/ProfileCompletionWizard';
 import LiveCommunityNetwork from './community/LiveCommunityNetwork';
 import FloatingInboxWidget, { DMTargetUser } from './network/FloatingInboxWidget';
@@ -199,6 +200,9 @@ export default function KinGlassDashboard() {
   // Mascot Walkthrough State
   const [showMascotTour, setShowMascotTour] = useState(false);
   const [mascotStepIndex, setMascotStepIndex] = useState(0);
+
+  // Kin AI Chatbot Modal State
+  const [isKinChatOpen, setIsKinChatOpen] = useState(false);
 
   // Floating Inbox Target User
   const [inboxTargetUser, setInboxTargetUser] = useState<DMTargetUser | null>(null);
@@ -3411,14 +3415,14 @@ export default function KinGlassDashboard() {
               exit={{ opacity: 0, y: 14, scale: 0.9 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               onClick={() => {
-                setMascotStepIndex(0);
-                setShowMascotTour(true);
+                setIsKinChatOpen(true);
               }}
               className="relative mb-2 z-30 pointer-events-auto group cursor-pointer transition-transform duration-300 hover:scale-110 hover:-translate-y-1 focus:outline-none"
-              title="Kin AI Guide • Click me to interact! 👋"
+              title="Kin AI Assistant • Click to chat or take tour! ✨"
             >
-              <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-slate-200 shadow-md text-[10px] font-bold text-slate-800 whitespace-nowrap pointer-events-none">
-                Kin Guide • Click me 👋
+              <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-slate-200 shadow-md text-[10px] font-bold text-slate-800 whitespace-nowrap pointer-events-none flex items-center gap-1">
+                <span>Kin AI • Click to chat</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               </div>
 
               <div className="w-13 h-13 relative filter drop-shadow-[0_4px_14px_rgba(0,0,0,0.12)]">
@@ -4230,6 +4234,27 @@ export default function KinGlassDashboard() {
         currentUserName={activeUserName}
         externalTargetUser={inboxTargetUser}
         onClearExternalTarget={() => setInboxTargetUser(null)}
+        onOpenKinChat={() => setIsKinChatOpen(true)}
+      />
+
+      {/* ─── Kin AI Chatbot & Tour Modal ─── */}
+      <KinChatModal
+        isOpen={isKinChatOpen}
+        onClose={() => setIsKinChatOpen(false)}
+        onStartTour={() => {
+          setIsKinChatOpen(false);
+          setMascotStepIndex(0);
+          setShowMascotTour(true);
+        }}
+        userProfile={{
+          name: activeUserName,
+          role: networkRole,
+          institution: parsedProfile?.institution || 'IIIT Delhi',
+          skills: parsedProfile?.skills || ['Next.js', 'React', 'Python', 'FastAPI'],
+          targetRole: parsedProfile?.skillGap?.targetRole || (networkRole === 'student' ? 'Senior AI Engineer' : 'Staff Systems Architect'),
+          email: user?.email || (networkRole === 'alumni' ? 'parth.arora@deepmind.com' : 'aditya@iiitd.ac.in')
+        }}
+        activeTab={activeTab}
       />
     </div>
   );
