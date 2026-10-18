@@ -106,29 +106,6 @@ export default function EnterNetworkModal({ isOpen, onClose }: EnterNetworkModal
     }
   };
 
-  const handleLoadSampleDarsh = async () => {
-    setIsLoading(true);
-    setErrorMsg(null);
-
-    try {
-      const res = await fetch('/api/parse-resume', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isSampleDarsh: true }),
-      });
-
-      const data = await res.json();
-      if (data.success && data.profile) {
-        setParsedProfile(data.profile);
-        onClose();
-        router.push('/dashboard?role=student');
-      }
-    } catch (err) {
-      setErrorMsg('Failed to load sample CV.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/65 backdrop-blur-md">
@@ -226,27 +203,6 @@ export default function EnterNetworkModal({ isOpen, onClose }: EnterNetworkModal
               Upload your resume in any format. Kin will analyze your repositories, verify skills, and populate your dashboard.
             </p>
 
-            {/* Quick 1-Click Sample Button */}
-            <div className="mb-4">
-              <button
-                onClick={handleLoadSampleDarsh}
-                disabled={isLoading}
-                className="w-full py-2.5 px-3.5 rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 border border-orange-200 hover:border-orange-300 text-left flex items-center justify-between transition-all group shadow-2xs cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-[#E25C38] shrink-0" />
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 block">
-                      Quick Demo: Darsh Ohri (Full-Stack & AI)
-                    </span>
-                    <span className="text-[10px] text-slate-500">
-                      Plaksha University • React, Next.js, FastAPI & Hackathon Achievements
-                    </span>
-                  </div>
-                </div>
-                <ArrowRight className="w-3.5 h-3.5 text-[#E25C38] group-hover:translate-x-1 transition-transform shrink-0" />
-              </button>
-            </div>
 
             {/* Drag & Drop File Zone */}
             <div

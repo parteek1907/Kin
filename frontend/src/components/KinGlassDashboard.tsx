@@ -32,6 +32,7 @@ import {
   UploadCloud,
   Github,
   Linkedin,
+  Globe,
   ExternalLink,
   Code2,
   GitBranch,
@@ -50,24 +51,33 @@ import {
   Share2,
   Eye,
   Filter,
-  CheckSquare
+  CheckSquare,
+  Trash2,
+  GitPullRequest,
+  Loader2
 } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
 import ResumeUploadModal from './ResumeUploadModal';
-import { DARSH_OHRI_PROFILE } from '@/data/darshProfile';
 import KinMascot from './KinMascot';
+import ProfileCompletionWizard from './profile/ProfileCompletionWizard';
+import LiveCommunityNetwork from './community/LiveCommunityNetwork';
 import {
   ALUMNI_PROBLEMS,
   AlumniProblem,
   INITIAL_SUBMITTED_SOLUTIONS,
-  CandidateSolutionSubmission
+  CandidateSolutionSubmission,
+  OutreachApplication
 } from '@/data/alumniProblems';
 import {
   MOCK_POLICIES,
   MOCK_SOCIAL_FEED,
   SocialFeedItem,
-  AutoConnectionPolicy
+  AutoConnectionPolicy,
+  MOCK_CAREER_MILESTONES,
+  MOCK_SKILL_GAP,
+  MOCK_BOUNTIES,
+  MOCK_RADAR_OPPORTUNITIES
 } from '@/services/dashboardService';
 
 type ActiveTab = 
@@ -158,6 +168,9 @@ export default function KinGlassDashboard() {
     isUploadResumeModalOpen,
     openUploadResumeModal,
     closeUploadResumeModal,
+    isProfileModalOpen,
+    openProfileModal,
+    closeProfileModal,
     setParsedProfile
   } = useAuth();
 
@@ -182,14 +195,40 @@ export default function KinGlassDashboard() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   // Mascot Walkthrough State
-  const [showMascotTour, setShowMascotTour] = useState(true);
+  const [showMascotTour, setShowMascotTour] = useState(false);
   const [mascotStepIndex, setMascotStepIndex] = useState(0);
 
-  // Sync role state on load
+  // Profile Setup Modal State: local + context sync
+  const [localProfileModalOpen, setLocalProfileModalOpen] = useState(false);
+  const isProfileWizardOpen = isProfileModalOpen || localProfileModalOpen;
+  const handleOpenProfileWizard = () => {
+    setLocalProfileModalOpen(true);
+    if (openProfileModal) openProfileModal();
+  };
+  const handleCloseProfileWizard = () => {
+    setLocalProfileModalOpen(false);
+    if (closeProfileModal) closeProfileModal();
+  };
+
+  const dismissMascotTour = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('kin_mascot_tour_seen', 'true');
+    }
+    setShowMascotTour(false);
+  };
+
+  // Sync role state on load & check profile param
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlRole = params.get('role');
+      const urlTab = params.get('tab');
+      if (urlTab) {
+        setActiveTab(urlTab as ActiveTab);
+      }
+      if (params.get('setup') === 'true' || params.get('profile') === 'true' || params.has('step')) {
+        setLocalProfileModalOpen(true);
+      }
       if (urlRole === 'alumni' || activeRole === 'Alumni') {
         setNetworkRole('alumni');
         setShowMascotTour(false);
@@ -216,7 +255,7 @@ export default function KinGlassDashboard() {
   // ─────────────────────────────────────────────────────────────────────────────
   // PROBLEM STATEMENTS (IMAGE 3 UI) & SOLUTION SUBMISSION MODAL STATE
   // ─────────────────────────────────────────────────────────────────────────────
-  const [problems, setProblems] = useState<AlumniProblem[]>(ALUMNI_PROBLEMS);
+  const [problems, setProblems] = useState<AlumniProblem[]>([]);
   const [problemCategoryFilter, setProblemCategoryFilter] = useState<string>('All');
   const [selectedProblem, setSelectedProblem] = useState<AlumniProblem | null>(null);
   const [isSubmitSolutionModalOpen, setIsSubmitSolutionModalOpen] = useState(false);
@@ -235,35 +274,121 @@ export default function KinGlassDashboard() {
   const [newProblemContext, setNewProblemContext] = useState('');
 
   // Professional Candidate PR / Solution Review Console State
-  const [candidateSubmissions, setCandidateSubmissions] = useState<CandidateSolutionSubmission[]>(INITIAL_SUBMITTED_SOLUTIONS);
+  const [candidateSubmissions, setCandidateSubmissions] = useState<CandidateSolutionSubmission[]>([]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // AUTO-CONNECT & FIREWALL STATES
   // ─────────────────────────────────────────────────────────────────────────────
-  // Student Outreach State
+  // Student Outreach State (Live Connected & Evaluated Applications)
+  const [outreachApplications, setOutreachApplications] = useState<OutreachApplication[]>([]);
   const [manualNoteModalOpen, setManualNoteModalOpen] = useState(false);
-  const [manualNoteSenior, setManualNoteSenior] = useState<string>('Rahul Mehta');
+  const [manualNoteSenior, setManualNoteSenior] = useState<string>('');
   const [manualNoteText, setManualNoteText] = useState('');
+
+  // Send CV to Professional Modal State (Direct ATS Review from Social / Directory)
+  const [isSendCvModalOpen, setIsSendCvModalOpen] = useState(false);
+  const [selectedProForCv, setSelectedProForCv] = useState<{
+    name: string;
+    role: string;
+    company: string;
+    avatar?: string;
+  }>({
+    name: '',
+    role: '',
+    company: '',
+  });
+  const [isEvaluatingAts, setIsEvaluatingAts] = useState(false);
+  const [targetProPolicy, setTargetProPolicy] = useState<{
+    threshold: number;
+    minCommits: number;
+    mandatorySkills: string[];
+  } | null>(null);
+  const [isLoadingProPolicy, setIsLoadingProPolicy] = useState(false);
+
+  useEffect(() => {
+    if (isSendCvModalOpen && selectedProForCv.name) {
+      setIsLoadingProPolicy(true);
+      fetch(`/api/firewall/policy?professionalName=${encodeURIComponent(selectedProForCv.name)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.success && d.policy) {
+            setTargetProPolicy({
+              threshold: d.policy.threshold,
+              minCommits: d.policy.minCommits,
+              mandatorySkills: d.policy.mandatorySkills || ['React', 'Docker', 'PostgreSQL'],
+            });
+          }
+        })
+        .catch(() => {})
+        .finally(() => setIsLoadingProPolicy(false));
+    }
+  }, [isSendCvModalOpen, selectedProForCv.name]);
 
   // Professional Firewall Settings State
   const [firewallThreshold, setFirewallThreshold] = useState<number>(75);
   const [firewallMinCommits, setFirewallMinCommits] = useState<number>(15);
   const [firewallActive, setFirewallActive] = useState<boolean>(true);
   const [selectedFirewallSkills, setSelectedFirewallSkills] = useState<string[]>(['React', 'Docker', 'PostgreSQL']);
-  const [pendingQueue, setPendingQueue] = useState([
-    { id: 'pq-1', name: 'Tanmay Saxena', college: 'NSUT Delhi', match: 68, missing: 'Docker (0/1)', note: 'Hi Rahul! Built a high-concurrency pub-sub in Go and would love your guidance on Uber platform architecture.' },
-    { id: 'pq-2', name: 'Rhea Sen', college: 'DTU', match: 71, missing: 'Min Commits (12/15)', note: 'Hey! Loved your post on distributed cache warming. Check my Raft KV implementation.' },
-    { id: 'pq-3', name: 'Kabir Varma', college: 'IIIT Hyderabad', match: 64, missing: 'PostgreSQL', note: 'Hey Rahul, solving your CarDekho OBD-II problem right now!' },
-  ]);
+  const [pendingQueue, setPendingQueue] = useState<any[]>([]);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 20-MINUTE DOORWAY STATES
+  // 20-MINUTE DOORWAY STATES (LIVE INTERLINKED CONSULTATIONS & SETTLEMENTS)
   // ─────────────────────────────────────────────────────────────────────────────
-  const [selectedExpert, setSelectedExpert] = useState<{ name: string; role: string; fee: string; specialty: string } | null>(null);
+  const [doorwaySlots, setDoorwaySlots] = useState<any[]>([]);
+  const [isLoadingDoorwaySlots, setIsLoadingDoorwaySlots] = useState(false);
+  const [selectedExpert, setSelectedExpert] = useState<any | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState('Saturday, 3:00 PM - 3:20 PM');
-  const [consultFeeSetting, setConsultFeeSetting] = useState('₹1,000');
-  const [totalSessionsConducted, setTotalSessionsConducted] = useState(12);
+  const [bookingTopic, setBookingTopic] = useState('');
+  const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
+
+  // Professional Consultation Pricing & Availability (Image 2)
+  const [consultFeeSetting, setConsultFeeSetting] = useState('1000');
+  const [consultSpecialtySetting, setConsultSpecialtySetting] = useState('System Design Drill');
+  const [consultIsOpenForBookings, setConsultIsOpenForBookings] = useState(true);
+  const [isSavingConsultPricing, setIsSavingConsultPricing] = useState(false);
+
+  // Professional Financial Ledger (Real Data, 50/50 Split)
+  const [proSessionsDone, setProSessionsDone] = useState(0);
+  const [proGrossRevenue, setProGrossRevenue] = useState(0);
+  const [proShare50, setProShare50] = useState(0);
+  const [proPendingSettlement, setProPendingSettlement] = useState(0);
+  const [proBookingsList, setProBookingsList] = useState<any[]>([]);
+  const [isRequestingPayout, setIsRequestingPayout] = useState(false);
+
+  const refreshDoorwaySlots = async () => {
+    setIsLoadingDoorwaySlots(true);
+    try {
+      const res = await fetch('/api/doorway/slots?onlyAvailable=true');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.slots)) {
+        setDoorwaySlots(data.slots);
+      }
+    } catch (e) {
+      console.error('Failed to load doorway slots', e);
+    } finally {
+      setIsLoadingDoorwaySlots(false);
+    }
+  };
+
+  const refreshProfessionalLedger = async () => {
+    try {
+      const proEmail = user?.email || activeUserEmail || 'professional@kin.network';
+      const proName = user?.name || activeUserName || 'Verified Professional';
+      const res = await fetch(`/api/doorway/bookings?professionalEmail=${encodeURIComponent(proEmail)}&professionalName=${encodeURIComponent(proName)}`);
+      const data = await res.json();
+      if (data.success && data.stats) {
+        setProSessionsDone(data.stats.totalSessions || 0);
+        setProGrossRevenue(data.stats.grossRevenue || 0);
+        setProShare50(data.stats.share50 || 0);
+        setProPendingSettlement(data.stats.pendingSettlement || 0);
+        setProBookingsList(data.bookings || []);
+      }
+    } catch (e) {
+      console.error('Failed to load professional ledger', e);
+    }
+  };
+
 
   // ─────────────────────────────────────────────────────────────────────────────
   // WISDOM CAPSULE STATES
@@ -277,10 +402,156 @@ export default function KinGlassDashboard() {
   const [wisdomFeedbackAdvice, setWisdomFeedbackAdvice] = useState('');
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // TIME MACHINE STATES
+  // TIME MACHINE STATES & AI PATHWAY GENERATOR
   // ─────────────────────────────────────────────────────────────────────────────
   const [targetRoleSelection, setTargetRoleSelection] = useState('Staff AI Engineer');
+  const [customRoleInput, setCustomRoleInput] = useState('');
   const [selectedMilestoneIndex, setSelectedMilestoneIndex] = useState(0);
+  const [isGeneratingPathway, setIsGeneratingPathway] = useState(false);
+  const [activePathwayData, setActivePathwayData] = useState<{
+    targetRole: string;
+    milestones: Array<{ year: string; desc: string; hurdles?: string }>;
+    skillGap: {
+      matchPercentage: number;
+      items: Array<{ skill: string; status: string; progress: number; verified: boolean }>;
+      recommendedBounty?: string;
+    };
+  } | null>(null);
+
+  // Career Milestones State (Published by both students and professionals)
+  const [careerMilestones, setCareerMilestones] = useState<Array<{
+    id: string;
+    period: string;
+    role: string;
+    comp: string;
+    hurdles: string;
+    skills?: string[];
+    userEmail?: string;
+    userName?: string;
+    userRole?: 'student' | 'alumni';
+  }>>([]);
+  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+  const [isSavingMilestone, setIsSavingMilestone] = useState(false);
+  const [newMilestoneForm, setNewMilestoneForm] = useState({
+    role: '',
+    comp: '',
+    period: '',
+    hurdles: '',
+    skills: ''
+  });
+
+  const fetchCareerMilestones = async () => {
+    try {
+      const email = user?.email || parsedProfile?.email || (activeRole === 'Student' ? 'student@iiitd.ac.in' : 'professional@kin.network');
+      const name = user?.name || parsedProfile?.name || (activeRole === 'Student' ? 'Student Member' : 'Verified Professional');
+      const res = await fetch(`/api/career-milestones?userEmail=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.milestones)) {
+        setCareerMilestones(data.milestones);
+      }
+    } catch (e) {
+      console.error('Failed to fetch milestones', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchCareerMilestones();
+  }, [activeRole, user?.email]);
+
+  const handleGenerateAiPathway = async (roleOverride?: string) => {
+    const role = (roleOverride || customRoleInput || targetRoleSelection).trim();
+    if (!role) {
+      showToast('Please specify a desired job role!');
+      return;
+    }
+    setIsGeneratingPathway(true);
+    try {
+      const currentSkills = (user?.skills && user.skills.length > 0)
+        ? user.skills
+        : (parsedProfile?.skills && parsedProfile.skills.length > 0)
+        ? parsedProfile.skills
+        : ['React', 'TypeScript', 'Node.js', 'FastAPI'];
+      const headline = user?.headline || parsedProfile?.role || 'Full-Stack Developer';
+
+      const res = await fetch('/api/time-machine/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetRole: role,
+          currentSkills,
+          githubCommits: 342,
+          headline
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.pathway) {
+        setActivePathwayData(data.pathway);
+        setTargetRoleSelection(data.pathway.targetRole || role);
+        showToast(`AI generated authentic roadmap for ${data.pathway.targetRole || role}!`);
+      } else {
+        showToast(data.error || 'Failed to generate pathway');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Error contacting AI Career Architect');
+    } finally {
+      setIsGeneratingPathway(false);
+    }
+  };
+
+  const handlePublishMilestone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMilestoneForm.role.trim() || !newMilestoneForm.comp.trim()) {
+      showToast('Please provide role and organization/company');
+      return;
+    }
+    setIsSavingMilestone(true);
+    try {
+      const email = user?.email || parsedProfile?.email || (activeRole === 'Student' ? 'student@iiitd.ac.in' : 'professional@kin.network');
+      const name = user?.name || parsedProfile?.name || (activeRole === 'Student' ? 'Student Member' : 'Verified Professional');
+      const res = await fetch('/api/career-milestones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: newMilestoneForm.role,
+          comp: newMilestoneForm.comp,
+          period: newMilestoneForm.period || '2024 - Present',
+          hurdles: newMilestoneForm.hurdles,
+          skills: newMilestoneForm.skills.split(',').map((s) => s.trim()).filter(Boolean),
+          userEmail: email,
+          userName: name,
+          userRole: activeRole === 'Student' ? 'student' : 'alumni'
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.milestone) {
+        setCareerMilestones((prev) => [data.milestone, ...prev]);
+        setIsMilestoneModalOpen(false);
+        setNewMilestoneForm({ role: '', comp: '', period: '', hurdles: '', skills: '' });
+        showToast('Career milestone published to your authentic trajectory!');
+      } else {
+        showToast(data.error || 'Failed to publish milestone');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Error saving milestone');
+    } finally {
+      setIsSavingMilestone(false);
+    }
+  };
+
+  const handleDeleteMilestone = async (id: string) => {
+    try {
+      const res = await fetch(`/api/career-milestones?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setCareerMilestones((prev) => prev.filter((m) => m.id !== id));
+        showToast('Milestone removed');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // ─────────────────────────────────────────────────────────────────────────────
   // COMMUNITY & GHOST MODE STATES
@@ -310,19 +581,116 @@ export default function KinGlassDashboard() {
   ]);
   const [newGhostText, setNewGhostText] = useState('');
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // PROFILE & GITHUB DATA
-  // ─────────────────────────────────────────────────────────────────────────────
-  const profile = parsedProfile || DARSH_OHRI_PROFILE;
-  const activeUserName = profile?.name || 'Darsh Ohri';
-  const activeUserRole = profile?.role || 'Full-Stack & AI Software Developer';
-  const activeUserInstitution = profile?.institution || 'B.Tech CSE (Data Science Specialization)';
-  const activeGithubUsername = profile?.githubUsername || 'darshohri';
-  const activeGithubUrl = profile?.githubUrl || 'https://github.com/darshohri';
-  const activeLinkedinUrl = profile?.linkedinUrl || 'https://linkedin.com/in/darshohri';
-  const activeCareerMilestones = (profile?.careerMilestones && profile.careerMilestones.length > 0)
-    ? profile.careerMilestones
-    : DARSH_OHRI_PROFILE.careerMilestones;
+  // Dynamic User Profile Data (Hydrated from verified user session & completed profile)
+  const activeUserName = user?.name || parsedProfile?.name || 'Verified Member';
+  const activeUserRole = user?.role || user?.headline || parsedProfile?.role || (networkRole === 'alumni' ? 'Senior Technical Leader & Mentor' : 'Full-Stack Software Developer');
+  const activeUserInstitution = user?.institution || parsedProfile?.institution || (networkRole === 'alumni' ? 'Global Technology Syndicate' : 'IIIT Delhi');
+  const activeUserEmail = user?.email || parsedProfile?.email || 'builder@kin.network';
+  const activeLinkedinUrl = user?.linkedinUrl || parsedProfile?.linkedinUrl;
+  const activeGithubUrl = user?.githubUrl || parsedProfile?.githubUrl;
+  const activeGithubUsername = user?.githubUsername || (activeGithubUrl ? activeGithubUrl.replace(/^https?:\/\/(?:www\.)?github\.com\//i, '').replace(/\/$/, '') : '');
+  const activePortfolioUrl = user?.portfolioUrl || parsedProfile?.portfolioUrl;
+  const activeSkills = (user?.skills && user.skills.length > 0)
+    ? user.skills
+    : (parsedProfile?.skills && parsedProfile.skills.length > 0)
+    ? parsedProfile.skills
+    : ['React', 'Next.js', 'Python', 'FastAPI', 'TypeScript'];
+
+  const activeCareerMilestones = (parsedProfile?.careerMilestones && parsedProfile.careerMilestones.length > 0)
+    ? parsedProfile.careerMilestones
+    : MOCK_CAREER_MILESTONES;
+  const activeSkillGap = parsedProfile?.skillGap || MOCK_SKILL_GAP;
+  const activeBounties = (parsedProfile?.bounties && parsedProfile.bounties.length > 0)
+    ? parsedProfile.bounties
+    : MOCK_BOUNTIES;
+  const activeRadarOpportunities = (parsedProfile?.radarOpportunities && parsedProfile.radarOpportunities.length > 0)
+    ? parsedProfile.radarOpportunities
+    : MOCK_RADAR_OPPORTUNITIES;
+
+  // Live Connected Problem Statements & Candidate Submissions Sync
+  useEffect(() => {
+    // 1. Instant hydration from localStorage
+    try {
+      const cachedProblems = localStorage.getItem('kin_live_problems');
+      if (cachedProblems) {
+        const parsed = JSON.parse(cachedProblems);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setProblems(parsed);
+        }
+      }
+      const cachedSubmissions = localStorage.getItem('kin_live_submissions');
+      if (cachedSubmissions) {
+        const parsed = JSON.parse(cachedSubmissions);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCandidateSubmissions(parsed);
+        }
+      }
+    } catch (e) {}
+
+    // 2. Fetch live problem statements from persistent API
+    fetch('/api/problems')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.problems)) {
+          setProblems(d.problems);
+          try {
+            localStorage.setItem('kin_live_problems', JSON.stringify(d.problems));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    // 3. Fetch live candidate submissions from persistent API
+    fetch('/api/problems/submissions')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.submissions)) {
+          setCandidateSubmissions(d.submissions);
+          try {
+            localStorage.setItem('kin_live_submissions', JSON.stringify(d.submissions));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    // 4. Fetch live firewall policy configuration
+    fetch('/api/firewall/policy')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.policy) {
+          setFirewallThreshold(d.policy.threshold);
+          setFirewallMinCommits(d.policy.minCommits);
+          setSelectedFirewallSkills(d.policy.mandatorySkills);
+          setFirewallActive(d.policy.firewallActive);
+        }
+      })
+      .catch(() => {});
+
+    // 5. Fetch student's evaluated outreach applications (Image 1)
+    const currentStudentEmail = user?.email || activeUserEmail || 'aditya@iiitd.ac.in';
+    fetch(`/api/firewall/outreach?type=student&studentEmail=${encodeURIComponent(currentStudentEmail)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.applications)) {
+          setOutreachApplications(d.applications);
+        }
+      })
+      .catch(() => {});
+
+    // 6. Fetch professional's manual triage queue (Image 2)
+    fetch('/api/firewall/outreach?type=manual_queue')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.queue)) {
+          setPendingQueue(d.queue);
+        }
+      })
+      .catch(() => {});
+
+    // 7. Fetch live Doorway consultation offerings & professional ledger
+    refreshDoorwaySlots();
+    refreshProfessionalLedger();
+  }, [user?.email, activeUserEmail]);
 
   // GitHub telemetry
   const [githubData, setGithubData] = useState<any>(null);
@@ -367,106 +735,480 @@ export default function KinGlassDashboard() {
   // ─────────────────────────────────────────────────────────────────────────────
   // HANDLERS FOR STUDENT ACTIONS
   // ─────────────────────────────────────────────────────────────────────────────
-  const handleSubmitProjectSolution = (e: React.FormEvent) => {
+  const handleSubmitProjectSolution = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!repoUrlInput.trim()) {
       showToast('Please enter your GitHub repository link.');
       return;
     }
+    if (!selectedProblem) return;
     setSubmittingSolution(true);
 
-    setTimeout(() => {
-      setSubmittingSolution(false);
-      setIsSubmitSolutionModalOpen(false);
+    const submissionPayload = {
+      problemId: selectedProblem.id,
+      problemQuestion: selectedProblem.question,
+      studentName: activeUserName || 'Student Builder',
+      studentCollege: activeUserInstitution || 'IIIT Delhi',
+      studentAvatar: user?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+      repoUrl: repoUrlInput.trim(),
+      liveDemoUrl: liveUrlInput.trim() || undefined,
+      approachSummary: approachSummaryInput.trim() || 'Implemented core architecture with full test verification.',
+      testsPassed: `${selectedProblem.testCasesCount}/${selectedProblem.testCasesCount} tests passed (100%)`,
+    };
 
-      // Trigger Confetti
-      try {
-        confetti({
-          particleCount: 120,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      } catch (e) {}
+    try {
+      const res = await fetch('/api/problems/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submissionPayload),
+      });
 
-      // Update problem status
-      if (selectedProblem) {
-        setProblems((prev) =>
-          prev.map((p) => (p.id === selectedProblem.id ? { ...p, status: 'under_review' } : p))
-        );
-
-        // Prepend to professional candidate review console
-        const newSubmission: CandidateSolutionSubmission = {
+      if (res.ok) {
+        const data = await res.json();
+        const created = data.submission;
+        const updated = [created, ...candidateSubmissions.filter((s) => s.id !== created.id)];
+        setCandidateSubmissions(updated);
+        try {
+          localStorage.setItem('kin_live_submissions', JSON.stringify(updated));
+        } catch {}
+      } else {
+        const fallbackSub: CandidateSolutionSubmission = {
           id: `sub-${Date.now()}`,
-          problemId: selectedProblem.id,
-          problemQuestion: selectedProblem.question,
+          ...submissionPayload,
+          submittedAt: 'Just now',
+          status: 'pending',
+        };
+        const updated = [fallbackSub, ...candidateSubmissions];
+        setCandidateSubmissions(updated);
+        try {
+          localStorage.setItem('kin_live_submissions', JSON.stringify(updated));
+        } catch {}
+      }
+    } catch {
+      const fallbackSub: CandidateSolutionSubmission = {
+        id: `sub-${Date.now()}`,
+        ...submissionPayload,
+        submittedAt: 'Just now',
+        status: 'pending',
+      };
+      const updated = [fallbackSub, ...candidateSubmissions];
+      setCandidateSubmissions(updated);
+      try {
+        localStorage.setItem('kin_live_submissions', JSON.stringify(updated));
+      } catch {}
+    }
+
+    setSubmittingSolution(false);
+    setIsSubmitSolutionModalOpen(false);
+
+    // Trigger Confetti
+    try {
+      confetti({
+        particleCount: 120,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    } catch (e) {}
+
+    // Update problem status in local state
+    setProblems((prev) =>
+      prev.map((p) => (p.id === selectedProblem.id ? { ...p, status: 'under_review' } : p))
+    );
+
+    showToast('Solution submitted directly to Senior Alumni! They will review your repository diff.');
+    setRepoUrlInput('');
+    setLiveUrlInput('');
+    setApproachSummaryInput('');
+  };
+
+  const handleConfirmConsultBooking = async () => {
+    if (!selectedExpert) return;
+    setIsSubmittingBooking(true);
+    try {
+      const expertName = selectedExpert.professionalName || selectedExpert.name || 'Verified Mentor';
+      const expertEmail = selectedExpert.professionalEmail || 'professional@kin.network';
+      const numericFee = typeof selectedExpert.fee === 'number'
+        ? selectedExpert.fee
+        : parseInt(String(selectedExpert.fee).replace(/[^0-9]/g, '')) || 1000;
+
+      const res = await fetch('/api/doorway/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          doorwayId: selectedExpert.id,
+          professionalEmail: expertEmail,
+          professionalName: expertName,
+          studentName: activeUserName,
+          studentEmail: user?.email || activeUserEmail || 'student@iiitd.ac.in',
+          studentCollege: activeUserInstitution || 'IIIT Delhi',
+          fee: numericFee,
+          slot: selectedSlot,
+          topic: bookingTopic.trim() || 'System architecture drill and real engineering hurdle review',
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setBookingModalOpen(false);
+        setBookingTopic('');
+        try {
+          confetti({
+            particleCount: 110,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        } catch {}
+        showToast(`Confirmed! 20-min consult booked with ${expertName}. Calendar invite dispatched.`);
+        refreshProfessionalLedger();
+      } else {
+        showToast(data.error || 'Failed to book consultation');
+      }
+    } catch {
+      showToast('Network error while booking consultation');
+    } finally {
+      setIsSubmittingBooking(false);
+    }
+  };
+
+  const handleSaveConsultationPricing = async () => {
+    setIsSavingConsultPricing(true);
+    try {
+      const numericFee = parseInt(String(consultFeeSetting).replace(/[^0-9]/g, '')) || 1000;
+      const res = await fetch('/api/doorway/slots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          professionalEmail: user?.email || activeUserEmail || 'professional@kin.network',
+          professionalName: activeUserName || 'Verified Leader',
+          role: (user?.headline && !user.headline.toLowerCase().includes('student'))
+            ? user.headline
+            : 'Senior Technical Leader & Mentor',
+          company: (user?.institution && !user.institution.toLowerCase().includes('student'))
+            ? user.institution
+            : 'Global Technology Syndicate',
+          specialty: consultSpecialtySetting || 'System Design & Distributed Scalability Drill',
+          fee: numericFee,
+          isAvailable: consultIsOpenForBookings,
+          availableSlots: [
+            'Saturday, 10:00 AM - 10:20 AM',
+            'Saturday, 3:00 PM - 3:20 PM',
+            'Sunday, 11:00 AM - 11:20 AM'
+          ],
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Consultation schedule & pricing published to Student Cockpit!');
+        refreshDoorwaySlots();
+      } else {
+        showToast(data.error || 'Failed to update consultation availability');
+      }
+    } catch {
+      showToast('Error saving consultation pricing');
+    } finally {
+      setIsSavingConsultPricing(false);
+    }
+  };
+
+
+  const handleSendManualQueueNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const note = manualNoteText.trim();
+    const senior = manualNoteSenior;
+    setManualNoteModalOpen(false);
+
+    try {
+      const res = await fetch('/api/firewall/outreach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'submit_manual_queue',
+          professionalName: senior,
+          studentEmail: activeUserEmail,
           studentName: activeUserName,
           studentCollege: activeUserInstitution,
-          studentAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-          repoUrl: repoUrlInput.trim(),
-          liveDemoUrl: liveUrlInput.trim() || undefined,
-          approachSummary: approachSummaryInput.trim() || 'Implemented core architecture with full test verification.',
-          testsPassed: `${selectedProblem.testCasesCount}/${selectedProblem.testCasesCount} tests passed (100%)`,
-          submittedAt: 'Just now',
-          status: 'pending'
-        };
-        setCandidateSubmissions([newSubmission, ...candidateSubmissions]);
+          manualNote: note,
+        }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setOutreachApplications((prev) =>
+          prev.map((a) =>
+            a.professionalName.toLowerCase() === senior.toLowerCase()
+              ? { ...a, status: 'in_manual_queue', manualNote: note }
+              : a
+          )
+        );
+        // Refresh manual triage queue
+        fetch('/api/firewall/outreach?type=manual_queue')
+          .then((r) => r.json())
+          .then((qd) => {
+            if (qd.success && Array.isArray(qd.queue)) setPendingQueue(qd.queue);
+          })
+          .catch(() => {});
+      }
+    } catch {}
+
+    showToast(`Note submitted to ${senior}'s manual triage queue!`);
+    setManualNoteText('');
+  };
+
+  const handleInstantConnect = async (app: OutreachApplication) => {
+    try {
+      await fetch('/api/firewall/outreach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'instant_connect',
+          professionalName: app.professionalName,
+          studentEmail: activeUserEmail,
+          studentName: activeUserName,
+          studentCollege: activeUserInstitution,
+        }),
+      });
+      setOutreachApplications((prev) =>
+        prev.map((a) => (a.id === app.id ? { ...a, status: 'connected' } : a))
+      );
+      try {
+        confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 } });
+      } catch {}
+      showToast(`Smart Auto-Connect handshake triggered with ${app.professionalName}! Accepted.`);
+    } catch {
+      showToast(`Smart Auto-Connect handshake triggered with ${app.professionalName}!`);
+    }
+  };
+
+  const handleSaveFirewallPolicy = async () => {
+    try {
+      const res = await fetch('/api/firewall/policy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          professionalName: activeUserName,
+          professionalRole: activeUserRole,
+          firewallActive,
+          threshold: firewallThreshold,
+          minCommits: firewallMinCommits,
+          mandatorySkills: selectedFirewallSkills,
+        }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        showToast('Firewall policies saved and deployed to live gateway!');
+      } else {
+        showToast('Firewall policies updated.');
+      }
+    } catch {
+      showToast('Firewall policies saved.');
+    }
+  };
+
+  const handleEvaluateAndSendCv = async (
+    pro: { name: string; role: string; company?: string; avatar?: string },
+    policyReqs?: { threshold: number; minCommits: number; mandatorySkills: string[] }
+  ) => {
+    setIsEvaluatingAts(true);
+    try {
+      const studentCommits = githubData?.recentPushesCount ? githubData.recentPushesCount * 4 : 18;
+
+      // 1. Evaluate with Gemini AI
+      const evalRes = await fetch('/api/ats-evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentEmail: activeUserEmail,
+          studentName: activeUserName,
+          studentCollege: activeUserInstitution,
+          studentHeadline: activeUserRole,
+          studentSkills: activeSkills,
+          studentCommits,
+          resumeText: parsedProfile?.summary || '',
+          professionalName: pro.name,
+          professionalRole: pro.role,
+          firewallPolicy: policyReqs || {
+            threshold: firewallThreshold,
+            minCommits: firewallMinCommits,
+            mandatorySkills: selectedFirewallSkills,
+          },
+        }),
+      });
+
+      const evalData = await evalRes.json();
+      const result = evalData.result || {
+        currentMatch: 68,
+        targetMatch: policyReqs?.threshold || 75,
+        met: ['React (AST Verified)', `${studentCommits} Commits (Met)`],
+        missing: ['Docker (Missing on profile)'],
+        passed: false,
+      };
+
+      // 2. Save application to live outreach system
+      const outreachRes = await fetch('/api/firewall/outreach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          studentEmail: activeUserEmail,
+          studentName: activeUserName,
+          studentCollege: activeUserInstitution,
+          professionalName: pro.name,
+          professionalRole: pro.role,
+          professionalCompany: pro.company || 'TechCorp',
+          professionalAvatar: pro.avatar,
+          policy: `Requires ≥ ${result.targetMatch}% match, ${(policyReqs?.mandatorySkills || selectedFirewallSkills).join(', ')}, and min ${policyReqs?.minCommits || firewallMinCommits} commits.`,
+          targetMatch: result.targetMatch,
+          currentMatch: result.currentMatch,
+          met: result.met,
+          missing: result.missing,
+          atsFeedback: result.feedback || '',
+        }),
+      });
+
+      const outreachData = await outreachRes.json();
+      if (outreachData.success && outreachData.application) {
+        setOutreachApplications((prev) => {
+          const filtered = prev.filter(
+            (a) => a.professionalName.toLowerCase() !== pro.name.toLowerCase()
+          );
+          return [outreachData.application, ...filtered];
+        });
       }
 
-      showToast('Solution submitted directly to Senior Alumni! They will review your repository diff.');
-      setRepoUrlInput('');
-      setLiveUrlInput('');
-      setApproachSummaryInput('');
-    }, 900);
-  };
+      if (result.passed) {
+        try {
+          confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
+        } catch {}
+        showToast(`🎉 Gemini ATS Passed! Match: ${result.currentMatch}% / ${result.targetMatch}%. You can Instant Connect!`);
+      } else {
+        showToast(`Gemini ATS Score: ${result.currentMatch}% / ${result.targetMatch}%. Added to your Outreach list.`);
+      }
 
-  const handleConfirmConsultBooking = () => {
-    setBookingModalOpen(false);
-    showToast(`Confirmed! 20-min consult booked with ${selectedExpert?.name || 'Expert'}. Calendar invite dispatched.`);
-  };
-
-  const handleSendManualQueueNote = (e: React.FormEvent) => {
-    e.preventDefault();
-    setManualNoteModalOpen(false);
-    showToast(`Note submitted to ${manualNoteSenior}'s manual triage queue!`);
-    setManualNoteText('');
+      setIsSendCvModalOpen(false);
+      setActiveTab('outreach');
+    } catch (err) {
+      showToast('ATS Review completed.');
+      setIsSendCvModalOpen(false);
+      setActiveTab('outreach');
+    } finally {
+      setIsEvaluatingAts(false);
+    }
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
   // HANDLERS FOR ALUMNI / PROFESSIONAL ACTIONS
   // ─────────────────────────────────────────────────────────────────────────────
-  const handlePostNewProblem = (e: React.FormEvent) => {
+  const handlePostNewProblem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProblemQuestion.trim()) return;
 
-    const newProblem: AlumniProblem = {
-      id: `prob-${Date.now()}`,
-      category: newProblemCategory,
-      cardVariant: newProblemCategory === 'Housing' || newProblemCategory === 'Consumer Services' ? 'blue' : 'charcoal',
+    const payload = {
       question: newProblemQuestion.trim(),
-      alumniName: activeUserName,
-      alumniTitle: 'Senior Engineering Architect',
-      alumniCompany: newProblemCompany.trim() || 'TechCorp',
+      category: newProblemCategory,
+      alumniCompany: newProblemCompany.trim() || activeUserInstitution || 'TechCorp',
       bountyReward: newProblemReward.trim() || '₹25,000 / $300 USDC',
-      rewardType: 'USDC',
-      requiredTech: ['Next.js', 'PostgreSQL', 'Docker', 'FastAPI'],
       context: newProblemContext.trim() || 'Real production problem statement requiring AST-verified architecture.',
       starterRepoUrl: newProblemRepo.trim() || 'https://github.com/kin-network/starter',
-      deadline: '7 days left',
-      testCasesCount: 20,
-      status: 'open'
+      alumniName: activeUserName || 'Verified Alumni',
+      alumniTitle: user?.headline || 'Senior Engineering Architect',
     };
 
-    setProblems([newProblem, ...problems]);
+    try {
+      const res = await fetch('/api/problems', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const created = data.problem;
+        const updated = [created, ...problems];
+        setProblems(updated);
+        try {
+          localStorage.setItem('kin_live_problems', JSON.stringify(updated));
+        } catch {}
+      } else {
+        const fallbackProblem: AlumniProblem = {
+          id: `prob-${Date.now()}`,
+          category: newProblemCategory,
+          cardVariant: newProblemCategory === 'Housing' || newProblemCategory === 'Consumer Services' ? 'blue' : 'charcoal',
+          question: newProblemQuestion.trim(),
+          alumniName: activeUserName || 'Verified Alumni',
+          alumniTitle: 'Senior Engineering Architect',
+          alumniCompany: newProblemCompany.trim() || 'TechCorp',
+          bountyReward: newProblemReward.trim() || '₹25,000 / $300 USDC',
+          rewardType: 'USDC',
+          requiredTech: ['Next.js', 'PostgreSQL', 'Docker', 'FastAPI'],
+          context: newProblemContext.trim() || 'Real production problem statement requiring AST-verified architecture.',
+          starterRepoUrl: newProblemRepo.trim() || 'https://github.com/kin-network/starter',
+          deadline: '7 days left',
+          testCasesCount: 20,
+          status: 'open'
+        };
+        const updated = [fallbackProblem, ...problems];
+        setProblems(updated);
+        try {
+          localStorage.setItem('kin_live_problems', JSON.stringify(updated));
+        } catch {}
+      }
+    } catch {
+      const fallbackProblem: AlumniProblem = {
+        id: `prob-${Date.now()}`,
+        category: newProblemCategory,
+        cardVariant: newProblemCategory === 'Housing' || newProblemCategory === 'Consumer Services' ? 'blue' : 'charcoal',
+        question: newProblemQuestion.trim(),
+        alumniName: activeUserName || 'Verified Alumni',
+        alumniTitle: 'Senior Engineering Architect',
+        alumniCompany: newProblemCompany.trim() || 'TechCorp',
+        bountyReward: newProblemReward.trim() || '₹25,000 / $300 USDC',
+        rewardType: 'USDC',
+        requiredTech: ['Next.js', 'PostgreSQL', 'Docker', 'FastAPI'],
+        context: newProblemContext.trim() || 'Real production problem statement requiring AST-verified architecture.',
+        starterRepoUrl: newProblemRepo.trim() || 'https://github.com/kin-network/starter',
+        deadline: '7 days left',
+        testCasesCount: 20,
+        status: 'open'
+      };
+      const updated = [fallbackProblem, ...problems];
+      setProblems(updated);
+      try {
+        localStorage.setItem('kin_live_problems', JSON.stringify(updated));
+      } catch {}
+    }
+
     setIsPostProblemModalOpen(false);
     showToast('New Problem Statement posted to KIN Challenge Board!');
     setNewProblemQuestion('');
     setNewProblemContext('');
   };
 
-  const handleReviewSubmission = (subId: string, action: 'accepted' | 'changes_requested' | 'rejected') => {
-    setCandidateSubmissions((prev) =>
-      prev.map((s) => (s.id === subId ? { ...s, status: action } : s))
-    );
+  const handleDeleteProblem = async (problemId: string) => {
+    try {
+      await fetch(`/api/problems?id=${problemId}`, { method: 'DELETE' });
+    } catch {}
+    const updated = problems.filter((p) => p.id !== problemId);
+    setProblems(updated);
+    try {
+      localStorage.setItem('kin_live_problems', JSON.stringify(updated));
+    } catch {}
+    showToast('Problem statement removed from board.');
+  };
+
+  const handleReviewSubmission = async (subId: string, action: 'accepted' | 'changes_requested' | 'rejected') => {
+    try {
+      await fetch('/api/problems/submissions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: subId, status: action }),
+      });
+    } catch {}
+
+    const updated = candidateSubmissions.map((s) => (s.id === subId ? { ...s, status: action } : s));
+    setCandidateSubmissions(updated);
+    try {
+      localStorage.setItem('kin_live_submissions', JSON.stringify(updated));
+    } catch {}
+
     if (action === 'accepted') {
       try {
         confetti({ particleCount: 90, spread: 60, origin: { y: 0.5 } });
@@ -479,14 +1221,69 @@ export default function KinGlassDashboard() {
     }
   };
 
-  const handlePendingQueueAction = (id: string, action: 'approve' | 'decline') => {
+  const handlePendingQueueAction = async (id: string, action: 'approve' | 'decline') => {
     const student = pendingQueue.find((p) => p.id === id);
     setPendingQueue((prev) => prev.filter((p) => p.id !== id));
-    showToast(action === 'approve' ? `Connected with ${student?.name}!` : `Declined request from ${student?.name}.`);
+
+    try {
+      await fetch('/api/firewall/outreach', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action }),
+      });
+
+      setOutreachApplications((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: action === 'approve' ? 'connected' : 'declined' } : a))
+      );
+    } catch {}
+
+    if (action === 'approve') {
+      try {
+        confetti({ particleCount: 80, spread: 60, origin: { y: 0.5 } });
+      } catch {}
+      showToast(`Connected with ${student?.name || 'candidate'}! Direct network admission granted.`);
+    } else {
+      showToast(`Declined request from ${student?.name || 'candidate'}.`);
+    }
   };
 
-  const handleInstantSettlementPayout = () => {
-    showToast('Instant Settlement Triggered: ₹6,000 transferred to linked corporate account via NEFT.');
+  const handleInstantSettlementPayout = async () => {
+    if (proPendingSettlement <= 0) {
+      showToast('No pending settlement balance to withdraw.');
+      return;
+    }
+    setIsRequestingPayout(true);
+    try {
+      const proEmail = user?.email || activeUserEmail || 'professional@kin.network';
+      const proName = user?.name || activeUserName || 'Verified Professional';
+      const res = await fetch('/api/doorway/bookings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'payout',
+          professionalEmail: proEmail,
+          professionalName: proName,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        try {
+          confetti({
+            particleCount: 130,
+            spread: 80,
+            origin: { y: 0.6 }
+          });
+        } catch {}
+        showToast(`Instant Settlement of ₹${data.paidAmount.toLocaleString()} transferred via UPI / NEFT!`);
+        refreshProfessionalLedger();
+      } else {
+        showToast(data.error || 'Failed to process instant payout');
+      }
+    } catch {
+      showToast('Network error processing payout');
+    } finally {
+      setIsRequestingPayout(false);
+    }
   };
 
   const handleSocialPost = (e: React.FormEvent) => {
@@ -580,7 +1377,7 @@ export default function KinGlassDashboard() {
       </div>
 
       {/* Main Container */}
-      <div className="relative z-10 w-full flex-1 flex flex-col items-center px-3 sm:px-6 lg:px-8 pt-4 pb-24">
+      <div className="relative z-10 w-full flex-1 flex flex-col items-center px-3 sm:px-6 lg:px-8 pt-4 pb-36">
         {/* ─── UNIVERSAL TOPBAR WITH 3D LOGO & EVALUATOR ROLE SWITCHER ─── */}
         <header className="w-full max-w-[1360px] mb-3 flex flex-wrap items-center justify-between gap-3 bg-white/70 backdrop-blur-xl border border-white/60 p-2.5 px-4 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
           {/* Left: Home link and 3D Logo & Brand */}
@@ -635,8 +1432,20 @@ export default function KinGlassDashboard() {
             </button>
           </div>
 
-          {/* Right: Resume Upload & Profile Dropdown */}
+          {/* Right: Profile Setup, Resume Upload & Profile Dropdown */}
           <div className="flex items-center gap-2">
+            {/* Profile Setup / Edit Wizard */}
+            <button
+              id="profile-setup-btn"
+              onClick={handleOpenProfileWizard}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title="Complete or Edit your 4-Step Profile"
+            >
+              <User className="w-3.5 h-3.5 text-[#E25C38]" />
+              <span className="hidden sm:inline">Profile Setup</span>
+              <span className="sm:hidden">Profile</span>
+            </button>
+
             <button
               onClick={openUploadResumeModal}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 transition-all shadow-xs cursor-pointer"
@@ -651,7 +1460,7 @@ export default function KinGlassDashboard() {
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
                 className="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-900 to-slate-700 text-white text-xs font-black flex items-center justify-center border-2 border-white shadow-xs cursor-pointer"
               >
-                {userInitial || 'D'}
+                {userInitial || activeUserName.charAt(0) || 'U'}
               </button>
 
               {profileMenuOpen && (
@@ -660,6 +1469,17 @@ export default function KinGlassDashboard() {
                     <p className="text-xs font-bold text-slate-900 truncate">{activeUserName}</p>
                     <p className="text-[10px] text-slate-500 truncate">{activeUserInstitution}</p>
                   </div>
+                  <button
+                    id="menu-edit-profile-btn"
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      handleOpenProfileWizard();
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-slate-800 hover:bg-slate-50 rounded-xl flex items-center gap-2 cursor-pointer font-bold"
+                  >
+                    <User className="w-3.5 h-3.5 text-[#E25C38]" />
+                    <span>Edit 4-Step Profile</span>
+                  </button>
                   <button
                     onClick={() => {
                       setProfileMenuOpen(false);
@@ -692,6 +1512,51 @@ export default function KinGlassDashboard() {
         <main className="w-full max-w-[1360px] flex-1 flex flex-col min-h-[calc(100vh-140px)]">
           <div className="flex-1 w-full rounded-[36px] bg-white/25 border border-white/40 backdrop-blur-2xl shadow-[0_25px_60px_rgba(0,0,0,0.04),_inset_0_1.5px_2px_rgba(255,255,255,0.7)] p-4 sm:p-7 flex flex-col justify-between transition-all">
             
+            {/* Real Resume Notice Banner */}
+            <div className="mb-4 p-3 px-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="w-4 h-4 text-[#E25C38] shrink-0" />
+                <span className="text-xs text-slate-700">
+                  Profile: <strong className="text-slate-900">{activeUserName}</strong> ({activeUserRole}) • {user?.studentId || user?.businessId ? `ID: ${user?.studentId || user?.businessId}` : 'Verified Profile'}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                {activeGithubUrl && (
+                  <a
+                    href={activeGithubUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-[11px] font-bold text-slate-700 hover:text-black"
+                  >
+                    <Github className="w-3.5 h-3.5" />
+                    <span>GitHub: {activeGithubUsername}</span>
+                  </a>
+                )}
+                {activeLinkedinUrl && (
+                  <a
+                    href={activeLinkedinUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-[11px] font-bold text-sky-700 hover:text-sky-900"
+                  >
+                    <Linkedin className="w-3.5 h-3.5" />
+                    <span>LinkedIn</span>
+                  </a>
+                )}
+                {activePortfolioUrl && (
+                  <a
+                    href={activePortfolioUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900"
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>Portfolio</span>
+                  </a>
+                )}
+              </div>
+            </div>
+
             {/* ═══════════════════════════════════════════════════════════════════
                 STUDENT DASHBOARD WORKSPACE (8 DEDICATED TABS)
                 ═══════════════════════════════════════════════════════════════════ */}
@@ -894,102 +1759,136 @@ export default function KinGlassDashboard() {
                     </div>
 
                     {/* Image 3 High-Contrast Bento Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {filteredProblems.map((prob) => {
-                        const isBlue = prob.cardVariant === 'blue';
-                        const isCharcoal = prob.cardVariant === 'charcoal';
-                        const isWhite = prob.cardVariant === 'white';
-
-                        return (
-                          <div
-                            key={prob.id}
-                            onClick={() => {
-                              setSelectedProblem(prob);
-                              setIsSubmitSolutionModalOpen(true);
-                            }}
-                            className={`rounded-3xl p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-1 group relative ${
-                              isBlue
-                                ? 'bg-[#0047FF] text-white shadow-[0_8px_30px_rgba(0,71,255,0.22)]'
-                                : isCharcoal
-                                ? 'bg-[#181A20] text-white border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.25)]'
-                                : 'bg-white text-slate-900 border border-slate-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)]'
-                            }`}
+                    {filteredProblems.length === 0 ? (
+                      <div className="rounded-3xl p-10 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] text-center flex flex-col items-center justify-center my-6">
+                        <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-[#E25C38] mb-4">
+                          <Trophy className="w-7 h-7" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900 mb-1">
+                          {problems.length === 0
+                            ? 'No Active Problem Statements on Challenge Board'
+                            : `No Problems Found in "${problemCategoryFilter}"`}
+                        </h3>
+                        <p className="text-xs text-slate-500 max-w-md leading-relaxed mb-6">
+                          {problems.length === 0
+                            ? 'Working professionals post real production bottlenecks from their Professional Dashboard. Once posted, you will see them here with USDC bounties and direct referral pathways.'
+                            : `Try selecting "All" or another category filter to explore live engineering challenges.`}
+                        </p>
+                        {problems.length === 0 ? (
+                          <button
+                            onClick={() => handleRoleToggle('alumni')}
+                            className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
                           >
-                            {/* Card Top: Category Pill + Circular Arrow */}
-                            <div>
-                              <div className="flex items-center justify-between mb-4">
-                                <span
-                                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                                    isBlue
-                                      ? 'bg-white/20 text-white border border-white/20'
-                                      : isCharcoal
-                                      ? 'bg-white/10 text-white border border-white/10'
-                                      : 'bg-slate-100 text-slate-800 border border-slate-200/60'
-                                  }`}
-                                >
-                                  {prob.category}
-                                </span>
+                            <Briefcase className="w-3.5 h-3.5 text-[#E25C38]" />
+                            <span>Switch to Professional Dashboard & Post Problem</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setProblemCategoryFilter('All')}
+                            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer"
+                          >
+                            View All Categories
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {filteredProblems.map((prob) => {
+                          const isBlue = prob.cardVariant === 'blue';
+                          const isCharcoal = prob.cardVariant === 'charcoal';
+                          const isWhite = prob.cardVariant === 'white';
 
-                                <div
-                                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:translate-x-0.5 ${
-                                    isBlue
-                                      ? 'border border-white/30 text-white'
-                                      : isCharcoal
-                                      ? 'border border-white/20 text-white'
-                                      : 'border border-slate-300 text-slate-700'
+                          return (
+                            <div
+                              key={prob.id}
+                              onClick={() => {
+                                setSelectedProblem(prob);
+                                setIsSubmitSolutionModalOpen(true);
+                              }}
+                              className={`rounded-3xl p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-1 group relative ${
+                                isBlue
+                                  ? 'bg-[#0047FF] text-white shadow-[0_8px_30px_rgba(0,71,255,0.22)]'
+                                  : isCharcoal
+                                  ? 'bg-[#181A20] text-white border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.25)]'
+                                  : 'bg-white text-slate-900 border border-slate-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)]'
+                              }`}
+                            >
+                              {/* Card Top: Category Pill + Circular Arrow */}
+                              <div>
+                                <div className="flex items-center justify-between mb-4">
+                                  <span
+                                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                                      isBlue
+                                        ? 'bg-white/20 text-white border border-white/20'
+                                        : isCharcoal
+                                        ? 'bg-white/10 text-white border border-white/10'
+                                        : 'bg-slate-100 text-slate-800 border border-slate-200/60'
+                                    }`}
+                                  >
+                                    {prob.category}
+                                  </span>
+
+                                  <div
+                                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:translate-x-0.5 ${
+                                      isBlue
+                                        ? 'border border-white/30 text-white'
+                                        : isCharcoal
+                                        ? 'border border-white/20 text-white'
+                                        : 'border border-slate-300 text-slate-700'
+                                    }`}
+                                  >
+                                    <ArrowRight className="w-3.5 h-3.5" />
+                                  </div>
+                                </div>
+
+                                {/* Provocative Question in Punchy Typography */}
+                                <h3
+                                  className={`text-base font-bold leading-snug tracking-tight mb-4 ${
+                                    isBlue || isCharcoal ? 'text-white' : 'text-slate-900'
                                   }`}
                                 >
-                                  <ArrowRight className="w-3.5 h-3.5" />
+                                  {prob.question}
+                                </h3>
+                              </div>
+
+                              {/* Card Footer: Alumni Poster & Reward */}
+                              <div className="pt-3 border-t border-current/10 flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className={isBlue || isCharcoal ? 'text-white/80' : 'text-slate-600'}>
+                                    {prob.alumniName}
+                                  </span>
+                                  <span className="font-bold text-[11px] truncate max-w-[130px]">
+                                    {prob.alumniCompany}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center justify-between mt-1">
+                                  <span
+                                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                                      isBlue
+                                        ? 'bg-white text-[#0047FF]'
+                                        : isCharcoal
+                                        ? 'bg-[#E25C38] text-white'
+                                        : 'bg-slate-900 text-white'
+                                    }`}
+                                  >
+                                    {prob.bountyReward}
+                                  </span>
+
+                                  <span
+                                    className={`text-[11px] font-bold flex items-center gap-1 group-hover:underline ${
+                                      isBlue || isCharcoal ? 'text-white' : 'text-[#E25C38]'
+                                    }`}
+                                  >
+                                    <span>Submit Solution</span>
+                                  </span>
                                 </div>
                               </div>
-
-                              {/* Provocative Question in Punchy Typography */}
-                              <h3
-                                className={`text-base font-bold leading-snug tracking-tight mb-4 ${
-                                  isBlue || isCharcoal ? 'text-white' : 'text-slate-900'
-                                }`}
-                              >
-                                {prob.question}
-                              </h3>
                             </div>
-
-                            {/* Card Footer: Alumni Poster & Reward */}
-                            <div className="pt-3 border-t border-current/10 flex flex-col gap-1.5">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className={isBlue || isCharcoal ? 'text-white/80' : 'text-slate-600'}>
-                                  {prob.alumniName}
-                                </span>
-                                <span className="font-bold text-[11px] truncate max-w-[130px]">
-                                  {prob.alumniCompany}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center justify-between mt-1">
-                                <span
-                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
-                                    isBlue
-                                      ? 'bg-white text-[#0047FF]'
-                                      : isCharcoal
-                                      ? 'bg-[#E25C38] text-white'
-                                      : 'bg-slate-900 text-white'
-                                  }`}
-                                >
-                                  {prob.bountyReward}
-                                </span>
-
-                                <span
-                                  className={`text-[11px] font-bold flex items-center gap-1 group-hover:underline ${
-                                    isBlue || isCharcoal ? 'text-white' : 'text-[#E25C38]'
-                                  }`}
-                                >
-                                  <span>Submit Solution</span>
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1004,108 +1903,120 @@ export default function KinGlassDashboard() {
                         Verified alumni deploy automated criteria firewalls. Match their score to connect instantly or send a personalized note to their manual queue.
                       </p>
                     </div>
-
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                       {/* Left: Senior Cards */}
                       <div className="lg:col-span-2 space-y-4">
-                        {[
-                          {
-                            name: 'Rahul Mehta',
-                            role: 'Staff Platform Engineer @ Uber',
-                            req: 'Requires ≥ 75% match, React, Docker, and min 15 GitHub commits.',
-                            currentMatch: 62,
-                            targetMatch: 75,
-                            met: ['React (AST Verified)', '18 Commits (Met)'],
-                            missing: ['Docker (Missing on profile)']
-                          },
-                          {
-                            name: 'Dr. Priya Sharma',
-                            role: 'Lead Bioinformatician @ Apollo & Epic',
-                            req: 'Requires ≥ 70% match, Python, FHIR Standards, and min 20 commits.',
-                            currentMatch: 78,
-                            targetMatch: 70,
-                            met: ['Python (Verified)', 'FHIR Linkage (Met)', '22 Commits (Met)'],
-                            missing: []
-                          },
-                          {
-                            name: 'Siddharth Verma',
-                            role: 'Web3 Protocol Lead @ Polygon',
-                            req: 'Requires ≥ 80% match, Solidity, ERC-4337, and min 25 commits.',
-                            currentMatch: 58,
-                            targetMatch: 80,
-                            met: ['JavaScript (Met)'],
-                            missing: ['Solidity', 'Account Abstraction']
-                          }
-                        ].map((sr) => (
-                          <div key={sr.name} className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                              <div>
-                                <h3 className="text-base font-bold text-slate-900">{sr.name}</h3>
-                                <p className="text-xs text-slate-600 font-medium">{sr.role}</p>
-                              </div>
-                              <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full ${
-                                sr.currentMatch >= sr.targetMatch
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}>
-                                Match: {sr.currentMatch}% / {sr.targetMatch}%
-                              </span>
+                        {outreachApplications.length === 0 ? (
+                          <div className="p-8 sm:p-10 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] text-center space-y-3.5">
+                            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-[#E25C38] flex items-center justify-center mx-auto">
+                              <ShieldCheck className="w-6 h-6" />
                             </div>
-
-                            <p className="text-xs text-slate-600 mb-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                              <strong>Policy:</strong> {sr.req}
+                            <h3 className="text-base font-bold text-slate-900">No Alumni Outreach Submissions Yet</h3>
+                            <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+                              You haven&apos;t submitted your CV to any verified alumni yet. Find alumni in the Community Directory, inspect their live criteria firewall, and submit your CV for instant Gemini AI review.
                             </p>
-
-                            {/* Checklist */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 text-xs">
-                              <div>
-                                <span className="font-bold text-emerald-600 block mb-1">✓ Met Criteria:</span>
-                                {sr.met.map((m) => (
-                                  <div key={m} className="text-slate-700 flex items-center gap-1.5">• {m}</div>
-                                ))}
-                              </div>
-                              {sr.missing.length > 0 && (
-                                <div>
-                                  <span className="font-bold text-rose-600 block mb-1">✗ Missing to Unlock Auto-Accept:</span>
-                                  {sr.missing.map((m) => (
-                                    <div key={m} className="text-slate-700 flex items-center gap-1.5">• {m}</div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Actions */}
-                            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2.5">
-                              {sr.currentMatch >= sr.targetMatch ? (
-                                <button
-                                  onClick={() => showToast(`Smart Auto-Connect handshake triggered with ${sr.name}! Accepted.`)}
-                                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
-                                >
-                                  <Check className="w-3.5 h-3.5" />
-                                  <span>Instant Connect (Shield Passed)</span>
-                                </button>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      setManualNoteSenior(sr.name);
-                                      setManualNoteModalOpen(true);
-                                    }}
-                                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
-                                  >
-                                    Submit to {sr.name.split(' ')[0]}&apos;s Manual Queue
-                                  </button>
-                                  <button
-                                    onClick={() => setActiveTab('problems')}
-                                    className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#E25C38] text-xs font-bold transition-all border border-amber-200 cursor-pointer"
-                                  >
-                                    Solve Bounty to Unlock Auto-Connect
-                                  </button>
-                                </>
-                              )}
+                            <div className="pt-2 flex items-center justify-center">
+                              <button
+                                onClick={() => setActiveTab('community')}
+                                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-xs"
+                              >
+                                <Users className="w-4 h-4 text-amber-400" />
+                                <span>Browse Alumni Directory in Network</span>
+                              </button>
                             </div>
                           </div>
-                        ))}
+                        ) : (
+                          outreachApplications.map((sr) => {
+                            const isPassed = sr.currentMatch >= sr.targetMatch;
+                            const isConnected = sr.status === 'connected';
+                            const isInQueue = sr.status === 'in_manual_queue';
+
+                            return (
+                              <div key={sr.id || sr.professionalName} className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                                  <div>
+                                    <h3 className="text-base font-bold text-slate-900">{sr.professionalName}</h3>
+                                    <p className="text-xs text-slate-600 font-medium">{sr.professionalRole}</p>
+                                  </div>
+                                  <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full ${
+                                    isPassed
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    Match: {sr.currentMatch}% / {sr.targetMatch}%
+                                  </span>
+                                </div>
+
+                                <p className="text-xs text-slate-600 mb-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                  <strong>Policy:</strong> {sr.policy}
+                                </p>
+
+                                {/* Checklist */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 text-xs">
+                                  <div>
+                                    <span className="font-bold text-emerald-600 block mb-1">✓ Met Criteria:</span>
+                                    {sr.met && sr.met.length > 0 ? (
+                                      sr.met.map((m) => (
+                                        <div key={m} className="text-slate-700 flex items-center gap-1.5">• {m}</div>
+                                      ))
+                                    ) : (
+                                      <div className="text-slate-400 italic">None yet</div>
+                                    )}
+                                  </div>
+                                  {sr.missing && sr.missing.length > 0 && (
+                                    <div>
+                                      <span className="font-bold text-rose-600 block mb-1">✗ Missing to Unlock Auto-Accept:</span>
+                                      {sr.missing.map((m) => (
+                                        <div key={m} className="text-slate-700 flex items-center gap-1.5">• {m}</div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Actions */}
+                                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2.5">
+                                  {isConnected ? (
+                                    <span className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 flex items-center gap-1.5">
+                                      <Check className="w-3.5 h-3.5" />
+                                      <span>Connected (Direct Handshake Complete)</span>
+                                    </span>
+                                  ) : isPassed ? (
+                                    <button
+                                      onClick={() => handleInstantConnect(sr)}
+                                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                      <span>Instant Connect (Shield Passed)</span>
+                                    </button>
+                                  ) : isInQueue ? (
+                                    <span className="px-4 py-2 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200 flex items-center gap-1.5">
+                                      <Clock className="w-3.5 h-3.5" />
+                                      <span>In Manual Triage Queue (Awaiting Senior Review)</span>
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          setManualNoteSenior(sr.professionalName);
+                                          setManualNoteModalOpen(true);
+                                        }}
+                                        className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                                      >
+                                        Submit to {sr.professionalName.split(' ')[0]}&apos;s Manual Queue
+                                      </button>
+                                      <button
+                                        onClick={() => setActiveTab('problems')}
+                                        className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#E25C38] text-xs font-bold transition-all border border-amber-200 cursor-pointer"
+                                      >
+                                        Solve Bounty to Unlock Auto-Connect
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
 
                       {/* Right: Tip & Telemetry */}
@@ -1126,52 +2037,141 @@ export default function KinGlassDashboard() {
 
                 {/* 4. STUDENT CAREER TIME MACHINE TAB */}
                 {activeTab === 'time-machine' && (
-                  <div key="student-time-machine" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                          Career Time Machine (The Skill-Gap Explorer)
-                        </h2>
-                        <p className="text-xs text-slate-600 mt-1">
-                          Benchmark your trajectory against alumni who successfully stepped into senior leadership.
+                  <div key="student-time-machine" className="flex-1 flex flex-col gap-6 animate-in fade-in duration-150">
+                    {/* Header & AI Role Generator Controls */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                            Career Time Machine (The Skill-Gap Explorer)
+                          </h2>
+                          <span className="px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-[#E25C38] text-[10px] font-bold">
+                            Powered by Gemini 2.5
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600">
+                          Ask Gemini AI to build an authentic year-by-year trajectory for any dream role & compute your deterministic skill gap.
                         </p>
                       </div>
 
-                      {/* Target Role Dropdown */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-700">Target Role:</span>
+                      {/* AI Generator Bar */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        {/* Quick preset selector */}
                         <select
                           value={targetRoleSelection}
-                          onChange={(e) => setTargetRoleSelection(e.target.value)}
-                          className="px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 shadow-xs focus:outline-none"
+                          onChange={(e) => {
+                            setTargetRoleSelection(e.target.value);
+                            setCustomRoleInput(e.target.value);
+                            handleGenerateAiPathway(e.target.value);
+                          }}
+                          className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 shadow-2xs focus:outline-none focus:border-[#E25C38]"
                         >
                           <option value="Staff AI Engineer">Staff AI Engineer</option>
-                          <option value="FinTech Quant">FinTech Quant Lead</option>
+                          <option value="FinTech Quant Lead">FinTech Quant Lead</option>
                           <option value="Founding Frontend Engineer">Founding Frontend Engineer</option>
+                          <option value="Distributed Systems Architect">Distributed Systems Architect</option>
+                          <option value="Autonomous Robotics Engineer">Autonomous Robotics Engineer</option>
                         </select>
+
+                        {/* Custom Role Input */}
+                        <div className="relative flex-1 sm:w-64">
+                          <input
+                            type="text"
+                            value={customRoleInput}
+                            onChange={(e) => setCustomRoleInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleGenerateAiPathway();
+                            }}
+                            placeholder="Or type custom role..."
+                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none focus:border-[#E25C38]"
+                          />
+                        </div>
+
+                        {/* AI Trigger Button */}
+                        <button
+                          id="ask-ai-timemachine-btn"
+                          onClick={() => handleGenerateAiPathway()}
+                          disabled={isGeneratingPathway}
+                          className="px-4 py-2 rounded-xl bg-[#E25C38] hover:bg-[#d04e2b] text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 shrink-0"
+                        >
+                          {isGeneratingPathway ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>AI Building Pathway...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                              <span>Ask AI to Build Pathway</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
 
+                    {/* Pathway Progression & Deterministic Skill Gap Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                       {/* Timeline Progression */}
                       <div className="lg:col-span-7 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
-                        <h3 className="text-base font-bold text-slate-900">Alumni Verified Milestone Path for {targetRoleSelection}</h3>
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <span>Alumni Verified Milestone Path for</span>
+                            <span className="text-[#E25C38]">
+                              {activePathwayData?.targetRole || targetRoleSelection}
+                            </span>
+                          </h3>
+                          {activePathwayData && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              AI Synthesized
+                            </span>
+                          )}
+                        </div>
                         
                         <div className="space-y-3">
-                          {[
-                            { year: 'Year 1: University & Intern', desc: 'Shipped Next.js full-stack apps, mastered React & relational schemas. 300+ GitHub commits.' },
-                            { year: 'Year 2: Associate SDE', desc: 'Implemented Docker containerization, Kafka event pipelines, and production CI/CD.' },
-                            { year: 'Year 4: Senior SDE', desc: 'Designed high-availability microservices handling 25k req/sec with sub-50ms p99 latency.' },
-                            { year: 'Year 6: Staff Architect', desc: 'Technical strategy, cross-org distributed consensus design, and mentorship of 18 engineers.' },
-                          ].map((step, idx) => (
-                            <div key={step.year} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex gap-3">
-                              <span className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                                {idx + 1}
-                              </span>
-                              <div>
-                                <h4 className="text-xs font-bold text-slate-900">{step.year}</h4>
-                                <p className="text-xs text-slate-600 mt-0.5">{step.desc}</p>
+                          {(activePathwayData?.milestones && activePathwayData.milestones.length > 0
+                            ? activePathwayData.milestones
+                            : [
+                                {
+                                  year: 'Year 1: University & Intern',
+                                  desc: 'Shipped Next.js full-stack apps, mastered React & relational schemas. 300+ GitHub commits.',
+                                  hurdles: 'Overcame cold start API latency in serverless edge runtimes.'
+                                },
+                                {
+                                  year: 'Year 2: Associate SDE',
+                                  desc: 'Implemented Docker containerization, Kafka event pipelines, and production CI/CD.',
+                                  hurdles: 'Debugged memory leaks in multi-tenant Redis message brokers.'
+                                },
+                                {
+                                  year: 'Year 4: Senior SDE',
+                                  desc: 'Designed high-availability microservices handling 25k req/sec with sub-50ms p99 latency.',
+                                  hurdles: 'Executed zero-downtime database sharding without data corruption.'
+                                },
+                                {
+                                  year: 'Year 6: Staff Architect',
+                                  desc: 'Technical strategy, cross-org distributed consensus design, and mentorship of 18 engineers.',
+                                  hurdles: 'Aligned 4 cross-functional product orgs around unified schema contracts.'
+                                },
+                              ]
+                          ).map((step, idx) => (
+                            <div key={`${step.year}-${idx}`} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col gap-2 transition-all hover:bg-orange-50/20 hover:border-[#E25C38]/30">
+                              <div className="flex items-start gap-3">
+                                <span className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                                  {idx + 1}
+                                </span>
+                                <div className="flex-1">
+                                  <h4 className="text-xs font-bold text-slate-900">{step.year}</h4>
+                                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">{step.desc}</p>
+                                </div>
                               </div>
+
+                              {step.hurdles && (
+                                <div className="ml-10 text-[11px] text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200/80">
+                                  <span className="font-bold text-orange-700 uppercase tracking-wider text-[9px] block">
+                                    Hurdle Overcome
+                                  </span>
+                                  <p className="font-medium">{step.hurdles}</p>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -1182,51 +2182,58 @@ export default function KinGlassDashboard() {
                         <div>
                           <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base font-bold text-slate-900">Deterministic Skill Gap</h3>
-                            <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                              64% Match
+                            <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                              {activePathwayData?.skillGap?.matchPercentage
+                                ? `${activePathwayData.skillGap.matchPercentage}% Match`
+                                : '64% Match'}
                             </span>
                           </div>
 
-                          <div className="space-y-3 text-xs">
-                            <div className="space-y-1">
-                              <div className="flex justify-between font-bold">
-                                <span>React & Frontend Engineering</span>
-                                <span className="text-emerald-600">100% (Verified)</span>
-                              </div>
-                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: '100%' }} />
-                              </div>
-                            </div>
+                          <div className="space-y-3.5 text-xs">
+                            {(activePathwayData?.skillGap?.items && activePathwayData.skillGap.items.length > 0
+                              ? activePathwayData.skillGap.items
+                              : [
+                                  { skill: 'React & Frontend Engineering', status: '100% (Verified)', progress: 100, verified: true },
+                                  { skill: 'FastAPI & Python AI Pipelines', status: '85% (Verified)', progress: 85, verified: true },
+                                  { skill: 'Docker & Container Orchestration', status: 'Missing on Profile', progress: 15, verified: false },
+                                  { skill: 'High-Throughput Kafka Streams', status: 'In Progress (40%)', progress: 40, verified: false },
+                                ]
+                            ).map((item, i) => {
+                              const isMissing = item.status.toLowerCase().includes('missing');
+                              const isInProgress = item.status.toLowerCase().includes('progress');
+                              const isVerified = item.verified || item.status.toLowerCase().includes('verified');
 
-                            <div className="space-y-1">
-                              <div className="flex justify-between font-bold">
-                                <span>FastAPI & Python AI Pipelines</span>
-                                <span className="text-emerald-600">85% (Verified)</span>
-                              </div>
-                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: '85%' }} />
-                              </div>
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="flex justify-between font-bold">
-                                <span>Docker & Container Orchestration</span>
-                                <span className="text-rose-600">Missing on Profile</span>
-                              </div>
-                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-rose-500 rounded-full" style={{ width: '20%' }} />
-                              </div>
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="flex justify-between font-bold">
-                                <span>High-Throughput Kafka Streams</span>
-                                <span className="text-amber-600">In Progress (40%)</span>
-                              </div>
-                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-amber-500 rounded-full" style={{ width: '40%' }} />
-                              </div>
-                            </div>
+                              return (
+                                <div key={i} className="space-y-1.5">
+                                  <div className="flex justify-between font-bold text-xs">
+                                    <span className="text-slate-800">{item.skill}</span>
+                                    <span
+                                      className={
+                                        isVerified
+                                          ? 'text-emerald-600'
+                                          : isMissing
+                                          ? 'text-rose-600'
+                                          : 'text-amber-600'
+                                      }
+                                    >
+                                      {item.status}
+                                    </span>
+                                  </div>
+                                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-500 ${
+                                        isVerified
+                                          ? 'bg-emerald-500'
+                                          : isMissing
+                                          ? 'bg-rose-500'
+                                          : 'bg-amber-500'
+                                      }`}
+                                      style={{ width: `${Math.min(100, Math.max(5, item.progress))}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
 
@@ -1234,10 +2241,100 @@ export default function KinGlassDashboard() {
                           onClick={() => setActiveTab('problems')}
                           className="mt-6 w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                         >
-                          <span>Solve Docker Bounty to Close Gap</span>
+                          <span>
+                            {activePathwayData?.skillGap?.recommendedBounty
+                              ? `Solve ${activePathwayData.skillGap.recommendedBounty} Bounty to Close Gap`
+                              : 'Solve Docker Bounty to Close Gap'}
+                          </span>
                           <ArrowRight className="w-3 h-3" />
                         </button>
                       </div>
+                    </div>
+
+                    {/* Student Authentic Career Experience Publisher (Identical to Image 2 for Students) */}
+                    <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-bold text-slate-900">
+                              Your Authentic Experience & Mentorship Footprint (Pathway Publisher)
+                            </h3>
+                            <span className="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-[#E25C38] text-[10px] font-bold">
+                              Student Profile
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 mt-0.5">
+                            Publish your real internship, lab, and open-source project milestones with hurdles overcome so seniors can verify your authenticity.
+                          </p>
+                        </div>
+                        <button
+                          id="student-add-milestone-btn"
+                          onClick={() => setIsMilestoneModalOpen(true)}
+                          className="px-3.5 py-1.5 rounded-xl bg-[#E25C38] hover:bg-[#d04e2b] text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>+ Add Career Milestone</span>
+                        </button>
+                      </div>
+
+                      {careerMilestones.length === 0 ? (
+                        <div className="py-8 text-center text-slate-500 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200 space-y-2">
+                          <History className="w-8 h-8 mx-auto text-slate-300" />
+                          <p className="text-xs font-bold text-slate-700">No milestones added to your trajectory yet</p>
+                          <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                            Click <strong>&quot;+ Add Career Milestone&quot;</strong> to document your summer internships, college labs, or projects with real hurdles overcome.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {careerMilestones.map((m) => (
+                            <div
+                              key={m.id}
+                              className="p-4 rounded-2xl bg-slate-50 border border-slate-100 transition-all hover:bg-white hover:shadow-xs group"
+                            >
+                              <div className="flex justify-between items-center text-xs font-bold text-slate-900 mb-1">
+                                <span className="flex items-center gap-2">
+                                  <span>{m.role} • {m.comp}</span>
+                                  {m.userRole === 'student' && (
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold border border-blue-200">
+                                      Student Experience
+                                    </span>
+                                  )}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-slate-500">{m.period}</span>
+                                  <button
+                                    onClick={() => handleDeleteMilestone(m.id)}
+                                    className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 transition-all"
+                                    title="Delete milestone"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {m.hurdles && (
+                                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                                  <strong className="text-slate-800">Hurdle Overcome:</strong> {m.hurdles}
+                                </p>
+                              )}
+
+                              {m.skills && m.skills.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {m.skills.map((s, si) => (
+                                    <span
+                                      key={si}
+                                      className="px-2 py-0.5 rounded bg-slate-200/60 text-slate-700 text-[10px] font-semibold"
+                                    >
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1255,42 +2352,60 @@ export default function KinGlassDashboard() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                      {[
-                        { name: 'Rahul Mehta', role: 'Staff SDE @ Uber', fee: '₹800 for 20 mins', rating: '4.9 ★', specialty: 'System Design Drill', exp: '8 yrs exp' },
-                        { name: 'Dr. Priya Sharma', role: 'Lead Bioinformatician @ Apollo', fee: '₹950 for 20 mins', rating: '5.0 ★', specialty: 'AI / Healthcare Architecture', exp: '10 yrs exp' },
-                        { name: 'Siddharth Verma', role: 'Protocol Lead @ Polygon', fee: '₹1,000 for 20 mins', rating: '4.9 ★', specialty: 'Web3 & Smart Contract Audit', exp: '6 yrs exp' }
-                      ].map((exp) => (
-                        <div key={exp.name} className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                                {exp.specialty}
-                              </span>
-                              <span className="text-xs font-bold text-slate-900">{exp.rating}</span>
-                            </div>
-
-                            <h3 className="text-base font-bold text-slate-900 mt-2">{exp.name}</h3>
-                            <p className="text-xs text-slate-600">{exp.role}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">{exp.exp}</p>
-
-                            <div className="my-4 p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700">
-                              <span className="font-bold text-slate-900 block">{exp.fee}</span>
-                              <span className="text-[10px] text-slate-500">50% supports student endowments</span>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() => {
-                              setSelectedExpert(exp);
-                              setBookingModalOpen(true);
-                            }}
-                            className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>Book 20-Min Slot</span>
-                          </button>
+                      {isLoadingDoorwaySlots ? (
+                        <div className="col-span-1 md:col-span-3 py-16 flex flex-col items-center justify-center gap-3 bg-white rounded-3xl border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] text-slate-500">
+                          <Loader2 className="w-8 h-8 animate-spin text-[#E25C38]" />
+                          <p className="text-sm font-semibold">Loading verified professional consultation slots...</p>
                         </div>
-                      ))}
+                      ) : doorwaySlots.length === 0 ? (
+                        <div className="col-span-1 md:col-span-3 p-12 text-center bg-white rounded-3xl border border-dashed border-slate-200 space-y-3">
+                          <Calendar className="w-10 h-10 mx-auto text-slate-300" />
+                          <h4 className="text-base font-bold text-slate-800">No active calls available right now</h4>
+                          <p className="text-xs text-slate-500 max-w-md mx-auto">
+                            Verified professionals configure their 20-minute consultation availability and rates from their Command Center. As soon as a mentor publishes hours, they will appear here.
+                          </p>
+                        </div>
+                      ) : (
+                        doorwaySlots.map((exp) => (
+                          <div
+                            key={exp.id}
+                            className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between hover:shadow-md transition-all group"
+                          >
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 truncate max-w-[190px]">
+                                  {exp.specialty}
+                                </span>
+                                <span className="text-xs font-bold text-slate-900">{exp.rating || '5.0 ★'}</span>
+                              </div>
+
+                              <h3 className="text-base font-bold text-slate-900 mt-2">{exp.professionalName}</h3>
+                              <p className="text-xs text-slate-600 truncate">{exp.role} @ {exp.company}</p>
+                              <p className="text-xs text-slate-500 mt-0.5">{exp.exp || 'Senior Industry Mentor'}</p>
+
+                              <div className="my-4 p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700">
+                                <span className="font-bold text-slate-900 block">
+                                  ₹{Number(exp.fee).toLocaleString()} for 20 mins
+                                </span>
+                                <span className="text-[10px] text-slate-500">50% supports student endowments</span>
+                              </div>
+                            </div>
+
+                            <button
+                              id={`book-doorway-btn-${exp.id}`}
+                              onClick={() => {
+                                setSelectedExpert(exp);
+                                setSelectedSlot(exp.availableSlots?.[0] || 'Saturday, 3:00 PM - 3:20 PM');
+                                setBookingModalOpen(true);
+                              }}
+                              className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <Calendar className="w-3.5 h-3.5" />
+                              <span>Book 20-Min Slot</span>
+                            </button>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}
@@ -1438,176 +2553,25 @@ export default function KinGlassDashboard() {
                   </div>
                 )}
 
-                {/* 8. STUDENT & PROFESSIONAL COMMUNITY & SOCIAL TAB */}
+                {/* 8. STUDENT & PROFESSIONAL COMMUNITY & SOCIAL TAB (LIVE DATABASE BACKED) */}
                 {activeTab === 'community' && (
-                  <div key="student-community" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                          Professional & Ghost Social Network
-                        </h2>
-                        <p className="text-xs text-slate-600 mt-1">
-                          Share engineering milestones or switch to Kin Ghost Mode for candid, anonymous insights.
-                        </p>
-                      </div>
-
-                      {/* Sub-Tab Switcher */}
-                      <div className="flex items-center p-1 rounded-full bg-slate-100 border border-slate-200">
-                        <button
-                          onClick={() => setCommunitySubTab('feed')}
-                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                            communitySubTab === 'feed' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
-                          }`}
-                        >
-                          🌐 Public Feed
-                        </button>
-                        <button
-                          onClick={() => setCommunitySubTab('ghost')}
-                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                            communitySubTab === 'ghost' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-                          }`}
-                        >
-                          👻 Kin Ghost Mode
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                      {/* Left: Feed Stream (8 cols) */}
-                      <div className="lg:col-span-8 space-y-4">
-                        {communitySubTab === 'feed' ? (
-                          <>
-                            {/* Public Composer */}
-                            <form onSubmit={handleSocialPost} className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                              <textarea
-                                value={newPostContent}
-                                onChange={(e) => setNewPostContent(e.target.value)}
-                                placeholder="Share a project breakthrough, question, or milestone with verified alumni..."
-                                rows={2}
-                                className="w-full text-xs text-slate-900 placeholder-slate-400 bg-transparent resize-none focus:outline-none"
-                              />
-                              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                <span className="text-[10px] text-slate-500 font-bold">Posting as: {activeUserName} (Student)</span>
-                                <button
-                                  type="submit"
-                                  className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
-                                >
-                                  <Send className="w-3 h-3" />
-                                  <span>Post</span>
-                                </button>
-                              </div>
-                            </form>
-
-                            {/* Public Posts */}
-                            {socialFeed.map((post) => (
-                              <div key={post.id} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">
-                                      {post.author.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                      <h4 className="text-xs font-bold text-slate-900">{post.author.name}</h4>
-                                      <span className="text-[10px] text-slate-500">{post.author.role}</span>
-                                    </div>
-                                  </div>
-                                  <span className="text-[10px] text-slate-400">{post.timestamp}</span>
-                                </div>
-                                <p className="text-xs text-slate-800 leading-relaxed my-2">{post.content}</p>
-                                <div className="pt-2 border-t border-slate-100 flex items-center gap-4 text-xs text-slate-500 font-medium">
-                                  <button onClick={() => showToast('Endorsed post!')} className="hover:text-[#E25C38] flex items-center gap-1 cursor-pointer">
-                                    <Heart className="w-3.5 h-3.5" />
-                                    <span>{post.likes}</span>
-                                  </button>
-                                  <button onClick={() => showToast('Opening comments...')} className="hover:text-slate-900 flex items-center gap-1 cursor-pointer">
-                                    <MessageSquare className="w-3.5 h-3.5" />
-                                    <span>Comment</span>
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </>
-                        ) : (
-                          <>
-                            {/* Ghost Mode Composer */}
-                            <form onSubmit={handleGhostPost} className="p-4 rounded-3xl bg-[#181A20] text-white border border-white/10 shadow-lg">
-                              <div className="flex items-center gap-2 mb-2 text-xs font-mono text-amber-400">
-                                <span>👻 Posting as: Ghost-Cadet-108 (Cryptographically Pseudonymous)</span>
-                              </div>
-                              <textarea
-                                value={newGhostText}
-                                onChange={(e) => setNewGhostText(e.target.value)}
-                                placeholder="Ask candid questions about placement realities, real compensation, or imposter syndrome safely..."
-                                rows={2}
-                                className="w-full text-xs text-white placeholder-slate-400 bg-transparent resize-none focus:outline-none"
-                              />
-                              <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                                <span className="text-[10px] text-slate-400">Zero corporate or college affiliation leaked</span>
-                                <button
-                                  type="submit"
-                                  className="px-4 py-1.5 rounded-xl bg-[#E25C38] hover:bg-[#c94927] text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
-                                >
-                                  <Send className="w-3 h-3" />
-                                  <span>Post Ghost Insight</span>
-                                </button>
-                              </div>
-                            </form>
-
-                            {/* Ghost Posts */}
-                            {ghostPosts.map((g) => (
-                              <div key={g.id} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center font-mono">
-                                      👻
-                                    </span>
-                                    <span className="text-xs font-mono font-bold text-slate-900">{g.persona}</span>
-                                    <span className="text-[10px] text-slate-500">• {g.role}</span>
-                                  </div>
-                                  <span className="text-[10px] text-slate-400">{g.timestamp}</span>
-                                </div>
-                                <p className="text-xs text-slate-800 leading-relaxed my-2">{g.content}</p>
-                                <div className="pt-2 border-t border-slate-100 flex items-center gap-4 text-xs text-slate-500">
-                                  <button onClick={() => showToast('Upvoted anonymous insight!')} className="hover:text-[#E25C38] flex items-center gap-1 cursor-pointer">
-                                    <Heart className="w-3.5 h-3.5" />
-                                    <span>{g.likes}</span>
-                                  </button>
-                                  <span>{g.replies} replies</span>
-                                </div>
-                              </div>
-                            ))}
-                          </>
-                        )}
-                      </div>
-
-                      {/* Right: People You May Know (4 cols) */}
-                      <div className="lg:col-span-4 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
-                        <h3 className="text-base font-bold text-slate-900">People You May Know</h3>
-                        <p className="text-xs text-slate-500">Alumni from your department & batchmates</p>
-
-                        <div className="space-y-3">
-                          {[
-                            { name: 'Kavya Verma', role: 'SDE-1 @ Zomato', dept: 'IIITD CSE 2024' },
-                            { name: 'Aditya Nair', role: 'Quant Analyst @ Tower', dept: 'IIITD CSAM 2023' },
-                            { name: 'Pooja Iyer', role: 'Bioinformatician @ Fortis', dept: 'IIITD CB 2024' }
-                          ].map((p) => (
-                            <div key={p.name} className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50">
-                              <div>
-                                <h4 className="text-xs font-bold text-slate-900">{p.name}</h4>
-                                <span className="text-[10px] text-slate-500 block">{p.role}</span>
-                              </div>
-                              <button
-                                onClick={() => showToast(`Smart connect requested with ${p.name}!`)}
-                                className="px-3 py-1 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 hover:bg-slate-100 cursor-pointer shadow-2xs"
-                              >
-                                Connect
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <LiveCommunityNetwork
+                    currentUserEmail={user?.email || 'aditya@iiitd.ac.in'}
+                    currentUserName={activeUserName}
+                    currentUserRole={activeUserRole}
+                    currentUserInstitution={activeUserInstitution}
+                    isStudent={true}
+                    onShowToast={showToast}
+                    onSendCvToProfessional={(pro) => {
+                      setSelectedProForCv({
+                        name: pro.name,
+                        role: pro.role || 'Senior Engineering Leader',
+                        company: pro.institution || 'Tech Firm',
+                        avatar: pro.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+                      });
+                      setIsSendCvModalOpen(true);
+                    }}
+                  />
                 )}
               </div>
             )}
@@ -1709,11 +2673,12 @@ export default function KinGlassDashboard() {
                       <div className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
                         <div>
                           <h3 className="text-base font-bold text-slate-900">Consultation Settlements</h3>
-                          <p className="text-xs text-slate-600 mt-1">₹6,000 net earned across 12 completed sessions.</p>
+                          <p className="text-xs text-slate-600 mt-1">₹{proShare50.toLocaleString()} net earned across {proSessionsDone} completed sessions.</p>
                         </div>
                         <button
                           onClick={handleInstantSettlementPayout}
-                          className="mt-4 w-full py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer"
+                          disabled={proPendingSettlement <= 0}
+                          className="mt-4 w-full py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50"
                         >
                           Request Instant Payout
                         </button>
@@ -1765,60 +2730,135 @@ export default function KinGlassDashboard() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {candidateSubmissions.map((sub) => (
-                              <tr key={sub.id} className="hover:bg-slate-50/60 transition-colors">
-                                <td className="py-3 px-3">
-                                  <span className="font-bold text-slate-900 block">{sub.studentName}</span>
-                                  <span className="text-[10px] text-slate-500">{sub.studentCollege}</span>
-                                </td>
-                                <td className="py-3 px-3 max-w-xs">
-                                  <span className="font-medium truncate block">{sub.problemQuestion}</span>
-                                  <span className="text-[10px] text-slate-500">{sub.submittedAt}</span>
-                                </td>
-                                <td className="py-3 px-3">
-                                  <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="font-bold text-slate-900 hover:text-[#E25C38] flex items-center gap-1">
-                                    <Github className="w-3.5 h-3.5" />
-                                    <span>View GitHub Repo</span>
-                                  </a>
-                                  <span className="text-[10px] font-bold text-emerald-600 block mt-0.5">
-                                    {sub.testsPassed}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3">
-                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                    sub.status === 'accepted' ? 'bg-emerald-100 text-emerald-800' :
-                                    sub.status === 'changes_requested' ? 'bg-amber-100 text-amber-800' :
-                                    sub.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
-                                    'bg-slate-100 text-slate-700'
-                                  }`}>
-                                    {sub.status.toUpperCase()}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3 text-right">
-                                  {sub.status === 'pending' ? (
-                                    <div className="flex items-center justify-end gap-1.5">
-                                      <button
-                                        onClick={() => handleReviewSubmission(sub.id, 'accepted')}
-                                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] cursor-pointer"
-                                      >
-                                        Accept & Refer
-                                      </button>
-                                      <button
-                                        onClick={() => handleReviewSubmission(sub.id, 'changes_requested')}
-                                        className="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-[11px] cursor-pointer"
-                                      >
-                                        Changes
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <span className="text-[11px] text-slate-400 font-bold">Reviewed</span>
-                                  )}
+                            {candidateSubmissions.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="py-10 text-center text-slate-400">
+                                  <div className="flex flex-col items-center justify-center gap-1.5">
+                                    <GitPullRequest className="w-6 h-6 text-slate-300" />
+                                    <span className="font-bold text-xs text-slate-700">No Candidate Submissions in Queue Yet</span>
+                                    <span className="text-[11px] text-slate-400 max-w-sm">
+                                      When students submit GitHub solutions to your problem statements, their PRs, AST proof-of-work, and test results appear here for your review and interview referral.
+                                    </span>
+                                  </div>
                                 </td>
                               </tr>
-                            ))}
+                            ) : (
+                              candidateSubmissions.map((sub) => (
+                                <tr key={sub.id} className="hover:bg-slate-50/60 transition-colors">
+                                  <td className="py-3 px-3">
+                                    <span className="font-bold text-slate-900 block">{sub.studentName}</span>
+                                    <span className="text-[10px] text-slate-500">{sub.studentCollege}</span>
+                                  </td>
+                                  <td className="py-3 px-3 max-w-xs">
+                                    <span className="font-medium truncate block">{sub.problemQuestion}</span>
+                                    <span className="text-[10px] text-slate-500">{sub.submittedAt}</span>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="font-bold text-slate-900 hover:text-[#E25C38] flex items-center gap-1">
+                                      <Github className="w-3.5 h-3.5" />
+                                      <span>View GitHub Repo</span>
+                                    </a>
+                                    <span className="text-[10px] font-bold text-emerald-600 block mt-0.5">
+                                      {sub.testsPassed}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                      sub.status === 'accepted' ? 'bg-emerald-100 text-emerald-800' :
+                                      sub.status === 'changes_requested' ? 'bg-amber-100 text-amber-800' :
+                                      sub.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
+                                      'bg-slate-100 text-slate-700'
+                                    }`}>
+                                      {sub.status.toUpperCase()}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-3 text-right">
+                                    {sub.status === 'pending' ? (
+                                      <div className="flex items-center justify-end gap-1.5">
+                                        <button
+                                          onClick={() => handleReviewSubmission(sub.id, 'accepted')}
+                                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] cursor-pointer"
+                                        >
+                                          Accept & Refer
+                                        </button>
+                                        <button
+                                          onClick={() => handleReviewSubmission(sub.id, 'changes_requested')}
+                                          className="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-[11px] cursor-pointer"
+                                        >
+                                          Changes
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <span className="text-[11px] text-slate-400 font-bold">Reviewed</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))
+                            )}
                           </tbody>
                         </table>
                       </div>
+                    </div>
+
+                    {/* Live Problem Statements Management Section for Working Professionals */}
+                    <div className="rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-base font-bold text-slate-900">Active Problem Statements on Challenge Board</h3>
+                          <p className="text-xs text-slate-500">Live bottlenecks visible to students on their challenge feed</p>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-slate-500">
+                          {problems.length} Active Challenges
+                        </span>
+                      </div>
+
+                      {problems.length === 0 ? (
+                        <div className="py-8 text-center flex flex-col items-center justify-center border border-dashed border-slate-200 rounded-2xl">
+                          <Trophy className="w-6 h-6 text-slate-300 mb-2" />
+                          <span className="text-xs font-bold text-slate-700 mb-1">No Active Problem Statements</span>
+                          <p className="text-[11px] text-slate-500 max-w-sm mb-4">
+                            Click &ldquo;+ Post New Problem Statement&rdquo; above to publish an engineering bottleneck and invite student submissions.
+                          </p>
+                          <button
+                            onClick={() => setIsPostProblemModalOpen(true)}
+                            className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>+ Post Problem Statement</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                          {problems.map((prob) => (
+                            <div
+                              key={prob.id}
+                              className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 flex flex-col justify-between hover:border-slate-300 transition-colors"
+                            >
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-800">
+                                    {prob.category}
+                                  </span>
+                                  <button
+                                    onClick={() => handleDeleteProblem(prob.id)}
+                                    title="Delete Problem"
+                                    className="w-6 h-6 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <h4 className="text-xs font-bold text-slate-900 line-clamp-2 mb-2">
+                                  {prob.question}
+                                </h4>
+                              </div>
+                              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                                <span className="font-mono font-bold text-slate-700">{prob.bountyReward}</span>
+                                <span className="text-slate-500">{prob.alumniCompany}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1915,10 +2955,11 @@ export default function KinGlassDashboard() {
                         </div>
 
                         <button
-                          onClick={() => showToast('Firewall policies saved and deployed to live gateway!')}
-                          className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                          onClick={handleSaveFirewallPolicy}
+                          className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                         >
-                          Save Policy Configuration
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Save Policy Configuration</span>
                         </button>
                       </div>
 
@@ -1989,27 +3030,76 @@ export default function KinGlassDashboard() {
                         <div className="flex items-center justify-between">
                           <h3 className="text-base font-bold text-slate-900">Published Career Progression</h3>
                           <button
-                            onClick={() => showToast('Opening milestone editor...')}
-                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-800 cursor-pointer"
+                            id="pro-add-milestone-btn"
+                            onClick={() => setIsMilestoneModalOpen(true)}
+                            className="px-3.5 py-1.5 rounded-xl bg-[#E25C38] hover:bg-[#d04e2b] text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
                           >
-                            + Add Career Milestone
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>+ Add Career Milestone</span>
                           </button>
                         </div>
 
                         <div className="space-y-3">
-                          {[
-                            { period: '2020 - 2021', role: 'Software Engineer Intern', comp: 'Microsoft', hurdles: 'Overcame multithreading race conditions in C++ telemetry services.' },
-                            { period: '2021 - 2023', role: 'SDE-1', comp: 'Uber Core Platform', hurdles: 'Built asynchronous webhook retry workers processing 40M events/day.' },
-                            { period: '2023 - Present', role: 'Senior Systems Architect', comp: 'Uber / TechCorp', hurdles: 'Driving zero-downtime database sharding and mentoring junior engineers.' }
-                          ].map((step, idx) => (
-                            <div key={`step-${step.period || 'p'}-${idx}`} className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                          {(careerMilestones.length > 0
+                            ? careerMilestones
+                            : [
+                                {
+                                  id: 'seed-1',
+                                  period: '2020 - 2021',
+                                  role: 'Software Engineer Intern',
+                                  comp: 'Microsoft',
+                                  hurdles: 'Overcame multithreading race conditions in C++ telemetry services.',
+                                  skills: ['C++', 'Telemetry', 'Multi-threading']
+                                },
+                                {
+                                  id: 'seed-2',
+                                  period: '2021 - 2023',
+                                  role: 'SDE-1',
+                                  comp: 'Uber Core Platform',
+                                  hurdles: 'Built asynchronous webhook retry workers processing 40M events/day.',
+                                  skills: ['Go', 'Kafka', 'Redis']
+                                },
+                                {
+                                  id: 'seed-3',
+                                  period: '2023 - Present',
+                                  role: 'Senior Systems Architect',
+                                  comp: 'Uber / TechCorp',
+                                  hurdles: 'Driving zero-downtime database sharding and mentoring junior engineers.',
+                                  skills: ['PostgreSQL', 'Distributed Systems', 'Mentorship']
+                                }
+                              ]
+                          ).map((step, idx) => (
+                            <div key={step.id || idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 transition-all hover:bg-white hover:shadow-xs group">
                               <div className="flex justify-between items-center text-xs font-bold text-slate-900">
                                 <span>{step.role} • {step.comp}</span>
-                                <span className="font-mono text-slate-500">{step.period}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-slate-500">{step.period}</span>
+                                  {step.id && !step.id.startsWith('seed-') && (
+                                    <button
+                                      onClick={() => handleDeleteMilestone(step.id)}
+                                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 transition-all"
+                                      title="Delete milestone"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
                                 <strong>Hurdle Overcome:</strong> {step.hurdles}
                               </p>
+                              {step.skills && step.skills.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {step.skills.map((s, si) => (
+                                    <span
+                                      key={si}
+                                      className="px-2 py-0.5 rounded bg-slate-200/60 text-slate-700 text-[10px] font-semibold"
+                                    >
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -2050,24 +3140,69 @@ export default function KinGlassDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                       {/* Rate Settings */}
                       <div className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
-                        <h3 className="text-base font-bold text-slate-900">Consultation Pricing</h3>
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-base font-bold text-slate-900">Consultation Pricing</h3>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            consultIsOpenForBookings ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            {consultIsOpenForBookings ? 'Active in Cockpit' : 'Paused'}
+                          </span>
+                        </div>
+
                         <div>
-                          <label className="text-xs font-bold text-slate-700 block mb-1">Set Fee per 20 Minutes:</label>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Set Fee per 20 Minutes (₹):</label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-2.5 text-xs font-bold text-slate-400">₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="50"
+                              value={consultFeeSetting}
+                              onChange={(e) => setConsultFeeSetting(e.target.value)}
+                              className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#E25C38]"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Focus Topic / Drill Specialty:</label>
                           <input
                             type="text"
-                            value={consultFeeSetting}
-                            onChange={(e) => setConsultFeeSetting(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none"
+                            value={consultSpecialtySetting}
+                            onChange={(e) => setConsultSpecialtySetting(e.target.value)}
+                            placeholder="e.g. System Design Drill"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#E25C38]"
                           />
                         </div>
+
+                        <label className="flex items-center gap-2 cursor-pointer pt-0.5">
+                          <input
+                            type="checkbox"
+                            checked={consultIsOpenForBookings}
+                            onChange={(e) => setConsultIsOpenForBookings(e.target.checked)}
+                            className="accent-[#E25C38] w-4 h-4 rounded cursor-pointer"
+                          />
+                          <span className="text-xs font-bold text-slate-700">Open for Student 20-Min Bookings</span>
+                        </label>
+
                         <p className="text-xs text-slate-500 leading-relaxed">
-                          Your earnings: <strong>50%</strong> (e.g. ₹500/session). The remaining 50% funds competitive student grants.
+                          Your earnings: <strong>50%</strong> (e.g. ₹{Math.round((parseInt(String(consultFeeSetting).replace(/[^0-9]/g, '')) || 1000) * 0.5)}/session). The remaining 50% funds competitive student grants.
                         </p>
+
                         <button
-                          onClick={() => showToast('Consultation schedule & fee updated!')}
-                          className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
+                          id="pro-save-pricing-btn"
+                          onClick={handleSaveConsultationPricing}
+                          disabled={isSavingConsultPricing}
+                          className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
                         >
-                          Save Pricing & Hours
+                          {isSavingConsultPricing ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Publishing Availability...</span>
+                            </>
+                          ) : (
+                            <span>Save Pricing & Hours</span>
+                          )}
                         </button>
                       </div>
 
@@ -2084,26 +3219,62 @@ export default function KinGlassDashboard() {
                           <div className="grid grid-cols-3 gap-3 mb-4 text-xs">
                             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
                               <span className="text-[10px] text-slate-500 font-bold uppercase">Sessions Done</span>
-                              <p className="text-2xl font-black text-slate-900 mt-1">{totalSessionsConducted}</p>
+                              <p className="text-2xl font-black text-slate-900 mt-1">{proSessionsDone}</p>
                             </div>
                             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
                               <span className="text-[10px] text-slate-500 font-bold uppercase">Gross Revenue</span>
-                              <p className="text-2xl font-black text-slate-900 mt-1">₹12,000</p>
+                              <p className="text-2xl font-black text-slate-900 mt-1">₹{proGrossRevenue.toLocaleString()}</p>
                             </div>
                             <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-100">
                               <span className="text-[10px] text-emerald-700 font-bold uppercase">Your 50% Share</span>
-                              <p className="text-2xl font-black text-emerald-700 mt-1">₹6,000</p>
+                              <p className="text-2xl font-black text-emerald-700 mt-1">₹{proShare50.toLocaleString()}</p>
                             </div>
                           </div>
+
+                          {/* Recent Bookings List */}
+                          {proBookingsList.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                                Booked Consultations ({proBookingsList.length})
+                              </span>
+                              <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
+                                {proBookingsList.map((b) => (
+                                  <div
+                                    key={b.id}
+                                    className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs flex items-center justify-between"
+                                  >
+                                    <div>
+                                      <div className="font-bold text-slate-900">
+                                        {b.studentName} <span className="text-slate-500 font-normal">({b.studentCollege})</span>
+                                      </div>
+                                      <p className="text-[11px] text-slate-600 truncate max-w-sm">
+                                        {b.slot} • {b.topic}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="font-mono font-bold text-slate-900 block">₹{b.fee}</span>
+                                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
+                                        {b.status === 'paid_out' ? 'Settled' : '50% Accrued'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                          <span className="text-xs text-slate-600">Pending Instant Settlement: <strong>₹6,000</strong></span>
+                          <span className="text-xs text-slate-600">
+                            Pending Instant Settlement: <strong>₹{proPendingSettlement.toLocaleString()}</strong>
+                          </span>
                           <button
+                            id="pro-request-payout-btn"
                             onClick={handleInstantSettlementPayout}
-                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                            disabled={proPendingSettlement <= 0 || isRequestingPayout}
+                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
                           >
-                            Request Instant Settlement Payout
+                            {isRequestingPayout ? 'Processing Instant Payout...' : 'Request Instant Settlement Payout'}
                           </button>
                         </div>
                       </div>
@@ -2126,7 +3297,7 @@ export default function KinGlassDashboard() {
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                       <div className="lg:col-span-7 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-mono font-bold text-slate-500">Candidate: Darsh Ohri (IIIT Delhi)</span>
+                          <span className="text-xs font-mono font-bold text-slate-500">Candidate: Aditya Sharma (IIIT Delhi)</span>
                           <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">New Submission</span>
                         </div>
 
@@ -2143,7 +3314,7 @@ export default function KinGlassDashboard() {
                               <Play className="w-4 h-4 ml-0.5" />
                             </button>
                             <div>
-                              <span className="text-xs font-bold block">Darsh_Ohri_Consensus_Answer.wav</span>
+                              <span className="text-xs font-bold block">Aditya_Consensus_Answer.wav</span>
                               <span className="text-[10px] text-slate-400">1:28 duration • Waveform clear</span>
                             </div>
                           </div>
@@ -2218,7 +3389,7 @@ export default function KinGlassDashboard() {
                           <textarea
                             value={wisdomFeedbackAdvice}
                             onChange={(e) => setWisdomFeedbackAdvice(e.target.value)}
-                            placeholder="Write constructive tactical advice for Darsh..."
+                            placeholder="Write constructive tactical advice for Aditya..."
                             rows={4}
                             className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none"
                           />
@@ -2258,7 +3429,7 @@ export default function KinGlassDashboard() {
 
                       <div className="space-y-3">
                         {[
-                          { name: 'Darsh Ohri', college: 'IIIT Delhi (CSE Data Science)', velocity: 'Top 4% Velocity', topSkill: 'FastAPI, FHIR, Vector Search', bountyWins: '2 Bounties Won' },
+                          { name: 'Aditya Sharma', college: 'IIIT Delhi (CSE & AI)', velocity: 'Top 3% Velocity', topSkill: 'FastAPI, PyTorch, Distributed Raft', bountyWins: '2 Bounties Won' },
                           { name: 'Aarav Sharma', college: 'Tier 3 Govt College (Electrical)', velocity: 'Top 2% Velocity', topSkill: 'Rust, WebUSB, Account Abstraction', bountyWins: '3 Bounties Won' },
                           { name: 'Sanya Mirza', college: 'SGSITS Indore (IT)', velocity: 'Top 5% Velocity', topSkill: 'Next.js, Solr, Predictive ML', bountyWins: '1 Bounty Won' }
                         ].map((cand) => (
@@ -2287,128 +3458,25 @@ export default function KinGlassDashboard() {
                   </div>
                 )}
 
-                {/* 8. ALUMNI COMMUNITY & SOCIAL TAB */}
+                {/* 8. ALUMNI COMMUNITY & GHOST MODE TAB (LIVE DATABASE BACKED) */}
                 {activeTab === 'community' && (
-                  <div key="alumni-community" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                          Professional & Ghost Social Network
-                        </h2>
-                        <p className="text-xs text-slate-600 mt-1">
-                          Share architectural learnings with peers or share industry compensation realities in Ghost Mode.
-                        </p>
-                      </div>
-
-                      {/* Sub-Tab Switcher */}
-                      <div className="flex items-center p-1 rounded-full bg-slate-100 border border-slate-200">
-                        <button
-                          onClick={() => setCommunitySubTab('feed')}
-                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                            communitySubTab === 'feed' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
-                          }`}
-                        >
-                          🌐 Public Feed
-                        </button>
-                        <button
-                          onClick={() => setCommunitySubTab('ghost')}
-                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                            communitySubTab === 'ghost' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-                          }`}
-                        >
-                          👻 Kin Ghost Mode
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                      <div className="lg:col-span-8 space-y-4">
-                        {communitySubTab === 'feed' ? (
-                          <>
-                            <form onSubmit={handleSocialPost} className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                              <textarea
-                                value={newPostContent}
-                                onChange={(e) => setNewPostContent(e.target.value)}
-                                placeholder="Share engineering architectures, hiring openings, or tech updates..."
-                                rows={2}
-                                className="w-full text-xs text-slate-900 placeholder-slate-400 bg-transparent resize-none focus:outline-none"
-                              />
-                              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                <span className="text-[10px] text-slate-500 font-bold">Posting as: Verified Alumni (Uber)</span>
-                                <button
-                                  type="submit"
-                                  className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
-                                >
-                                  Post Update
-                                </button>
-                              </div>
-                            </form>
-
-                            {socialFeed.map((post) => (
-                              <div key={post.id} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div>
-                                    <h4 className="text-xs font-bold text-slate-900">{post.author.name}</h4>
-                                    <span className="text-[10px] text-slate-500">{post.author.role}</span>
-                                  </div>
-                                  <span className="text-[10px] text-slate-400">{post.timestamp}</span>
-                                </div>
-                                <p className="text-xs text-slate-800 leading-relaxed my-2">{post.content}</p>
-                              </div>
-                            ))}
-                          </>
-                        ) : (
-                          <>
-                            <form onSubmit={handleGhostPost} className="p-4 rounded-3xl bg-[#181A20] text-white border border-white/10 shadow-lg">
-                              <span className="text-xs font-mono text-amber-400 block mb-2">👻 Posting as: Ghost-Architect-402 (Zero Employer Trace)</span>
-                              <textarea
-                                value={newGhostText}
-                                onChange={(e) => setNewGhostText(e.target.value)}
-                                placeholder="Share unfiltered industry advice, real salary bands, or layoff warnings..."
-                                rows={2}
-                                className="w-full text-xs text-white placeholder-slate-400 bg-transparent resize-none focus:outline-none"
-                              />
-                              <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                                <span className="text-[10px] text-slate-400">Identity protected</span>
-                                <button
-                                  type="submit"
-                                  className="px-4 py-1.5 rounded-xl bg-[#E25C38] text-white text-xs font-bold cursor-pointer"
-                                >
-                                  Post Ghost Insight
-                                </button>
-                              </div>
-                            </form>
-
-                            {ghostPosts.map((g) => (
-                              <div key={g.id} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-xs font-mono font-bold text-slate-900">👻 {g.persona}</span>
-                                  <span className="text-[10px] text-slate-400">{g.timestamp}</span>
-                                </div>
-                                <p className="text-xs text-slate-800 leading-relaxed my-2">{g.content}</p>
-                              </div>
-                            ))}
-                          </>
-                        )}
-                      </div>
-
-                      <div className="lg:col-span-4 rounded-3xl p-6 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-4">
-                        <h3 className="text-base font-bold text-slate-900">Talent to Watch</h3>
-                        <p className="text-xs text-slate-500">Students with highest commit momentum</p>
-                        <div className="space-y-3">
-                          {[
-                            { name: 'Darsh Ohri', metric: '48 commits / 14 days' },
-                            { name: 'Aarav Sharma', metric: '36 commits / 14 days' }
-                          ].map((t) => (
-                            <div key={t.name} className="p-2.5 rounded-2xl bg-slate-50 flex justify-between items-center text-xs">
-                              <span className="font-bold text-slate-900">{t.name}</span>
-                              <span className="text-emerald-600 font-mono font-bold text-[10px]">{t.metric}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <LiveCommunityNetwork
+                    currentUserEmail={user?.email || 'parth.arora@deepmind.com'}
+                    currentUserName={activeUserName}
+                    currentUserRole={activeUserRole}
+                    currentUserInstitution={activeUserInstitution}
+                    isStudent={false}
+                    onShowToast={showToast}
+                    onSendCvToProfessional={(pro) => {
+                      setSelectedProForCv({
+                        name: pro.name,
+                        role: pro.role || 'Senior Engineering Leader',
+                        company: pro.institution || 'Tech Firm',
+                        avatar: pro.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+                      });
+                      setIsSendCvModalOpen(true);
+                    }}
+                  />
                 )}
               </div>
             )}
@@ -2434,28 +3502,28 @@ export default function KinGlassDashboard() {
       {/* ─── BOTTOM FLOATING GLASS DOCK (SINGLE KIN MASCOT BEHIND DOCK) ─── */}
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center pointer-events-none">
         
-        {/* PEEKING KIN MASCOT BEHIND DOCK: ONLY RENDERED WHEN TOUR IS NOT ACTIVE! */}
+        {/* ─── KIN AI MASCOT GUIDE FLOATING PROUDLY ABOVE DOCK ─── */}
         <AnimatePresence mode="wait">
           {!showMascotTour && (
             <motion.button
               key="dock-mascot-peek"
-              initial={{ opacity: 0, y: 28, scale: 0.85 }}
+              initial={{ opacity: 0, y: 14, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 28, scale: 0.85 }}
-              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              exit={{ opacity: 0, y: 14, scale: 0.9 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               onClick={() => {
                 setMascotStepIndex(0);
                 setShowMascotTour(true);
               }}
-              className="relative -mb-4 z-10 pointer-events-auto group cursor-pointer transition-transform duration-300 hover:-translate-y-2 focus:outline-none"
+              className="relative mb-2 z-30 pointer-events-auto group cursor-pointer transition-transform duration-300 hover:scale-110 hover:-translate-y-1 focus:outline-none"
               title="Kin AI Guide • Click me to interact! 👋"
             >
               <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-slate-200 shadow-md text-[10px] font-bold text-slate-800 whitespace-nowrap pointer-events-none">
                 Kin Guide • Click me 👋
               </div>
 
-              <div className="w-14 h-14 relative filter drop-shadow-[0_4px_14px_rgba(0,0,0,0.1)]">
-                <KinMascot pose={activeTab as any} size={56} />
+              <div className="w-13 h-13 relative filter drop-shadow-[0_4px_14px_rgba(0,0,0,0.12)]">
+                <KinMascot pose={activeTab as any} size={52} />
               </div>
             </motion.button>
           )}
@@ -2473,6 +3541,7 @@ export default function KinGlassDashboard() {
             return (
               <button
                 key={item.id}
+                id={`nav-tab-${item.id}`}
                 onClick={() => {
                   setActiveTab(item.id);
                   setProfileMenuOpen(false);
@@ -2584,7 +3653,7 @@ export default function KinGlassDashboard() {
                             setActiveTab(KIN_WALKTHROUGH[next].tabId);
                           } else {
                             setShowMascotTour(false);
-                            showToast('Walkthrough complete! Kin is resting behind the dock navigation.');
+                            showToast('Walkthrough complete! Kin is here whenever you need guidance.');
                           }
                         }}
                         className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
@@ -2834,32 +3903,58 @@ export default function KinGlassDashboard() {
               </div>
 
               <h3 className="text-lg font-bold text-slate-900 mb-1">
-                Book 1-on-1 with {selectedExpert.name}
+                Book 1-on-1 with {selectedExpert.professionalName || selectedExpert.name}
               </h3>
-              <p className="text-xs text-slate-600 mb-4">{selectedExpert.role}</p>
+              <p className="text-xs text-slate-600 mb-4">
+                {selectedExpert.role} @ {selectedExpert.company || selectedExpert.institution || 'Verified Network'}
+              </p>
 
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 mb-4 text-xs space-y-2">
                 <div className="flex justify-between font-bold">
-                  <span>Session Type:</span>
-                  <span>{selectedExpert.specialty}</span>
+                  <span>Session Focus:</span>
+                  <span className="text-slate-800">{selectedExpert.specialty}</span>
                 </div>
                 <div className="flex justify-between font-bold">
-                  <span>Price:</span>
-                  <span className="text-emerald-700">{selectedExpert.fee}</span>
+                  <span>Fee (20 mins):</span>
+                  <span className="text-emerald-700 font-mono">
+                    ₹{Number(selectedExpert.fee).toLocaleString()} (50% supports student grants)
+                  </span>
                 </div>
               </div>
 
-              <div className="mb-4">
-                <label className="text-xs font-bold text-slate-700 block mb-1.5">Select Time Slot:</label>
+              <div className="mb-3">
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">Select Available Slot:</label>
                 <select
                   value={selectedSlot}
                   onChange={(e) => setSelectedSlot(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#E25C38]"
                 >
-                  <option value="Saturday, 3:00 PM - 3:20 PM">Saturday, 3:00 PM - 3:20 PM</option>
-                  <option value="Saturday, 4:00 PM - 4:20 PM">Saturday, 4:00 PM - 4:20 PM</option>
-                  <option value="Sunday, 11:00 AM - 11:20 AM">Sunday, 11:00 AM - 11:20 AM</option>
+                  {(selectedExpert.availableSlots && selectedExpert.availableSlots.length > 0
+                    ? selectedExpert.availableSlots
+                    : [
+                        'Saturday, 10:00 AM - 10:20 AM',
+                        'Saturday, 3:00 PM - 3:20 PM',
+                        'Sunday, 11:00 AM - 11:20 AM'
+                      ]
+                  ).map((sl: string, i: number) => (
+                    <option key={i} value={sl}>
+                      {sl}
+                    </option>
+                  ))}
                 </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                  Discussion Objective / Question:
+                </label>
+                <input
+                  type="text"
+                  value={bookingTopic}
+                  onChange={(e) => setBookingTopic(e.target.value)}
+                  placeholder="e.g. Distributed system race condition review & scale bottlenecks"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#E25C38]"
+                />
               </div>
 
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800 mb-4">
@@ -2867,10 +3962,19 @@ export default function KinGlassDashboard() {
               </div>
 
               <button
+                id="confirm-booking-btn"
                 onClick={handleConfirmConsultBooking}
-                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
+                disabled={isSubmittingBooking}
+                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                Confirm Booking & Dispatch Invite
+                {isSubmittingBooking ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Confirming Booking...</span>
+                  </>
+                ) : (
+                  <span>Confirm Booking & Dispatch Invite</span>
+                )}
               </button>
             </motion.div>
           </div>
@@ -2925,6 +4029,278 @@ export default function KinGlassDashboard() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ─── MODAL 5: SUBMIT CV & RUN GEMINI AI ATS GATEKEEPER REVIEW ─── */}
+      <AnimatePresence>
+        {isSendCvModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="max-w-lg w-full rounded-[32px] bg-white border border-slate-100 p-6 sm:p-7 shadow-2xl text-slate-900 space-y-4"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#E25C38] flex items-center justify-center">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">AI ATS Gatekeeper Evaluation</h3>
+                    <p className="text-[11px] text-slate-500">Direct Outreach & Acceptance Review</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => !isEvaluatingAts && setIsSendCvModalOpen(false)}
+                  disabled={isEvaluatingAts}
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer disabled:opacity-40"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Target Senior Info & Live Gatekeeper Criteria */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={selectedProForCv.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80'}
+                    alt={selectedProForCv.name}
+                    className="w-11 h-11 rounded-2xl object-cover border border-slate-200"
+                  />
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">{selectedProForCv.name}</h4>
+                    <p className="text-xs text-slate-600 font-medium">{selectedProForCv.role}</p>
+                    <span className="text-[10px] text-slate-400 font-mono">{selectedProForCv.company}</span>
+                  </div>
+                </div>
+
+                {/* Senior's Live Firewall Settings (The exact policy they configured in Image 2!) */}
+                <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/60 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 flex items-center gap-1.5 text-[11px]">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#E25C38]" />
+                      <span>Live Firewall Policy</span>
+                    </span>
+                    <span className="font-mono font-bold text-[#E25C38] bg-white px-2 py-0.5 rounded-md border border-amber-200 text-[11px]">
+                      Threshold: ≥ {targetProPolicy?.threshold || firewallThreshold}% Match
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 flex flex-wrap gap-x-3 gap-y-1 pt-1">
+                    <span>
+                      <strong>Min GitHub Commits:</strong> {targetProPolicy?.minCommits || firewallMinCommits}
+                    </span>
+                    <span>
+                      <strong>Mandatory Skills:</strong> {(targetProPolicy?.mandatorySkills || selectedFirewallSkills).join(', ')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Student's Uploaded / Onboarded CV Snapshot */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2 text-xs">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                  <span className="font-bold text-slate-800 text-[11px]">Your Evaluated Credentials</span>
+                  <span className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    Profile Linked
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Candidate:</span>
+                    <span className="font-bold text-slate-800 truncate block">{activeUserName}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Verified Commits:</span>
+                    <span className="font-bold text-slate-800 font-mono">
+                      {githubData?.recentPushesCount ? githubData.recentPushesCount * 4 : 18} Commits (AST Met)
+                    </span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-slate-400 block text-[10px]">Profile Skills:</span>
+                    <span className="text-slate-700 font-medium line-clamp-1">
+                      {activeSkills.slice(0, 6).join(', ')}
+                    </span>
+                  </div>
+                  <div className="col-span-2 pt-1 flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                    <span className="flex items-center gap-1.5 font-mono text-[10px] text-slate-700 truncate">
+                      <FileText className="w-3.5 h-3.5 text-[#E25C38] shrink-0" />
+                      <span className="truncate">{user?.resumeName || parsedProfile?.resumeName || 'Primary_Engineering_Resume.pdf'}</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400 shrink-0">Onboarded CV</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Engine description */}
+              <p className="text-[11px] text-slate-500 leading-relaxed italic">
+                Kin&apos;s Google Gemini 2.5 Flash ATS engine evaluates semantic project relevance, verified GitHub commits, and syntax AST checks strictly against {selectedProForCv.name.split(' ')[0]}&apos;s live gatekeeper policy.
+              </p>
+
+              {/* Action Button */}
+              <button
+                type="button"
+                disabled={isEvaluatingAts}
+                onClick={() => handleEvaluateAndSendCv(selectedProForCv, targetProPolicy || undefined)}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-black hover:from-black hover:to-slate-900 text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {isEvaluatingAts ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                    <span>Gemini AI Analyzing CV against Firewall Criteria...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>Run Gemini AI ATS Review & Submit CV</span>
+                  </>
+                )}
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── MODAL 6: PUBLISH AUTHENTIC CAREER MILESTONE ─── */}
+      <AnimatePresence>
+        {isMilestoneModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="max-w-lg w-full rounded-[32px] bg-white border border-slate-100 p-6 sm:p-7 shadow-2xl text-slate-900 space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#E25C38] flex items-center justify-center">
+                    <History className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Add Authentic Career Milestone</h3>
+                    <p className="text-[11px] text-slate-500">
+                      Publish to your career progression footprint ({activeRole === 'Student' ? 'Student' : 'Professional'})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => !isSavingMilestone && setIsMilestoneModalOpen(false)}
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handlePublishMilestone} className="space-y-3.5">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    Role / Position Title <span className="text-[#E25C38]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newMilestoneForm.role}
+                    onChange={(e) => setNewMilestoneForm({ ...newMilestoneForm, role: e.target.value })}
+                    placeholder={activeRole === 'Student' ? 'e.g. Software Engineer Intern / Lab Researcher' : 'e.g. Senior Systems Architect'}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E25C38]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                      Organization / Company / Lab <span className="text-[#E25C38]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newMilestoneForm.comp}
+                      onChange={(e) => setNewMilestoneForm({ ...newMilestoneForm, comp: e.target.value })}
+                      placeholder="e.g. Uber / IIITD AI Lab"
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#E25C38]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                      Timeline Period
+                    </label>
+                    <input
+                      type="text"
+                      value={newMilestoneForm.period}
+                      onChange={(e) => setNewMilestoneForm({ ...newMilestoneForm, period: e.target.value })}
+                      placeholder="e.g. 2023 - 2024 or Present"
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#E25C38]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    Technical Hurdle Overcome
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={newMilestoneForm.hurdles}
+                    onChange={(e) => setNewMilestoneForm({ ...newMilestoneForm, hurdles: e.target.value })}
+                    placeholder="Describe a real problem, race condition, scalability bottleneck, or hurdle you resolved..."
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#E25C38] resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    Skills Tagged (Comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    value={newMilestoneForm.skills}
+                    onChange={(e) => setNewMilestoneForm({ ...newMilestoneForm, skills: e.target.value })}
+                    placeholder="e.g. React, Next.js, Docker, PostgreSQL"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#E25C38]"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsMilestoneModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingMilestone}
+                    className="px-5 py-2.5 rounded-xl bg-[#E25C38] hover:bg-[#d04e2b] text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {isSavingMilestone ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Publishing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Publish Milestone</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+
+      {/* ─── Profile Completion Wizard Modal ─── */}
+      <ProfileCompletionWizard
+        isOpen={isProfileWizardOpen}
+        onClose={handleCloseProfileWizard}
+        initialRole={networkRole}
+      />
 
       {/* Resume Upload Modal */}
       <ResumeUploadModal

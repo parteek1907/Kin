@@ -29,6 +29,7 @@ out/
 *.pem
 *.key
 *.db
+!frontend/prisma/dev.db
 *.db-journal
 *.db-wal
 

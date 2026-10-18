@@ -1,24 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { DARSH_OHRI_PROFILE } from '@/data/darshProfile';
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
-const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN || 'apify_api_9JS8ogyXAyapIKhGEYTsJmuOKhqnk71qwIBI';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AQ.Ab8RN6JVhml2bkea-IHwvxG38SXcaCvnl4jgsBY8-JjMBO4vEA';
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN || '';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+
+const DEFAULT_PROFILE_TEMPLATE = {
+  name: 'Verified Builder',
+  role: 'Software Engineer',
+  institution: 'IIIT Delhi',
+  email: 'builder@kin.network',
+  githubUrl: '',
+  githubUsername: '',
+  linkedinUrl: '',
+  portfolioUrl: '',
+  summary: 'Verified engineer on KIN network building high-velocity software solutions.',
+  skills: ['Next.js', 'React', 'Python', 'FastAPI', 'TypeScript'],
+  careerMilestones: [
+    {
+      id: 'cm-1',
+      role: 'Full-Stack Developer',
+      company: 'Kin Network',
+      duration: 'Present',
+      period: '2026',
+      acquiredSkills: ['React', 'Next.js', 'TypeScript', 'AI'],
+      keyAchievement: 'Architected high-velocity verified developer workspaces.',
+      verifiedBy: 'KIN Peer Review',
+      velocityScore: 94,
+    },
+  ],
+  skillGap: {
+    targetRole: 'Senior AI Engineer',
+    currentSkills: ['React', 'Next.js', 'Python'],
+    requiredSkills: ['Distributed Systems', 'Vector Search', 'LLMs'],
+    missingSkills: [
+      { name: 'Distributed Systems', priority: 'HIGH', frequency: 88 },
+      { name: 'Vector Search', priority: 'HIGH', frequency: 82 },
+    ],
+    readinessScore: 84,
+  },
+  stats: {
+    verifiedBuilders: '1',
+    activeCommits: '120+',
+    escrowVolume: '$4,200',
+    openBounties: 4,
+    networkVelocity: 96.5,
+    talentRadarMatches: 6,
+    autoAcceptedHandshakes: 12,
+  },
+};
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const rawText = body.text || '';
-    const isSampleDarsh = body.isSampleDarsh || (!rawText && !body.fileName);
-
-    // If Darsh Ohri sample is requested or content mentions Darsh
-    if (isSampleDarsh || rawText.toLowerCase().includes('darsh ohri') || rawText.toLowerCase().includes('launched global')) {
-      return NextResponse.json({
-        success: true,
-        source: 'ground-truth',
-        profile: DARSH_OHRI_PROFILE
-      });
-    }
 
     const systemPrompt = `You are an expert technical resume parser for the KIN career engine and skill network.
 Analyze the provided resume and return a valid JSON object matching this schema:
@@ -148,17 +182,18 @@ Analyze the provided resume and return a valid JSON object matching this schema:
 
     if (parsedResult && (parsedResult.name || parsedResult.skills?.length)) {
       const fullProfile = {
-        ...DARSH_OHRI_PROFILE,
+        ...DEFAULT_PROFILE_TEMPLATE,
         ...parsedResult,
-        name: (parsedResult.name && parsedResult.name !== 'Not Specified') ? parsedResult.name : DARSH_OHRI_PROFILE.name,
-        role: (parsedResult.role && parsedResult.role !== 'Not Specified') ? parsedResult.role : DARSH_OHRI_PROFILE.role,
-        institution: (parsedResult.institution && parsedResult.institution !== 'Not Specified') ? parsedResult.institution : DARSH_OHRI_PROFILE.institution,
-        githubUsername: detectedUsername || DARSH_OHRI_PROFILE.githubUsername,
-        githubUrl: parsedResult.githubUrl || (detectedUsername ? `https://github.com/${detectedUsername}` : DARSH_OHRI_PROFILE.githubUrl),
-        linkedinUrl: parsedResult.linkedinUrl || DARSH_OHRI_PROFILE.linkedinUrl,
+        name: (parsedResult.name && parsedResult.name !== 'Not Specified') ? parsedResult.name : DEFAULT_PROFILE_TEMPLATE.name,
+        role: (parsedResult.role && parsedResult.role !== 'Not Specified') ? parsedResult.role : DEFAULT_PROFILE_TEMPLATE.role,
+        institution: (parsedResult.institution && parsedResult.institution !== 'Not Specified') ? parsedResult.institution : DEFAULT_PROFILE_TEMPLATE.institution,
+        githubUsername: detectedUsername || parsedResult.githubUsername || '',
+        githubUrl: parsedResult.githubUrl || (detectedUsername ? `https://github.com/${detectedUsername}` : ''),
+        linkedinUrl: parsedResult.linkedinUrl || '',
+        portfolioUrl: parsedResult.portfolioUrl || '',
         stats: {
           verifiedBuilders: '1',
-          activeCommits: liveGithubStats?.publicRepos ? `${liveGithubStats.publicRepos * 35}+` : '840+',
+          activeCommits: liveGithubStats?.publicRepos ? `${liveGithubStats.publicRepos * 35}+` : '140+',
           escrowVolume: '$4,200',
           openBounties: 4,
           networkVelocity: 96.5,
@@ -177,18 +212,18 @@ Analyze the provided resume and return a valid JSON object matching this schema:
 
     // 4. Heuristic Fallback
     const lines = rawText.split('\n').map((l: string) => l.trim()).filter(Boolean);
-    const extractedName = lines[0] || 'Verified Developer';
+    const extractedName = lines[0] && lines[0].length < 40 ? lines[0] : DEFAULT_PROFILE_TEMPLATE.name;
     const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     const githubMatch = rawText.match(/github\.com\/([a-zA-Z0-9-_]+)/i);
     const linkedinMatch = rawText.match(/linkedin\.com\/in\/([a-zA-Z0-9-_]+)/i);
 
     const fallbackProfile = {
-      ...DARSH_OHRI_PROFILE,
+      ...DEFAULT_PROFILE_TEMPLATE,
       name: extractedName,
-      email: emailMatch ? emailMatch[0] : 'developer@kin.network',
-      githubUrl: githubMatch ? `https://github.com/${githubMatch[1]}` : DARSH_OHRI_PROFILE.githubUrl,
-      githubUsername: githubMatch ? githubMatch[1] : 'darshohri',
-      linkedinUrl: linkedinMatch ? `https://linkedin.com/in/${linkedinMatch[1]}` : DARSH_OHRI_PROFILE.linkedinUrl,
+      email: emailMatch ? emailMatch[0] : DEFAULT_PROFILE_TEMPLATE.email,
+      githubUrl: githubMatch ? `https://github.com/${githubMatch[1]}` : '',
+      githubUsername: githubMatch ? githubMatch[1] : '',
+      linkedinUrl: linkedinMatch ? `https://linkedin.com/in/${linkedinMatch[1]}` : '',
     };
 
     return NextResponse.json({

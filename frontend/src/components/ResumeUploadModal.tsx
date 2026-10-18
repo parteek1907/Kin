@@ -86,30 +86,6 @@ export default function ResumeUploadModal({ isOpen, onClose, onSuccess }: Resume
     }
   };
 
-  const handleLoadSampleDarsh = async () => {
-    setIsLoading(true);
-    setErrorMsg(null);
-
-    try {
-      const res = await fetch('/api/parse-resume', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isSampleDarsh: true })
-      });
-
-      const data = await res.json();
-      if (data.success && data.profile) {
-        setParsedProfile(data.profile);
-        if (onSuccess) onSuccess(data.profile);
-        onClose();
-      }
-    } catch (err: any) {
-      setErrorMsg('Failed to load sample CV.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
       <motion.div
@@ -143,28 +119,6 @@ export default function ResumeUploadModal({ isOpen, onClose, onSuccess }: Resume
               Powered by Kin AI • Automatically populates your personalized dashboard
             </p>
           </div>
-        </div>
-
-        {/* 1-Click Sample Button (Darsh Ohri from User's Prompt) */}
-        <div className="mb-4">
-          <button
-            onClick={handleLoadSampleDarsh}
-            disabled={isLoading}
-            className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 border border-orange-200 hover:border-orange-300 text-left flex items-center justify-between transition-all group shadow-xs cursor-pointer"
-          >
-            <div className="flex items-center gap-2.5">
-              <Zap className="w-4 h-4 text-[#E25C38] shrink-0" />
-              <div>
-                <span className="text-xs font-bold text-slate-900 block">
-                  Quick Load: Darsh Ohri (Full-Stack & AI Developer)
-                </span>
-                <span className="text-[11px] text-slate-500">
-                  Loads real profile with React, Next.js, FastAPI, LaunchED Global & Hackathons
-                </span>
-              </div>
-            </div>
-            <ArrowRight className="w-4 h-4 text-[#E25C38] group-hover:translate-x-1 transition-transform shrink-0" />
-          </button>
         </div>
 
         {/* Dropzone Area */}

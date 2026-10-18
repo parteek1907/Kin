@@ -33,9 +33,15 @@
       }
     },
     {
-      "source": "/api/:path*",
+      "source": "/api/v1/:path*",
       "destination": {
         "service": "backend"
+      }
+    },
+    {
+      "source": "/api/:path*",
+      "destination": {
+        "service": "frontend"
       }
     },
     {

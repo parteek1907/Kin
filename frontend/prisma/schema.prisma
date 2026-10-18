@@ -4,7 +4,8 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 model WhatsappContact {
@@ -249,3 +250,112 @@ model DataDeletionLog {
   @@index([phoneHash])
   @@map("data_deletion_logs")
 }
+
+// ==============================================================================
+// KIN Live Social Media & Directory Models
+// ==============================================================================
+
+model Member {
+  id                    String        @id @default(cuid())
+  email                 String        @unique
+  name                  String
+  role                  String        // "student" | "professional" | "alumni"
+  headline              String?
+  institution           String        // e.g. "IIIT Delhi", "Google DeepMind", "Anthropic"
+  studentId             String?       @map("student_id")
+  businessId            String?       @map("business_id")
+  verificationStatus    String        @default("verified") @map("verification_status")
+  bio                   String?
+  skills                String        @default("[]") // JSON string array: ["React", "FastAPI"]
+  linkedinUrl           String?       @map("linkedin_url")
+  githubUrl             String?       @map("github_url")
+  githubUsername        String?       @map("github_username")
+  portfolioUrl          String?       @map("portfolio_url")
+  resumeName            String?       @map("resume_name")
+  graduationYear        String?       @map("graduation_year")
+  officeHours           String?       @map("office_hours")
+  topProjectUrl         String?       @map("top_project_url")
+  topProjectDescription String?       @map("top_project_description")
+  avatarUrl             String?       @map("avatar_url")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  posts                 Post[]
+  comments              Comment[]
+  sentConnections       Connection[]  @relation("SentConnections")
+  receivedConnections   Connection[]  @relation("ReceivedConnections")
+
+  @@index([role])
+  @@index([institution])
+  @@map("members")
+}
+
+model Post {
+  id                String       @id @default(cuid())
+  memberId          String?      @map("member_id")
+  member            Member?      @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  authorName        String       @map("author_name")
+  authorRole        String       @map("author_role")
+  authorInstitution String?      @map("author_institution")
+  authorAvatar      String?      @map("author_avatar")
+  content           String
+  tags              String       @default("[]") // JSON array of string tags
+  likesCount        Int          @default(0) @map("likes_count")
+  isGhost           Boolean      @default(false) @map("is_ghost")
+  ghostPersona      String?      @map("ghost_persona")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  comments          Comment[]
+  likes             PostLike[]
+
+  @@index([isGhost])
+  @@index([createdAt])
+  @@map("social_posts")
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userEmail String   @map("user_email")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([postId, userEmail])
+  @@index([postId])
+  @@map("post_likes")
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  postId     String   @map("post_id")
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  memberId   String?  @map("member_id")
+  member     Member?  @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  authorName String   @map("author_name")
+  authorRole String   @map("author_role")
+  content    String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([postId])
+  @@map("post_comments")
+}
+
+model Connection {
+  id         String   @id @default(cuid())
+  senderId   String   @map("sender_id")
+  sender     Member   @relation("SentConnections", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String   @map("receiver_id")
+  receiver   Member   @relation("ReceivedConnections", fields: [receiverId], references: [id], onDelete: Cascade)
+  status     String   @default("pending") // "pending" | "accepted" | "declined"
+  note       String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+  @@map("connections")
+}
+

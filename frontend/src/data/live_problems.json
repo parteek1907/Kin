@@ -1,0 +1,24 @@
+[
+  {
+    "id": "prob-1792274121776",
+    "category": "Career",
+    "cardVariant": "charcoal",
+    "question": "build a system to track attendance",
+    "alumniName": "NIPUN DHIMAN",
+    "alumniTitle": "Student at NMIMS",
+    "alumniCompany": "Google Health Core",
+    "bountyReward": "₹15000",
+    "rewardType": "USDC",
+    "requiredTech": [
+      "Next.js",
+      "PostgreSQL",
+      "Docker",
+      "FastAPI"
+    ],
+    "context": "Real production problem statement requiring AST-verified architecture.",
+    "starterRepoUrl": "https://github.com/company/starter-template",
+    "deadline": "7 days left",
+    "testCasesCount": 28,
+    "status": "open"
+  }
+]

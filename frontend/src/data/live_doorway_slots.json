@@ -1,0 +1,22 @@
+[
+  {
+    "id": "doorway-1792274854185",
+    "professionalEmail": "builder@kin.network",
+    "professionalName": "Verified Member",
+    "role": "Senior Technical Leader & Mentor",
+    "company": "Global Technology Syndicate",
+    "institution": "IIIT Delhi Alumni Network",
+    "specialty": "System Design Drill",
+    "exp": "8 yrs exp",
+    "rating": "5.0 ★",
+    "fee": 1500,
+    "isAvailable": true,
+    "availableSlots": [
+      "Saturday, 10:00 AM - 10:20 AM",
+      "Saturday, 3:00 PM - 3:20 PM",
+      "Sunday, 11:00 AM - 11:20 AM"
+    ],
+    "bio": "High-leverage, human-verified 20-min consult protected by Kin anti-AI-slop guarantee.",
+    "updatedAt": "2026-10-17T22:15:01.388Z"
+  }
+]

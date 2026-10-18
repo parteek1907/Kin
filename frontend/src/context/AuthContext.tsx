@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, firebaseSignOut } from '@/lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
+import { syncMemberToDatabase } from '@/lib/syncMember';
+
 export interface UserProfile {
   id?: number;
   name: string;
@@ -21,6 +23,16 @@ export interface UserProfile {
   linkedinUrl?: string;
   portfolioUrl?: string;
   summary?: string;
+  skills?: string[];
+  headline?: string;
+  graduationYear?: string;
+  resumeName?: string;
+  resumeUrl?: string;
+  officeHours?: string;
+  interests?: string[];
+  topProjectUrl?: string;
+  topProjectDescription?: string;
+  avatarUrl?: string;
 }
 
 export interface VerificationPayload {
@@ -42,11 +54,20 @@ interface AuthContextType {
   activeRole: 'Student' | 'Alumni';
   setActiveRole: (role: 'Student' | 'Alumni') => void;
   syncWithDatabase: (payload: VerificationPayload) => Promise<{ success: boolean; message: string }>;
-  login: (name: string, email: string) => void;
+  login: (
+    name: string,
+    email: string,
+    role?: 'Student' | 'Alumni' | 'student' | 'professional',
+    institution?: string
+  ) => void;
   logout: () => Promise<void>;
   isAuthModalOpen: boolean;
   openAuthModal: () => void;
   closeAuthModal: () => void;
+  isProfileModalOpen: boolean;
+  openProfileModal: () => void;
+  closeProfileModal: () => void;
+  updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
   parsedProfile: any | null;
   setParsedProfile: (profile: any) => void;
   isUploadResumeModalOpen: boolean;
@@ -60,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isUploadResumeModalOpen, setIsUploadResumeModalOpen] = useState(false);
   const [parsedProfile, setParsedProfileState] = useState<any | null>(null);
   const [activeRole, setActiveRoleState] = useState<'Student' | 'Alumni'>('Student');
@@ -67,12 +89,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Hydrate user, parsed profile, and active role from localStorage
   useEffect(() => {
     try {
+      const storedCompleted = localStorage.getItem('kin_completed_profile');
       const stored = localStorage.getItem('kin_user_auth');
       const storedProfile = localStorage.getItem('kin_parsed_profile');
       const storedRole = localStorage.getItem('kin_active_role');
-      if (stored) {
+      if (storedCompleted) {
+        const u = JSON.parse(storedCompleted);
+        setUser(u);
+        syncMemberToDatabase(u);
+      } else if (stored) {
         const parsedUser = JSON.parse(stored);
         setUser(parsedUser);
+        syncMemberToDatabase(parsedUser);
         if (parsedUser.role === 'Alumni' || parsedUser.userType === 'professional') {
           setActiveRoleState('Alumni');
         }
@@ -88,6 +116,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const updateUserProfile = async (data: Partial<UserProfile>) => {
+    setUser((prev) => {
+      const updated: UserProfile = {
+        name: prev?.name || 'Verified Builder',
+        email: prev?.email || 'builder@kin.network',
+        ...prev,
+        ...data,
+      };
+      try {
+        localStorage.setItem('kin_user_auth', JSON.stringify(updated));
+        localStorage.setItem('kin_completed_profile', JSON.stringify(updated));
+        if (updated.userType) {
+          localStorage.setItem(
+            'kin_network_role',
+            updated.userType === 'professional' ? 'alumni' : 'student'
+          );
+        }
+      } catch (err) {
+        console.error('Error storing updated profile:', err);
+      }
+      // Save directly to live database
+      syncMemberToDatabase(updated);
+      return updated;
+    });
+  };
+
   const setActiveRole = (role: 'Student' | 'Alumni') => {
     setActiveRoleState(role);
     try {
@@ -101,25 +155,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setParsedProfile = (profile: any) => {
     setParsedProfileState(profile);
     if (profile) {
-      const updatedUser: UserProfile = {
-        name: profile.name || 'Darsh Ohri',
-        email: profile.email || 'darshohri@gmail.com',
-        role: profile.role || 'Full-Stack & AI Software Developer',
-        institution: profile.institution || 'B.Tech CSE',
-        githubUrl: profile.githubUrl,
-        githubUsername: profile.githubUsername || 'darshohri',
-        linkedinUrl: profile.linkedinUrl,
-        portfolioUrl: profile.portfolioUrl,
-        summary: profile.summary,
-        verificationStatus: 'verified_developer',
-      };
-      setUser(updatedUser);
-      try {
-        localStorage.setItem('kin_user_auth', JSON.stringify(updatedUser));
-        localStorage.setItem('kin_parsed_profile', JSON.stringify(profile));
-      } catch (err) {
-        console.error(err);
-      }
+      setUser((prev) => {
+        const updatedUser: UserProfile = {
+          name: profile.name || prev?.name || 'Verified Member',
+          email: profile.email || prev?.email || 'builder@kin.network',
+          role: profile.role || prev?.role || 'Software Engineer',
+          institution: profile.institution || prev?.institution || 'IIIT Delhi',
+          githubUrl: profile.githubUrl || prev?.githubUrl,
+          githubUsername: profile.githubUsername || prev?.githubUsername,
+          linkedinUrl: profile.linkedinUrl || prev?.linkedinUrl,
+          portfolioUrl: profile.portfolioUrl || prev?.portfolioUrl,
+          summary: profile.summary || prev?.summary,
+          verificationStatus: 'verified_developer',
+          userType: prev?.userType || 'student',
+        };
+        try {
+          localStorage.setItem('kin_user_auth', JSON.stringify(updatedUser));
+          localStorage.setItem('kin_parsed_profile', JSON.stringify(profile));
+        } catch (err) {
+          console.error(err);
+        }
+        // Save directly to live database
+        syncMemberToDatabase(updatedUser);
+        return updatedUser;
+      });
     }
   };
 
@@ -127,6 +186,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser: FirebaseUser | null) => {
       setFirebaseUser(fbUser);
+      if (fbUser && fbUser.email) {
+        const derivedName = fbUser.displayName || fbUser.email.split('@')[0];
+        syncMemberToDatabase({
+          name: derivedName,
+          email: fbUser.email,
+          avatarUrl: fbUser.photoURL || undefined,
+          userType: 'student',
+          institution: 'IIIT Delhi',
+        });
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -139,14 +208,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ? (payload.studentId ? 'verified_student' : 'pending')
       : (payload.businessId ? 'verified_professional' : 'pending');
 
-    let backendSuccess = false;
-    let jwtToken = '';
-
-    // Attempt connection via unified backend service route, falling back to local port if standalone
     const backendEndpoints = [
       '/api/v1/auth/firebase-sync',
+      process.env.NEXT_PUBLIC_BACKEND_URL ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/firebase-sync` : '',
       'http://localhost:8000/api/v1/auth/firebase-sync',
-    ];
+      'http://127.0.0.1:8000/api/v1/auth/firebase-sync',
+    ].filter(Boolean) as string[];
+
+    let backendSuccess = false;
+    let jwtToken = '';
 
     for (const endpoint of backendEndpoints) {
       try {
@@ -204,6 +274,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error(e);
     }
 
+    // Persist directly to live database Member table
+    await syncMemberToDatabase({
+      name: payload.fullName,
+      email: payload.email,
+      role: chosenRole,
+      institution: payload.institutionOrCompany,
+      userType: payload.userType,
+      studentId: payload.studentId,
+      businessId: payload.businessId,
+      headline: payload.departmentOrTitle,
+    });
+
     setIsAuthModalOpen(false);
 
     const message = backendSuccess
@@ -213,25 +295,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: true, message };
   };
 
-  const login = (name: string, email: string) => {
+  const login = (
+    name: string,
+    email: string,
+    role?: 'Student' | 'Alumni' | 'student' | 'professional',
+    institution?: string
+  ) => {
+    const isPro = role === 'Alumni' || role === 'professional';
+    const chosenRole: 'Student' | 'Alumni' = isPro ? 'Alumni' : 'Student';
+    const userType: 'student' | 'professional' = isPro ? 'professional' : 'student';
+
     const newUser: UserProfile = {
-      name: name.trim() || 'Prateek',
-      email: email.trim() || 'prateek@iiitd.ac.in',
-      role: 'Student',
-      institution: 'IIIT Delhi',
-      userType: 'student',
-      verificationStatus: 'verified_student',
-      studentId: '2024-CS-0412',
+      name: name.trim() || 'Verified Member',
+      email: email.trim() || 'member@kin.network',
+      role: chosenRole,
+      institution: institution || (isPro ? 'Enterprise Tech' : 'IIIT Delhi'),
+      userType,
+      verificationStatus: isPro ? 'verified_professional' : 'verified_student',
+      studentId: isPro ? undefined : '2024-CS-0412',
+      businessId: isPro ? 'CORP-VERIFIED-9001' : undefined,
     };
     setUser(newUser);
-    setActiveRoleState('Student');
+    setActiveRoleState(chosenRole);
     try {
       localStorage.setItem('kin_user_auth', JSON.stringify(newUser));
-      localStorage.setItem('kin_active_role', 'Student');
-      localStorage.setItem('kin_network_role', 'student');
+      localStorage.setItem('kin_active_role', chosenRole);
+      localStorage.setItem('kin_network_role', chosenRole.toLowerCase());
     } catch (e) {
       console.error(e);
     }
+    // Persist directly to live database Member table
+    syncMemberToDatabase(newUser);
     setIsAuthModalOpen(false);
   };
 
@@ -248,6 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('kin_user_auth');
       localStorage.removeItem('kin_auth_token');
       localStorage.removeItem('kin_parsed_profile');
+      localStorage.removeItem('kin_completed_profile');
     } catch (e) {
       console.error(e);
     }
@@ -270,6 +365,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthModalOpen,
         openAuthModal: () => setIsAuthModalOpen(true),
         closeAuthModal: () => setIsAuthModalOpen(false),
+        isProfileModalOpen,
+        openProfileModal: () => setIsProfileModalOpen(true),
+        closeProfileModal: () => setIsProfileModalOpen(false),
+        updateUserProfile,
         parsedProfile,
         setParsedProfile,
         isUploadResumeModalOpen,
