@@ -4,9 +4,22 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 
+export type KinSupportedLanguage =
+  | 'en'
+  | 'hi'
+  | 'hinglish'
+  | 'pa'
+  | 'bn'
+  | 'ta'
+  | 'te'
+  | 'mr'
+  | 'gu'
+  | 'kn'
+  | 'ml';
+
 export interface TranscriptionResult {
   text: string;
-  detectedLanguage: 'en' | 'hi' | 'hinglish';
+  detectedLanguage: KinSupportedLanguage;
   durationSeconds?: number;
 }
 
@@ -35,7 +48,6 @@ export class OpenAIWhisperProvider implements TranscriptionProvider {
       await fs.writeFile(tmpFilePath, audioBuffer);
       const fileBlob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
 
-
       const isGroq = this.apiKey.startsWith('gsk_') || waConfig.transcriptionProvider === 'groq';
       const endpoint = isGroq
         ? 'https://api.groq.com/openai/v1/audio/transcriptions'
@@ -45,7 +57,10 @@ export class OpenAIWhisperProvider implements TranscriptionProvider {
       const formData = new FormData();
       formData.append('file', fileBlob, filename);
       formData.append('model', model);
-      formData.append('prompt', 'Transcribe college alumni hiring, internship, and mentorship requirements in English, Hindi, or Hinglish.');
+      formData.append(
+        'prompt',
+        'Transcribe college alumni hiring, internship, and mentorship requirements in English, Hindi, Hinglish, Punjabi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, or Malayalam.'
+      );
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -102,25 +117,69 @@ function mockTranscribe(buffer: Buffer): TranscriptionResult {
   };
 }
 
-export function detectLanguageFromText(text: string): 'en' | 'hi' | 'hinglish' {
+export function detectLanguageFromText(text: string): KinSupportedLanguage {
   if (!text) return 'en';
 
-  // Check for Devanagari Unicode script range
-  const devanagariRegex = /[\u0900-\u097F]/;
-  if (devanagariRegex.test(text)) {
-    return 'hi';
+  // 1. Script checks (Unicode blocks for Indic languages)
+  if (/[\u0A00-\u0A7F]/.test(text)) return 'pa'; // Gurmukhi (Punjabi)
+  if (/[\u0980-\u09FF]/.test(text)) return 'bn'; // Bengali
+  if (/[\u0B80-\u0BFF]/.test(text)) return 'ta'; // Tamil
+  if (/[\u0C00-\u0C7F]/.test(text)) return 'te'; // Telugu
+  if (/[\u0A80-\u0AFF]/.test(text)) return 'gu'; // Gujarati
+  if (/[\u0C80-\u0CFF]/.test(text)) return 'kn'; // Kannada
+  if (/[\u0D00-\u0D7F]/.test(text)) return 'ml'; // Malayalam
+  if (/[\u0900-\u097F]/.test(text)) {
+    // Check Marathi specific words in Devanagari
+    if (/(आहे|पाहिजे|करावे|विद्यार्थी|मला|आमच्या)/.test(text)) {
+      return 'mr';
+    }
+    return 'hi'; // Hindi
   }
 
-  // Check for Hinglish colloquial cues
+  // 2. Romanized Script phonetic cues
+  const lower = text.toLowerCase();
+
+  // Punjabi Romanized
+  if (/\b(mainu|chahida|chahide|lod hai|tuhanu|karna|pind|assi)\b/.test(lower)) {
+    return 'pa';
+  }
+  // Bengali Romanized
+  if (/\b(dorkar|amake|amar|lagbe|chai|bhalo|ekjon)\b/.test(lower)) {
+    return 'bn';
+  }
+  // Tamil Romanized
+  if (/\b(thevai|enakku|venum|vendum|paakanum|oru)\b/.test(lower)) {
+    return 'ta';
+  }
+  // Telugu Romanized
+  if (/\b(kavali|naku|undhi|undi|cheyali|oka|chudandi)\b/.test(lower)) {
+    return 'te';
+  }
+  // Marathi Romanized
+  if (/\b(pahije|mala|aahe|karaycha|amche)\b/.test(lower)) {
+    return 'mr';
+  }
+  // Gujarati Romanized
+  if (/\b(joiye|mane|che|maate|tamare)\b/.test(lower)) {
+    return 'gu';
+  }
+  // Kannada Romanized
+  if (/\b(beku|nanage|madabeku|kelsa|obba)\b/.test(lower)) {
+    return 'kn';
+  }
+  // Malayalam Romanized
+  if (/\b(aavashyamundu|enikku|venam|cheyyan|oral)\b/.test(lower)) {
+    return 'ml';
+  }
+
+  // Hinglish colloquial cues
   const hinglishKeywords = [
     'chahiye', 'karna', 'karni', 'bhai', 'yaar', 'mujhe', 'humko', 'kisi',
     'kaam', 'intern', 'startup', 'zaroorat', 'jarurat', 'jaldi', 'delhi me',
     'batch', 'college', 'ke liye', 'wala', 'wali', 'karo', 'dost'
   ];
-
-  const lower = text.toLowerCase();
   const matchCount = hinglishKeywords.filter((w) => lower.includes(w)).length;
-  if (matchCount >= 2) {
+  if (matchCount >= 1) {
     return 'hinglish';
   }
 

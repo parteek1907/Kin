@@ -137,10 +137,54 @@ export async function processInboundTextJob(payload: BackgroundJobPayload): Prom
     return;
   }
 
-  // 3. Check Conversation State for Clarification in flight
+  // 3. Check Conversation State for in-flight flows
   const convState = await prisma.whatsappConversationState.findUnique({
     where: { contactId: contact.id },
   });
+
+  // 3a. Handle Natural Text Confirmation when in CONFIRMING state
+  if (convState && convState.flow === 'CONFIRMING') {
+    const prevData = safeJsonParse<any>(convState.data, {});
+    const reqId = prevData.requirementId;
+    const lowerTrim = text.trim().toLowerCase();
+
+    const isAffirmative = /^(yes|y|haan|ha|sahi|sahi hai|theek hai|find|search|ok|okay|confirm|1|sure|proceed|aaho|ho|aama|avunu|shari|chalo|find candidates|send candidates|dikhao)/i.test(lowerTrim);
+    const isNegative = /^(no|n|cancel|discard|nahi|na|mat karo|cancel draft)/i.test(lowerTrim);
+
+    if (isAffirmative && reqId) {
+      await prisma.kinRequirement.update({
+        where: { id: reqId },
+        data: { status: 'open' },
+      });
+      await prisma.whatsappConversationState.deleteMany({
+        where: { contactId: contact.id },
+      });
+      await waClient.sendText(
+        phoneE164,
+        `🔍 *Searching campus network...* Finding the best verified talent for your requirement.`
+      );
+      await enqueueJob('find_and_deliver_matches', {
+        requirementId: reqId,
+        phoneE164,
+      });
+      return;
+    }
+
+    if (isNegative && reqId) {
+      await prisma.kinRequirement.update({
+        where: { id: reqId },
+        data: { status: 'closed' },
+      });
+      await prisma.whatsappConversationState.deleteMany({
+        where: { contactId: contact.id },
+      });
+      await waClient.sendText(
+        phoneE164,
+        `Requirement draft discarded. Send a voice note or message whenever you'd like to search again!`
+      );
+      return;
+    }
+  }
 
   let clarificationCount = 0;
   let combinedInput = text;
@@ -199,7 +243,7 @@ export async function processInboundTextJob(payload: BackgroundJobPayload): Prom
     where: { phoneE164 },
   });
 
-  // 6. Create Draft Requirement in DB
+  // 6. Create Open Requirement in DB
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30-day auto-close lifecycle
   const reqRecord = await prisma.kinRequirement.create({
     data: {
@@ -216,13 +260,13 @@ export async function processInboundTextJob(payload: BackgroundJobPayload): Prom
       urgency: extracted.urgency,
       summary: extracted.summary,
       detectedLanguage: extracted.detected_language,
-      status: 'draft',
+      status: 'open',
       clarificationCount,
       expiresAt,
     },
   });
 
-  // 7. Store confirmation state
+  // 7. Store state
   await prisma.whatsappConversationState.upsert({
     where: { contactId: contact.id },
     update: {
@@ -242,6 +286,12 @@ export async function processInboundTextJob(payload: BackgroundJobPayload): Prom
   const echo = formatRequirementEcho(extracted);
   await waClient.sendInteractiveButtons(phoneE164, echo.message, echo.buttons, {
     footerText: 'KIN • Campus Talent Network',
+  });
+
+  // 9. Automatically search and deliver top candidate matches right into the chat
+  await enqueueJob('find_and_deliver_matches', {
+    requirementId: reqRecord.id,
+    phoneE164,
   });
 }
 

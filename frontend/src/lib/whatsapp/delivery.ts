@@ -24,8 +24,9 @@ export async function deliverCandidateMatches(
     `🎯 *Found ${matches.length} matches for your ${requirement.title} requirement.*`
   );
 
-  // 2. Individual Candidate Cards (Never include phone or email!)
-  for (const match of matches) {
+  // 2. Individual Candidate Cards (Top 3 for clean mobile UX, never include phone or email!)
+  const displayMatches = matches.slice(0, 3);
+  for (const match of displayMatches) {
     const cand = match.candidate;
     const skillsList = safeJsonParse<string[]>(cand.skills, []).slice(0, 4);
 
@@ -55,6 +56,9 @@ export async function deliverCandidateMatches(
       console.warn(`[Delivery] Failed sending candidate button card, falling back to text:`, e);
       await waClient.sendText(toPhone, cardBody);
     }
+
+    // Small delay between cards to prevent Meta webhook race conditions
+    await new Promise((resolve) => setTimeout(resolve, 350));
   }
 
   // 3. Interactive List after cards
