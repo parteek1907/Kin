@@ -1,1 +1,28 @@
-[]
+[
+  {
+    "id": "outreach-1792276961534",
+    "studentEmail": "nipunndhiman@gmail.com",
+    "studentName": "NIPUN DHIMAN",
+    "studentCollege": "NMIMS",
+    "professionalName": "Vikram Singh",
+    "professionalRole": "Senior Engineering Manager",
+    "professionalCompany": "Uber (IIITD Class of 2018)",
+    "professionalAvatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80",
+    "policy": "Requires ≥ 75% match, React, Docker, PostgreSQL, and min 15 commits.",
+    "targetMatch": 75,
+    "currentMatch": 68,
+    "met": [
+      "React (AST Verified)",
+      "18 Commits (Met)"
+    ],
+    "missing": [
+      "Docker (Missing on profile)",
+      "PostgreSQL (Missing on profile)"
+    ],
+    "atsFeedback": "Candidate demonstrates strong React proficiency and meets commit requirements, but is missing critical Docker and PostgreSQL skills mandated by the senior firewall.",
+    "submittedAt": "Just now",
+    "status": "in_manual_queue",
+    "evaluatedAt": "2026-10-17T22:42:41.534Z",
+    "manualNote": "Kindly see to this sir please"
+  }
+]

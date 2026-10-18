@@ -157,7 +157,6 @@ export async function handleRequestIntro(
   }
 
   const activeRequirement = requirement;
-
   let candidate = await prisma.candidate.findUnique({
     where: { id: candidateId },
   }).catch(() => null);

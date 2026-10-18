@@ -317,7 +317,7 @@ export default function KinGlassDashboard() {
   const [newProblemQuestion, setNewProblemQuestion] = useState('');
   const [newProblemCategory, setNewProblemCategory] = useState<'Automotive' | 'Housing' | 'Healthcare' | 'Blockchain' | 'FinTech' | 'Fake News' | 'Hardware' | 'Career' | 'Consumer Services'>('Healthcare');
   const [newProblemCompany, setNewProblemCompany] = useState('Google Health Core');
-  const [newProblemReward, setNewProblemReward] = useState('₹25,000 / $300 USDC');
+  const [newProblemReward, setNewProblemReward] = useState('Direct Interview Referral');
   const [newProblemRepo, setNewProblemRepo] = useState('https://github.com/company/starter-template');
   const [newProblemContext, setNewProblemContext] = useState('');
 
@@ -1153,11 +1153,12 @@ export default function KinGlassDashboard() {
       question: newProblemQuestion.trim(),
       category: newProblemCategory,
       alumniCompany: newProblemCompany.trim() || activeUserInstitution || 'TechCorp',
-      bountyReward: newProblemReward.trim() || '₹25,000 / $300 USDC',
+      bountyReward: newProblemReward.trim() || 'Direct Interview Referral',
       context: newProblemContext.trim() || 'Real production problem statement requiring AST-verified architecture.',
       starterRepoUrl: newProblemRepo.trim() || 'https://github.com/kin-network/starter',
       alumniName: activeUserName || 'Verified Alumni',
       alumniTitle: user?.headline || 'Senior Engineering Architect',
+      rewardType: 'Referral',
     };
 
     try {
@@ -1184,8 +1185,8 @@ export default function KinGlassDashboard() {
           alumniName: activeUserName || 'Verified Alumni',
           alumniTitle: 'Senior Engineering Architect',
           alumniCompany: newProblemCompany.trim() || 'TechCorp',
-          bountyReward: newProblemReward.trim() || '₹25,000 / $300 USDC',
-          rewardType: 'USDC',
+          bountyReward: newProblemReward.trim() || 'Direct Interview Referral',
+          rewardType: 'Referral',
           requiredTech: ['Next.js', 'PostgreSQL', 'Docker', 'FastAPI'],
           context: newProblemContext.trim() || 'Real production problem statement requiring AST-verified architecture.',
           starterRepoUrl: newProblemRepo.trim() || 'https://github.com/kin-network/starter',
@@ -1208,8 +1209,8 @@ export default function KinGlassDashboard() {
         alumniName: activeUserName || 'Verified Alumni',
         alumniTitle: 'Senior Engineering Architect',
         alumniCompany: newProblemCompany.trim() || 'TechCorp',
-        bountyReward: newProblemReward.trim() || '₹25,000 / $300 USDC',
-        rewardType: 'USDC',
+        bountyReward: newProblemReward.trim() || 'Direct Interview Referral',
+        rewardType: 'Referral',
         requiredTech: ['Next.js', 'PostgreSQL', 'Docker', 'FastAPI'],
         context: newProblemContext.trim() || 'Real production problem statement requiring AST-verified architecture.',
         starterRepoUrl: newProblemRepo.trim() || 'https://github.com/kin-network/starter',
@@ -1774,7 +1775,7 @@ export default function KinGlassDashboard() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
                         <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                          Alumni Problem Statements & Architecture Bounties
+                          Alumni Problem Statements & Architecture Challenges
                         </h2>
                         <p className="text-xs text-slate-600 mt-1">
                           Real bottlenecks posted by verified senior alumni. Click any card to submit your project or GitHub repository for review.
@@ -1812,7 +1813,7 @@ export default function KinGlassDashboard() {
                         </h3>
                         <p className="text-xs text-slate-500 max-w-md leading-relaxed mb-6">
                           {problems.length === 0
-                            ? 'Working professionals post real production bottlenecks from their Professional Dashboard. Once posted, you will see them here with USDC bounties and direct referral pathways.'
+                            ? 'Working professionals post real production bottlenecks from their Professional Dashboard. Once posted, you will see them here with direct referral pathways and interview sponsorships.'
                             : `Try selecting "All" or another category filter to explore live engineering challenges.`}
                         </p>
                         {problems.length === 0 ? (
@@ -1901,8 +1902,8 @@ export default function KinGlassDashboard() {
                                 </div>
 
                                 <div className="flex items-center justify-between mt-1">
-                                  <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#E25C38]/10 text-[#E25C38] border border-[#E25C38]/20">
-                                    {prob.bountyReward}
+                                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Direct Referral
                                   </span>
 
                                   <span className="text-[11px] font-bold text-slate-700 group-hover:text-[#E25C38] flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
@@ -2526,8 +2527,8 @@ export default function KinGlassDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                       <div className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] flex flex-col justify-between">
                         <div>
-                          <h3 className="text-base font-bold text-slate-900">Post Engineering Bounty</h3>
-                          <p className="text-xs text-slate-600 mt-1">Sponsor challenge statement with USDC or referrals.</p>
+                          <h3 className="text-base font-bold text-slate-900">Post Engineering Challenge</h3>
+                          <p className="text-xs text-slate-600 mt-1">Publish production bottlenecks and grant direct interview referrals.</p>
                         </div>
                         <button
                           onClick={() => {
@@ -2735,7 +2736,9 @@ export default function KinGlassDashboard() {
                                 </h4>
                               </div>
                               <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
-                                <span className="font-mono font-bold text-slate-700">{prob.bountyReward}</span>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  Direct Referral
+                                </span>
                                 <span className="text-slate-500">{prob.alumniCompany}</span>
                               </div>
                             </div>
@@ -3585,8 +3588,8 @@ export default function KinGlassDashboard() {
               className="max-w-lg w-full rounded-[32px] bg-white border border-slate-100 p-6 sm:p-7 shadow-2xl text-slate-900 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-mono font-bold text-[#E25C38] bg-orange-50 px-2.5 py-1 rounded-full border border-orange-200">
-                  {selectedProblem.category} Bounty • {selectedProblem.bountyReward}
+                <span className="text-[10px] font-bold text-[#E25C38] bg-orange-50 px-2.5 py-1 rounded-full border border-orange-200">
+                  {selectedProblem.category} Challenge • Direct Referral
                 </span>
                 <button
                   onClick={() => setIsSubmitSolutionModalOpen(false)}
@@ -3729,12 +3732,12 @@ export default function KinGlassDashboard() {
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">Reward</label>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">Opportunity / Outcome</label>
                     <input
                       type="text"
                       value={newProblemReward}
                       onChange={(e) => setNewProblemReward(e.target.value)}
-                      placeholder="₹25,000 / $300 USDC"
+                      placeholder="Direct Interview Referral"
                       className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none"
                     />
                   </div>
