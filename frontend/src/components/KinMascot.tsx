@@ -22,7 +22,7 @@ export default function KinMascot({
   showEyesOverlay = true,
 }: KinMascotProps) {
   // Face color of Kin bot to mask original vertical pill dots when changing expression
-  const faceBg = '#F3F4F6'; // Matches Kin's face robot tint
+  const faceBg = '#F5F5F5'; // Matches Kin's watercolor face robot tint
 
   const renderEyeModifications = () => {
     if (!showEyesOverlay) return null;
@@ -34,11 +34,11 @@ export default function KinMascot({
           <>
             {/* Left Eye: Semicircle */}
             <div
-              className="absolute pointer-events-none flex items-center justify-center"
+              className="absolute pointer-events-none flex items-center justify-center rounded-sm"
               style={{
-                top: '33.8%',
-                left: '37.8%',
-                width: '7.5%',
+                top: '33.9%',
+                left: '38.2%',
+                width: '6.8%',
                 height: '14.8%',
                 backgroundColor: faceBg,
               }}
@@ -55,11 +55,11 @@ export default function KinMascot({
 
             {/* Right Eye: Semicircle */}
             <div
-              className="absolute pointer-events-none flex items-center justify-center"
+              className="absolute pointer-events-none flex items-center justify-center rounded-sm"
               style={{
-                top: '33.8%',
-                left: '54.5%',
-                width: '7.5%',
+                top: '33.9%',
+                left: '55.0%',
+                width: '6.8%',
                 height: '14.8%',
                 backgroundColor: faceBg,
               }}
@@ -83,11 +83,11 @@ export default function KinMascot({
           <>
             {/* Left Eye: Arrow Up */}
             <div
-              className="absolute pointer-events-none flex items-center justify-center"
+              className="absolute pointer-events-none flex items-center justify-center rounded-sm"
               style={{
-                top: '33.8%',
-                left: '37.8%',
-                width: '7.5%',
+                top: '33.9%',
+                left: '38.2%',
+                width: '6.8%',
                 height: '14.8%',
                 backgroundColor: faceBg,
               }}
@@ -105,11 +105,11 @@ export default function KinMascot({
 
             {/* Right Eye: Arrow Up */}
             <div
-              className="absolute pointer-events-none flex items-center justify-center"
+              className="absolute pointer-events-none flex items-center justify-center rounded-sm"
               style={{
-                top: '33.8%',
-                left: '54.5%',
-                width: '7.5%',
+                top: '33.9%',
+                left: '55.0%',
+                width: '6.8%',
                 height: '14.8%',
                 backgroundColor: faceBg,
               }}
@@ -133,11 +133,11 @@ export default function KinMascot({
         return (
           <>
             <div
-              className="absolute pointer-events-none flex items-center justify-center"
+              className="absolute pointer-events-none flex items-center justify-center rounded-sm"
               style={{
-                top: '33.8%',
-                left: '37.8%',
-                width: '7.5%',
+                top: '33.9%',
+                left: '38.2%',
+                width: '6.8%',
                 height: '14.8%',
                 backgroundColor: faceBg,
               }}
@@ -152,11 +152,11 @@ export default function KinMascot({
               </svg>
             </div>
             <div
-              className="absolute pointer-events-none flex items-center justify-center"
+              className="absolute pointer-events-none flex items-center justify-center rounded-sm"
               style={{
-                top: '33.8%',
-                left: '54.5%',
-                width: '7.5%',
+                top: '33.9%',
+                left: '55.0%',
+                width: '6.8%',
                 height: '14.8%',
                 backgroundColor: faceBg,
               }}
@@ -184,10 +184,10 @@ export default function KinMascot({
               transition={{ repeat: Infinity, duration: 4.5, times: [0, 0.7, 0.74, 0.78, 1] }}
               className="absolute pointer-events-none rounded-full"
               style={{
-                top: '33.8%',
+                top: '33.9%',
                 left: '38.5%',
-                width: '6%',
-                height: '14.6%',
+                width: '5.8%',
+                height: '14.5%',
                 backgroundColor: '#11131A',
                 transformOrigin: 'center',
               }}
@@ -199,10 +199,10 @@ export default function KinMascot({
               transition={{ repeat: Infinity, duration: 4.5, times: [0, 0.7, 0.74, 0.78, 1] }}
               className="absolute pointer-events-none rounded-full"
               style={{
-                top: '33.8%',
+                top: '33.9%',
                 left: '55.2%',
-                width: '6%',
-                height: '14.6%',
+                width: '5.8%',
+                height: '14.5%',
                 backgroundColor: '#11131A',
                 transformOrigin: 'center',
               }}

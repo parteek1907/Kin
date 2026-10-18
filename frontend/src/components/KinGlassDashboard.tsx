@@ -1379,7 +1379,7 @@ export default function KinGlassDashboard() {
       {/* Main Container */}
       <div className="relative z-10 w-full flex-1 flex flex-col items-center px-3 sm:px-6 lg:px-8 pt-4 pb-36">
         {/* ─── UNIVERSAL TOPBAR WITH 3D LOGO & EVALUATOR ROLE SWITCHER ─── */}
-        <header className="w-full max-w-[1360px] mb-3 flex flex-wrap items-center justify-between gap-3 bg-white/70 backdrop-blur-xl border border-white/60 p-2.5 px-4 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
+        <header className="relative z-40 w-full max-w-[1360px] mb-3 flex flex-wrap items-center justify-between gap-3 bg-white/70 backdrop-blur-xl border border-white/60 p-2.5 px-4 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
           {/* Left: Home link and 3D Logo & Brand */}
           <div className="flex items-center gap-3">
             <Link
@@ -1455,61 +1455,69 @@ export default function KinGlassDashboard() {
             </button>
 
             {/* User Profile Avatar with Sign Out Popover */}
-            <div className="relative">
+            <div className="relative z-50">
               <button
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                className="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-900 to-slate-700 text-white text-xs font-black flex items-center justify-center border-2 border-white shadow-xs cursor-pointer"
+                className="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-900 to-slate-700 text-white text-xs font-black flex items-center justify-center border-2 border-white shadow-xs cursor-pointer hover:ring-2 hover:ring-[#E25C38]/40 transition-all"
+                title="Account menu"
               >
                 {userInitial || activeUserName.charAt(0) || 'U'}
               </button>
 
               {profileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-white border border-slate-100 p-2 shadow-2xl z-50 text-slate-900 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-3 py-2 border-b border-slate-100">
-                    <p className="text-xs font-bold text-slate-900 truncate">{activeUserName}</p>
-                    <p className="text-[10px] text-slate-500 truncate">{activeUserInstitution}</p>
+                <>
+                  {/* Invisible click-away backdrop */}
+                  <div
+                    className="fixed inset-0 z-40 cursor-default"
+                    onClick={() => setProfileMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-white/95 backdrop-blur-xl border border-slate-200/90 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.18)] z-50 text-slate-900 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-2 border-b border-slate-100">
+                      <p className="text-xs font-bold text-slate-900 truncate">{activeUserName}</p>
+                      <p className="text-[10px] text-slate-500 truncate">{activeUserInstitution}</p>
+                    </div>
+                    <button
+                      id="menu-edit-profile-btn"
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        handleOpenProfileWizard();
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs text-slate-800 hover:bg-slate-50 rounded-xl flex items-center gap-2 cursor-pointer font-bold"
+                    >
+                      <User className="w-3.5 h-3.5 text-[#E25C38]" />
+                      <span>Edit 4-Step Profile</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        openUploadResumeModal();
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-xl flex items-center gap-2 cursor-pointer"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5 text-[#E25C38]" />
+                      <span>Upload New CV</span>
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setProfileMenuOpen(false);
+                        await logout();
+                        showToast('Signed out of KIN.');
+                        router.push('/');
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-xl flex items-center gap-2 cursor-pointer font-bold"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
+                    </button>
                   </div>
-                  <button
-                    id="menu-edit-profile-btn"
-                    onClick={() => {
-                      setProfileMenuOpen(false);
-                      handleOpenProfileWizard();
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs text-slate-800 hover:bg-slate-50 rounded-xl flex items-center gap-2 cursor-pointer font-bold"
-                  >
-                    <User className="w-3.5 h-3.5 text-[#E25C38]" />
-                    <span>Edit 4-Step Profile</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setProfileMenuOpen(false);
-                      openUploadResumeModal();
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-xl flex items-center gap-2 cursor-pointer"
-                  >
-                    <UploadCloud className="w-3.5 h-3.5 text-[#E25C38]" />
-                    <span>Upload New CV</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setProfileMenuOpen(false);
-                      await logout();
-                      showToast('Signed out of KIN.');
-                      router.push('/');
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-xl flex items-center gap-2 cursor-pointer font-bold"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign Out</span>
-                  </button>
-                </div>
+                </>
               )}
             </div>
           </div>
         </header>
 
         {/* ─── MAIN CONTENT VIEWPORT ─── */}
-        <main className="w-full max-w-[1360px] flex-1 flex flex-col min-h-[calc(100vh-140px)]">
+        <main className="relative z-10 w-full max-w-[1360px] flex-1 flex flex-col min-h-[calc(100vh-140px)]">
           <div className="flex-1 w-full rounded-[36px] bg-white/25 border border-white/40 backdrop-blur-2xl shadow-[0_25px_60px_rgba(0,0,0,0.04),_inset_0_1.5px_2px_rgba(255,255,255,0.7)] p-4 sm:p-7 flex flex-col justify-between transition-all">
             
             {/* Real Resume Notice Banner */}
