@@ -142,6 +142,7 @@ interface LiveCommunityNetworkProps {
   currentUserInstitution?: string;
   isStudent?: boolean;
   onShowToast: (msg: string) => void;
+  onOpenInboxUser?: (member: DMTargetUser) => void;
   onSendCvToProfessional?: (member: {
     name: string;
     role: string;
@@ -168,6 +169,7 @@ export default function LiveCommunityNetwork({
   currentUserInstitution = 'IIIT Delhi',
   isStudent = true,
   onShowToast,
+  onOpenInboxUser,
   onSendCvToProfessional,
 }: LiveCommunityNetworkProps) {
   const [subTab, setSubTab] = useState<'feed' | 'ghost' | 'directory' | 'pulses'>('feed');
@@ -289,6 +291,14 @@ export default function LiveCommunityNetwork({
   const [selectedProfileMember, setSelectedProfileMember] = useState<LiveMember | null>(null);
   const [activeDmUser, setActiveDmUser] = useState<DMTargetUser | null>(null);
 
+  const handleOpenDmUser = (target: DMTargetUser) => {
+    if (onOpenInboxUser) {
+      onOpenInboxUser(target);
+    } else {
+      setActiveDmUser(target);
+    }
+  };
+
   // Helper to open full profile from post author or search
   const handleOpenProfileByAuthor = (author: SocialPostItem['author']) => {
     const found = members.find(
@@ -377,12 +387,20 @@ export default function LiveCommunityNetwork({
           return 0;
         });
 
-        // Deduplicate by name to prevent duplicate cards/sidebar rows
-        const seenNames = new Set<string>();
+        // Deduplicate by email first, with seed duplicate protection
+        const seenEmails = new Set<string>();
+        const seenSeedNames = new Set<string>();
         const uniqueMembers = sorted.filter((m: LiveMember) => {
-          const norm = m.name?.toLowerCase().trim();
-          if (!norm || seenNames.has(norm)) return false;
-          seenNames.add(norm);
+          const email = m.email?.toLowerCase().trim();
+          const name = m.name?.toLowerCase().trim();
+          if (email) {
+            if (seenEmails.has(email)) return false;
+            seenEmails.add(email);
+          }
+          if (priorityNames.includes(name)) {
+            if (seenSeedNames.has(name)) return false;
+            seenSeedNames.add(name);
+          }
           return true;
         });
 
@@ -398,6 +416,11 @@ export default function LiveCommunityNetwork({
   useEffect(() => {
     fetchPosts();
     fetchMembers();
+    const pollTimer = setInterval(() => {
+      fetchPosts();
+      fetchMembers();
+    }, 12000);
+    return () => clearInterval(pollTimer);
   }, [currentUserEmail]);
 
   // Submit Public Post
@@ -892,11 +915,8 @@ export default function LiveCommunityNetwork({
                           className="w-full h-full object-cover opacity-70 group-hover:scale-105 group-hover:opacity-90 transition-all duration-300"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-2.5 flex flex-col justify-between">
-                          <div className="flex items-center justify-between">
-                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#E25C38] text-white">
-                              {pulse.id}
-                            </span>
-                            <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-white">
+                          <div className="flex items-center justify-end">
+                            <span className="w-5 h-5 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center text-white">
                               <Play className="w-2.5 h-2.5 fill-current" />
                             </span>
                           </div>
@@ -1261,7 +1281,7 @@ export default function LiveCommunityNetwork({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
-                                setActiveDmUser({
+                                handleOpenDmUser({
                                   id: m.id,
                                   name: m.name,
                                   email: m.email,
@@ -1560,7 +1580,7 @@ export default function LiveCommunityNetwork({
                             onClick={(e) => {
                               e.stopPropagation();
                               e.preventDefault();
-                              setActiveDmUser({
+                              handleOpenDmUser({
                                 id: m.id,
                                 name: m.name,
                                 email: m.email,
@@ -2145,7 +2165,7 @@ export default function LiveCommunityNetwork({
                   <button
                     id="profile-dm-btn"
                     onClick={() => {
-                      setActiveDmUser({
+                      handleOpenDmUser({
                         id: selectedProfileMember.id,
                         name: selectedProfileMember.name,
                         email: selectedProfileMember.email,

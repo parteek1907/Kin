@@ -62,6 +62,7 @@ import ResumeUploadModal from './ResumeUploadModal';
 import KinMascot from './KinMascot';
 import ProfileCompletionWizard from './profile/ProfileCompletionWizard';
 import LiveCommunityNetwork from './community/LiveCommunityNetwork';
+import FloatingInboxWidget, { DMTargetUser } from './network/FloatingInboxWidget';
 import {
   ALUMNI_PROBLEMS,
   AlumniProblem,
@@ -199,6 +200,9 @@ export default function KinGlassDashboard() {
   const [showMascotTour, setShowMascotTour] = useState(false);
   const [mascotStepIndex, setMascotStepIndex] = useState(0);
 
+  // Floating Inbox Target User
+  const [inboxTargetUser, setInboxTargetUser] = useState<DMTargetUser | null>(null);
+
   // Profile Setup Modal State: local + context sync
   const [localProfileModalOpen, setLocalProfileModalOpen] = useState(false);
   const isProfileWizardOpen = isProfileModalOpen || localProfileModalOpen;
@@ -218,26 +222,70 @@ export default function KinGlassDashboard() {
     setShowMascotTour(false);
   };
 
-  // Sync role state on load & check profile param
+  // Tab & role persistence across reloads & URL sync
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlRole = params.get('role');
       const urlTab = params.get('tab');
-      if (urlTab) {
-        setActiveTab(urlTab as ActiveTab);
-      }
+      const savedTab = localStorage.getItem('kin_active_tab') as ActiveTab | null;
+      const savedRole = localStorage.getItem('kin_network_role') as 'student' | 'alumni' | null;
+
+      const validTabs: ActiveTab[] = [
+        'overview',
+        'problems',
+        'firewall',
+        'time-machine',
+        'doorway',
+        'wisdom',
+        'radar',
+        'community',
+      ];
+
+      const effectiveTab =
+        urlTab && validTabs.includes(urlTab as ActiveTab)
+          ? (urlTab as ActiveTab)
+          : savedTab && validTabs.includes(savedTab)
+          ? savedTab
+          : 'overview';
+
+      setActiveTab(effectiveTab);
+
       if (params.get('setup') === 'true' || params.get('profile') === 'true' || params.has('step')) {
         setLocalProfileModalOpen(true);
       }
-      if (urlRole === 'alumni' || activeRole === 'Alumni') {
+
+      const effectiveRole =
+        urlRole === 'alumni' || urlRole === 'student'
+          ? (urlRole as 'student' | 'alumni')
+          : savedRole || (activeRole === 'Alumni' ? 'alumni' : 'student');
+
+      if (effectiveRole === 'alumni') {
         setNetworkRole('alumni');
         setShowMascotTour(false);
       } else {
         setNetworkRole('student');
       }
+
+      // Sync URL immediately without reload
+      const url = new URL(window.location.href);
+      url.searchParams.set('role', effectiveRole);
+      url.searchParams.set('tab', effectiveTab);
+      window.history.replaceState(null, '', url.toString());
     }
   }, [activeRole]);
+
+  // Continuously persist activeTab and networkRole to URL and localStorage on any tab change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kin_active_tab', activeTab);
+      localStorage.setItem('kin_network_role', networkRole);
+      const url = new URL(window.location.href);
+      url.searchParams.set('role', networkRole);
+      url.searchParams.set('tab', activeTab);
+      window.history.replaceState(null, '', url.toString());
+    }
+  }, [activeTab, networkRole]);
 
   // Toast Helper
   const showToast = (msg: string) => {
@@ -249,7 +297,6 @@ export default function KinGlassDashboard() {
   const handleRoleToggle = (targetRole: 'student' | 'alumni') => {
     setNetworkRole(targetRole);
     setActiveRole(targetRole === 'student' ? 'Student' : 'Alumni');
-    setActiveTab('overview');
     showToast(`Switched to ${targetRole === 'student' ? 'Student Dashboard' : 'Working Professional Command Center'}`);
   };
 
@@ -2397,6 +2444,7 @@ export default function KinGlassDashboard() {
                     currentUserInstitution={activeUserInstitution}
                     isStudent={true}
                     onShowToast={showToast}
+                    onOpenInboxUser={(target) => setInboxTargetUser(target)}
                     onSendCvToProfessional={(pro) => {
                       setSelectedProForCv({
                         name: pro.name,
@@ -3302,6 +3350,7 @@ export default function KinGlassDashboard() {
                     currentUserInstitution={activeUserInstitution}
                     isStudent={false}
                     onShowToast={showToast}
+                    onOpenInboxUser={(target) => setInboxTargetUser(target)}
                     onSendCvToProfessional={(pro) => {
                       setSelectedProForCv({
                         name: pro.name,
@@ -4158,6 +4207,14 @@ export default function KinGlassDashboard() {
           setParsedProfile(newProf);
           showToast('CV successfully analyzed & profile updated!');
         }}
+      />
+
+      {/* ─── Floating Real-Time Inbox Widget (Bottom Right) ─── */}
+      <FloatingInboxWidget
+        currentUserEmail={user?.email || (networkRole === 'alumni' ? 'parth.arora@deepmind.com' : 'aditya@iiitd.ac.in')}
+        currentUserName={activeUserName}
+        externalTargetUser={inboxTargetUser}
+        onClearExternalTarget={() => setInboxTargetUser(null)}
       />
     </div>
   );

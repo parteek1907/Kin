@@ -14,14 +14,112 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'currentUserEmail is required' }, { status: 400 });
     }
 
-    const currentMember = await prisma.member.findUnique({
+    let currentMember = await prisma.member.findUnique({
       where: { email: currentUserEmail },
     });
 
     if (!currentMember) {
-      return NextResponse.json({ success: false, error: 'Current member not found in database' }, { status: 404 });
+      // Auto-register member if signed in but not yet in Member table
+      currentMember = await prisma.member.upsert({
+        where: { email: currentUserEmail },
+        update: {},
+        create: {
+          email: currentUserEmail,
+          name: currentUserEmail.split('@')[0],
+          role: 'student',
+          headline: 'Verified Member',
+          institution: 'IIIT Delhi',
+          avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUserEmail)}&backgroundColor=e25c38,1e293b&textColor=ffffff`,
+        },
+      });
     }
 
+    // CASE 1: Fetch overall Inbox / active conversations
+    if (!otherUserId && !otherUserEmail) {
+      const allDms = await prisma.directMessage.findMany({
+        where: {
+          OR: [
+            { senderId: currentMember.id },
+            { receiverId: currentMember.id },
+          ],
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              headline: true,
+              institution: true,
+              avatarUrl: true,
+            },
+          },
+          receiver: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              headline: true,
+              institution: true,
+              avatarUrl: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const conversationMap = new Map<string, any>();
+      let totalUnreadCount = 0;
+
+      for (const dm of allDms) {
+        const isSender = dm.senderId === currentMember.id;
+        const partner = isSender ? dm.receiver : dm.sender;
+        if (!partner) continue;
+
+        if (!conversationMap.has(partner.id)) {
+          conversationMap.set(partner.id, {
+            partner: {
+              id: partner.id,
+              name: partner.name,
+              email: partner.email,
+              role: partner.role,
+              headline: partner.headline || (partner.role === 'student' ? 'Student Builder' : 'Tech Leader'),
+              institution: partner.institution || 'IIIT Delhi',
+              avatarUrl: partner.name?.toLowerCase().includes('aditya sharma')
+                ? '/images/aditya_sharma.jpg'
+                : (partner.avatarUrl || '/images/aditya_sharma.jpg'),
+            },
+            lastMessage: {
+              id: dm.id,
+              content: dm.content,
+              createdAt: dm.createdAt.toISOString(),
+              isSender,
+              read: dm.read,
+            },
+            unreadCount: 0,
+          });
+        }
+
+        if (!isSender && !dm.read) {
+          const conv = conversationMap.get(partner.id);
+          conv.unreadCount += 1;
+          totalUnreadCount += 1;
+        }
+      }
+
+      const conversations = Array.from(conversationMap.values());
+
+      return NextResponse.json({
+        success: true,
+        conversations,
+        totalUnreadCount,
+        currentMemberId: currentMember.id,
+      });
+    }
+
+    // CASE 2: Fetch 1-to-1 conversation thread with specific member
     let otherMember = null;
     if (otherUserId) {
       otherMember = await prisma.member.findUnique({ where: { id: otherUserId } });
@@ -30,10 +128,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (!otherMember) {
-      return NextResponse.json({ success: false, error: 'Other member not found in database' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Conversation partner not found in database' }, { status: 404 });
     }
 
-    // Mark received messages from this other member as read
+    // Mark received messages from otherMember as read
     await prisma.directMessage.updateMany({
       where: {
         senderId: otherMember.id,
@@ -72,9 +170,11 @@ export async function GET(req: NextRequest) {
         name: otherMember.name,
         email: otherMember.email,
         role: otherMember.role,
-        headline: otherMember.headline,
-        institution: otherMember.institution,
-        avatarUrl: otherMember.avatarUrl,
+        headline: otherMember.headline || (otherMember.role === 'student' ? 'Student Builder' : 'Tech Leader'),
+        institution: otherMember.institution || 'IIIT Delhi',
+        avatarUrl: otherMember.name?.toLowerCase().includes('aditya sharma')
+          ? '/images/aditya_sharma.jpg'
+          : (otherMember.avatarUrl || '/images/aditya_sharma.jpg'),
       },
       currentMemberId: currentMember.id,
     });
@@ -87,18 +187,29 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { senderEmail, receiverId, receiverEmail, content } = body;
+    const { senderEmail, senderName, receiverId, receiverEmail, content } = body;
 
     if (!senderEmail || !content || !content.trim()) {
       return NextResponse.json({ success: false, error: 'senderEmail and content are required' }, { status: 400 });
     }
 
-    const sender = await prisma.member.findUnique({
+    let sender = await prisma.member.findUnique({
       where: { email: senderEmail },
     });
 
     if (!sender) {
-      return NextResponse.json({ success: false, error: 'Sender member not found' }, { status: 404 });
+      sender = await prisma.member.upsert({
+        where: { email: senderEmail },
+        update: {},
+        create: {
+          email: senderEmail,
+          name: senderName?.trim() || senderEmail.split('@')[0],
+          role: 'student',
+          headline: 'Verified Member',
+          institution: 'IIIT Delhi',
+          avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(senderEmail)}&backgroundColor=e25c38,1e293b&textColor=ffffff`,
+        },
+      });
     }
 
     let receiver = null;

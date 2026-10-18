@@ -173,12 +173,21 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // Guarantee zero duplicate names in members directory
-    const seenMemberNames = new Set<string>();
+    // Guarantee zero duplicate entries in members directory (keyed by email, with seed protection)
+    const seenEmails = new Set<string>();
+    const seenNames = new Set<string>();
     const deduplicatedMembers = formatted.filter((m: any) => {
-      const key = m.name?.toLowerCase().trim();
-      if (!key || seenMemberNames.has(key)) return false;
-      seenMemberNames.add(key);
+      const email = m.email?.toLowerCase().trim();
+      const name = m.name?.toLowerCase().trim();
+      if (email) {
+        if (seenEmails.has(email)) return false;
+        seenEmails.add(email);
+      }
+      const isPrioritySeed = ['aditya sharma', 'parteek garg', 'darsh ohri', 'nipun dhiman', 'aditya tanwar'].includes(name);
+      if (isPrioritySeed && seenNames.has(name)) {
+        return false;
+      }
+      if (name) seenNames.add(name);
       return true;
     });
 
