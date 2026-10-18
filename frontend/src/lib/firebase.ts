@@ -28,10 +28,12 @@ let appInstance: FirebaseApp;
 try {
   appInstance = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 } catch {
-  appInstance = initializeApp({
-    ...firebaseConfig,
-    apiKey: "AIzaSyBFYcMQ2AniVLsNxEFfG5NgvpOoQUynK58"
-  }, "kin_fallback");
+  appInstance = (getApps().length > 0 
+    ? getApp() 
+    : (initializeApp as any)({
+        ...firebaseConfig,
+        apiKey: "AIzaSyBFYcMQ2AniVLsNxEFfG5NgvpOoQUynK58"
+      }, "kin_fallback"));
 }
 
 export const app: FirebaseApp = appInstance;
@@ -39,9 +41,9 @@ export const app: FirebaseApp = appInstance;
 let authInstance: Auth;
 try {
   authInstance = getAuth(app);
-} catch (e) {
+} catch {
   try {
-    const fallbackApp = initializeApp({
+    const fallbackApp = (initializeApp as any)({
       ...firebaseConfig,
       apiKey: "AIzaSyBFYcMQ2AniVLsNxEFfG5NgvpOoQUynK58"
     }, "kin_auth_fallback");
