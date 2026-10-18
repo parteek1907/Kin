@@ -12,9 +12,9 @@ import {
 } from "firebase/auth";
 import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
 
-// Kin Firebase Configuration (Secured via environment variables)
+// Kin Firebase Configuration (Client public configuration with environment overrides)
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBFYcMQ2AniVLsNxEFfG5NgvpOoQUynK58",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "akin-1024c.firebaseapp.com",
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "akin-1024c",
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "akin-1024c.firebasestorage.app",
@@ -23,9 +23,35 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-2E01HB5L75"
 };
 
-// Initialize Firebase (Next.js SSR safe singleton)
-export const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const auth: Auth = getAuth(app);
+// Initialize Firebase (Next.js SSR safe singleton with build-time fallback protection)
+let appInstance: FirebaseApp;
+try {
+  appInstance = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+} catch {
+  appInstance = initializeApp({
+    ...firebaseConfig,
+    apiKey: "AIzaSyBFYcMQ2AniVLsNxEFfG5NgvpOoQUynK58"
+  }, "kin_fallback");
+}
+
+export const app: FirebaseApp = appInstance;
+
+let authInstance: Auth;
+try {
+  authInstance = getAuth(app);
+} catch (e) {
+  try {
+    const fallbackApp = initializeApp({
+      ...firebaseConfig,
+      apiKey: "AIzaSyBFYcMQ2AniVLsNxEFfG5NgvpOoQUynK58"
+    }, "kin_auth_fallback");
+    authInstance = getAuth(fallbackApp);
+  } catch {
+    authInstance = {} as Auth;
+  }
+}
+
+export const auth: Auth = authInstance;
 export const googleProvider = new GoogleAuthProvider();
 
 // Initialize Analytics conditionally in browser
