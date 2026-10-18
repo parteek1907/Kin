@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, firebaseSignOut } from '@/lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
+import { syncMemberToDatabase } from '@/lib/syncMember';
+
 export interface UserProfile {
   id?: number;
   name: string;
@@ -52,7 +54,12 @@ interface AuthContextType {
   activeRole: 'Student' | 'Alumni';
   setActiveRole: (role: 'Student' | 'Alumni') => void;
   syncWithDatabase: (payload: VerificationPayload) => Promise<{ success: boolean; message: string }>;
-  login: (name: string, email: string) => void;
+  login: (
+    name: string,
+    email: string,
+    role?: 'Student' | 'Alumni' | 'student' | 'professional',
+    institution?: string
+  ) => void;
   logout: () => Promise<void>;
   isAuthModalOpen: boolean;
   openAuthModal: () => void;
@@ -69,39 +76,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-async function syncMemberToDatabase(profile: Partial<UserProfile> & { email: string; name?: string }) {
-  if (!profile.email) return;
-  try {
-    await fetch('/api/members', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: profile.email.trim(),
-        name: profile.name?.trim() || profile.email.split('@')[0],
-        role: profile.userType === 'professional' || profile.role === 'Alumni' ? 'professional' : 'student',
-        headline: profile.headline || (profile.userType === 'professional' ? 'Verified Tech Professional' : 'Student Builder'),
-        institution: profile.institution || (profile.userType === 'professional' ? 'Enterprise Tech' : 'IIIT Delhi'),
-        studentId: profile.studentId,
-        businessId: profile.businessId,
-        bio: profile.summary,
-        skills: profile.skills || ['Full-Stack', 'TypeScript', 'Python'],
-        linkedinUrl: profile.linkedinUrl,
-        githubUrl: profile.githubUrl,
-        githubUsername: profile.githubUsername,
-        portfolioUrl: profile.portfolioUrl,
-        resumeName: profile.resumeName,
-        graduationYear: profile.graduationYear,
-        officeHours: profile.officeHours,
-        topProjectUrl: profile.topProjectUrl,
-        topProjectDescription: profile.topProjectDescription,
-        avatarUrl: profile.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
-      }),
-    });
-  } catch (err) {
-    console.warn('Sync member to database notice:', err);
-  }
-}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -319,22 +293,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: true, message };
   };
 
-  const login = (name: string, email: string) => {
+  const login = (
+    name: string,
+    email: string,
+    role?: 'Student' | 'Alumni' | 'student' | 'professional',
+    institution?: string
+  ) => {
+    const isPro = role === 'Alumni' || role === 'professional';
+    const chosenRole: 'Student' | 'Alumni' = isPro ? 'Alumni' : 'Student';
+    const userType: 'student' | 'professional' = isPro ? 'professional' : 'student';
+
     const newUser: UserProfile = {
       name: name.trim() || 'Verified Member',
       email: email.trim() || 'member@kin.network',
-      role: 'Student',
-      institution: 'IIIT Delhi',
-      userType: 'student',
-      verificationStatus: 'verified_student',
-      studentId: '2024-CS-0412',
+      role: chosenRole,
+      institution: institution || (isPro ? 'Enterprise Tech' : 'IIIT Delhi'),
+      userType,
+      verificationStatus: isPro ? 'verified_professional' : 'verified_student',
+      studentId: isPro ? undefined : '2024-CS-0412',
+      businessId: isPro ? 'CORP-VERIFIED-9001' : undefined,
     };
     setUser(newUser);
-    setActiveRoleState('Student');
+    setActiveRoleState(chosenRole);
     try {
       localStorage.setItem('kin_user_auth', JSON.stringify(newUser));
-      localStorage.setItem('kin_active_role', 'Student');
-      localStorage.setItem('kin_network_role', 'student');
+      localStorage.setItem('kin_active_role', chosenRole);
+      localStorage.setItem('kin_network_role', chosenRole.toLowerCase());
     } catch (e) {
       console.error(e);
     }
