@@ -83,7 +83,6 @@ import {
 type ActiveTab = 
   | 'overview' 
   | 'problems' 
-  | 'outreach' 
   | 'firewall' 
   | 'time-machine' 
   | 'doorway' 
@@ -116,12 +115,6 @@ const KIN_WALKTHROUGH: WalkthroughStep[] = [
     title: "Alumni Problem Statements",
     lines: ["Solve real architectural bottlenecks posted by senior alumni and submit your GitHub repos to get hired!"],
     tabId: 'problems'
-  },
-  {
-    id: 'outreach',
-    title: "Smart Auto-Connect",
-    lines: ["Unlock instant connection with verified seniors by meeting their automated skill gatekeeper."],
-    tabId: 'outreach'
   },
   {
     id: 'time-machine',
@@ -1084,11 +1077,11 @@ export default function KinGlassDashboard() {
       }
 
       setIsSendCvModalOpen(false);
-      setActiveTab('outreach');
+      setActiveTab('community');
     } catch (err) {
       showToast('ATS Review completed.');
       setIsSendCvModalOpen(false);
-      setActiveTab('outreach');
+      setActiveTab('community');
     } finally {
       setIsEvaluatingAts(false);
     }
@@ -1331,7 +1324,6 @@ export default function KinGlassDashboard() {
   const studentNavItems = [
     { id: 'overview' as const, label: 'Overview', icon: LayoutGrid },
     { id: 'problems' as const, label: 'Alumni Problems', icon: Trophy },
-    { id: 'outreach' as const, label: 'Auto-Connect', icon: ShieldCheck },
     { id: 'time-machine' as const, label: 'Time Machine', icon: History },
     { id: 'doorway' as const, label: '20-Min Doorway', icon: Briefcase },
     { id: 'wisdom' as const, label: 'Wisdom Capsule', icon: Sparkles },
@@ -1604,7 +1596,7 @@ export default function KinGlassDashboard() {
                           <Sparkles className="w-5 h-5 text-[#E25C38]" />
                         </div>
                         <p className="text-xs sm:text-sm text-slate-800 font-medium">
-                          <strong>Tip from Kin:</strong> Complete your Docker milestone to unlock auto-connect for 4 Senior Engineers at Microsoft and Uber!
+                          <strong>Tip from Kin:</strong> Complete your Docker milestone to unlock senior referrals at Microsoft and Uber!
                         </p>
                       </div>
                       <button
@@ -1868,148 +1860,6 @@ export default function KinGlassDashboard() {
                   </div>
                 )}
 
-                {/* 3. STUDENT AUTO-CONNECT & SENIOR OUTREACH TAB */}
-                {activeTab === 'outreach' && (
-                  <div key="student-outreach" className="flex-1 flex flex-col gap-5 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                        Alumni Outreach & Instant Connection Eligibility (The Unlocker)
-                      </h2>
-                      <p className="text-xs text-slate-600 mt-1">
-                        Verified alumni deploy automated criteria firewalls. Match their score to connect instantly or send a personalized note to their manual queue.
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                      {/* Left: Senior Cards */}
-                      <div className="lg:col-span-2 space-y-4">
-                        {outreachApplications.length === 0 ? (
-                          <div className="p-8 sm:p-10 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] text-center space-y-3.5">
-                            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-[#E25C38] flex items-center justify-center mx-auto">
-                              <ShieldCheck className="w-6 h-6" />
-                            </div>
-                            <h3 className="text-base font-bold text-slate-900">No Alumni Outreach Submissions Yet</h3>
-                            <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-                              You haven&apos;t submitted your CV to any verified alumni yet. Find alumni in the Community Directory, inspect their live criteria firewall, and submit your CV for instant review.
-                            </p>
-                            <div className="pt-2 flex items-center justify-center">
-                              <button
-                                onClick={() => setActiveTab('community')}
-                                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-xs"
-                              >
-                                <Users className="w-4 h-4 text-amber-400" />
-                                <span>Browse Alumni Directory in Network</span>
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          outreachApplications.map((sr) => {
-                            const isPassed = sr.currentMatch >= sr.targetMatch;
-                            const isConnected = sr.status === 'connected';
-                            const isInQueue = sr.status === 'in_manual_queue';
-
-                            return (
-                              <div key={sr.id || sr.professionalName} className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                                  <div>
-                                    <h3 className="text-base font-bold text-slate-900">{sr.professionalName}</h3>
-                                    <p className="text-xs text-slate-600 font-medium">{sr.professionalRole}</p>
-                                  </div>
-                                  <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full ${
-                                    isPassed
-                                      ? 'bg-emerald-100 text-emerald-800'
-                                      : 'bg-amber-100 text-amber-800'
-                                  }`}>
-                                    Match: {sr.currentMatch}% / {sr.targetMatch}%
-                                  </span>
-                                </div>
-
-                                <p className="text-xs text-slate-600 mb-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                  <strong>Policy:</strong> {sr.policy}
-                                </p>
-
-                                {/* Checklist */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 text-xs">
-                                  <div>
-                                    <span className="font-bold text-emerald-600 block mb-1">✓ Met Criteria:</span>
-                                    {sr.met && sr.met.length > 0 ? (
-                                      sr.met.map((m) => (
-                                        <div key={m} className="text-slate-700 flex items-center gap-1.5">• {m}</div>
-                                      ))
-                                    ) : (
-                                      <div className="text-slate-400 italic">None yet</div>
-                                    )}
-                                  </div>
-                                  {sr.missing && sr.missing.length > 0 && (
-                                    <div>
-                                      <span className="font-bold text-rose-600 block mb-1">✗ Missing to Unlock Auto-Accept:</span>
-                                      {sr.missing.map((m) => (
-                                        <div key={m} className="text-slate-700 flex items-center gap-1.5">• {m}</div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Actions */}
-                                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2.5">
-                                  {isConnected ? (
-                                    <span className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 flex items-center gap-1.5">
-                                      <Check className="w-3.5 h-3.5" />
-                                      <span>Connected (Direct Handshake Complete)</span>
-                                    </span>
-                                  ) : isPassed ? (
-                                    <button
-                                      onClick={() => handleInstantConnect(sr)}
-                                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
-                                    >
-                                      <Check className="w-3.5 h-3.5" />
-                                      <span>Instant Connect (Shield Passed)</span>
-                                    </button>
-                                  ) : isInQueue ? (
-                                    <span className="px-4 py-2 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200 flex items-center gap-1.5">
-                                      <Clock className="w-3.5 h-3.5" />
-                                      <span>In Manual Triage Queue (Awaiting Senior Review)</span>
-                                    </span>
-                                  ) : (
-                                    <>
-                                      <button
-                                        onClick={() => {
-                                          setManualNoteSenior(sr.professionalName);
-                                          setManualNoteModalOpen(true);
-                                        }}
-                                        className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
-                                      >
-                                        Submit to {sr.professionalName.split(' ')[0]}&apos;s Manual Queue
-                                      </button>
-                                      <button
-                                        onClick={() => setActiveTab('problems')}
-                                        className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#E25C38] text-xs font-bold transition-all border border-amber-200 cursor-pointer"
-                                      >
-                                        Solve Bounty to Unlock Auto-Connect
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-
-                      {/* Right: Tip & Telemetry */}
-                      <div className="space-y-4">
-                        <div className="p-6 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
-                          <div className="w-10 h-10 rounded-2xl bg-amber-50 text-[#E25C38] flex items-center justify-center mb-3">
-                            <ShieldCheck className="w-5 h-5" />
-                          </div>
-                          <h3 className="text-base font-bold text-slate-900">Why Auto-Connect Works</h3>
-                          <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                            Senior alumni receive dozens of cold LinkedIn messages daily. Kin&apos;s AST validator proves your code quality upfront so seniors auto-accept you without hesitation.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* 4. STUDENT CAREER TIME MACHINE TAB */}
                 {activeTab === 'time-machine' && (

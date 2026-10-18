@@ -53,10 +53,12 @@ export default function DirectMessageModal({
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
   // Fetch messages between current user and target user
@@ -207,7 +209,7 @@ export default function DirectMessageModal({
           </div>
 
           {/* Messages Stream */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-stone-50/30">
+          <div ref={messagesContainerRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-stone-50/30">
             {isLoading ? (
               <div className="h-full flex items-center justify-center text-xs text-stone-400 gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-[#E25C38]" />
@@ -262,7 +264,6 @@ export default function DirectMessageModal({
                 </div>
               ))
             )}
-            <div ref={messagesEndRef} />
           </div>
 
           {/* Input Footer */}

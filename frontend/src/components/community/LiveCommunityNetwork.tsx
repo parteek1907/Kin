@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users,
@@ -168,6 +168,65 @@ export default function LiveCommunityNetwork({
   const [isPlayingPulse, setIsPlayingPulse] = useState(true);
   const [isMutedPulse, setIsMutedPulse] = useState(true);
   const [videoLoadError, setVideoLoadError] = useState<Record<string, boolean>>({});
+
+  // Pulse Scroll & Swipe State
+  const pulsePlayerRef = useRef<HTMLDivElement>(null);
+  const isPulseThrottledRef = useRef(false);
+  const pulseTouchStartYRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const el = pulsePlayerRef.current;
+    if (!el || subTab !== 'pulses') return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (isPulseThrottledRef.current) return;
+
+      if (e.deltaY > 15) {
+        // Scroll Down -> Next Pulse
+        isPulseThrottledRef.current = true;
+        setActivePulseIndex((prev) => Math.min(pulses.length - 1, prev + 1));
+        setIsPlayingPulse(true);
+        setTimeout(() => {
+          isPulseThrottledRef.current = false;
+        }, 450);
+      } else if (e.deltaY < -15) {
+        // Scroll Up -> Previous Pulse
+        isPulseThrottledRef.current = true;
+        setActivePulseIndex((prev) => Math.max(0, prev - 1));
+        setIsPlayingPulse(true);
+        setTimeout(() => {
+          isPulseThrottledRef.current = false;
+        }, 450);
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, [subTab, pulses.length]);
+
+  const handlePulseTouchStart = (e: React.TouchEvent) => {
+    pulseTouchStartYRef.current = e.touches[0].clientY;
+  };
+
+  const handlePulseTouchEnd = (e: React.TouchEvent) => {
+    if (pulseTouchStartYRef.current === null) return;
+    const diff = pulseTouchStartYRef.current - e.changedTouches[0].clientY;
+    if (Math.abs(diff) > 35) {
+      if (diff > 0) {
+        // Swiped Up -> Next Pulse
+        setActivePulseIndex((prev) => Math.min(pulses.length - 1, prev + 1));
+        setIsPlayingPulse(true);
+      } else {
+        // Swiped Down -> Previous Pulse
+        setActivePulseIndex((prev) => Math.max(0, prev - 1));
+        setIsPlayingPulse(true);
+      }
+    }
+    pulseTouchStartYRef.current = null;
+  };
 
   // Posts State
   const [posts, setPosts] = useState<SocialPostItem[]>([]);
@@ -1154,7 +1213,9 @@ export default function LiveCommunityNetwork({
                           {!isSelf && (
                             <button
                               type="button"
-                              onClick={() =>
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
                                 setActiveDmUser({
                                   id: m.id,
                                   name: m.name,
@@ -1163,13 +1224,12 @@ export default function LiveCommunityNetwork({
                                   headline: m.headline,
                                   institution: m.institution,
                                   avatarUrl: m.avatarUrl,
-                                })
-                              }
-                              className="px-2 py-1 rounded-xl bg-slate-100 hover:bg-orange-50 text-slate-700 hover:text-[#E25C38] border border-slate-200 text-[10px] font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1"
+                                });
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-[#E25C38] hover:bg-orange-50/80 rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0"
                               title={`Direct Message ${m.name}`}
                             >
-                              <MessageSquare className="w-2.5 h-2.5" />
-                              <span>DM</span>
+                              <MessageSquare className="w-4 h-4" />
                             </button>
                           )}
 
@@ -1451,7 +1511,10 @@ export default function LiveCommunityNetwork({
                         {!isSelf && (
                           <button
                             id={`dm-btn-${m.id}`}
-                            onClick={() =>
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
                               setActiveDmUser({
                                 id: m.id,
                                 name: m.name,
@@ -1460,13 +1523,12 @@ export default function LiveCommunityNetwork({
                                 headline: m.headline,
                                 institution: m.institution,
                                 avatarUrl: m.avatarUrl,
-                              })
-                            }
-                            className="px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#E25C38] border border-orange-200/80 text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1"
+                              });
+                            }}
+                            className="p-2 text-slate-400 hover:text-[#E25C38] hover:bg-orange-50/80 rounded-xl transition-all cursor-pointer flex items-center justify-center"
                             title={`Send direct message to ${m.name}`}
                           >
-                            <MessageSquare className="w-3.5 h-3.5 text-[#E25C38]" />
-                            <span>DM</span>
+                            <MessageSquare className="w-4 h-4" />
                           </button>
                         )}
 
@@ -1541,62 +1603,76 @@ export default function LiveCommunityNetwork({
           SUB-TAB 4: KIN PULSES (Vertical Tech Demos / Centered Portrait Experience)
           ═════════════════════════════════════════════════════════════════════ */}
       {subTab === 'pulses' && (
-        <div className="pb-24 pt-4 flex flex-col items-center justify-center">
-          {/* Centered Pulse Switcher Pills */}
-          <div className="flex items-center gap-2 p-1 rounded-2xl bg-white/90 border border-slate-200 shadow-xs backdrop-blur-md mb-5">
-            {pulses.map((pulse, idx) => {
-              const isSelected = idx === activePulseIndex;
-              return (
-                <button
-                  key={pulse.id}
-                  onClick={() => {
-                    setActivePulseIndex(idx);
-                    setIsPlayingPulse(true);
-                  }}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-                    isSelected
-                      ? 'bg-slate-900 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  <Zap className={`w-3.5 h-3.5 ${isSelected ? 'text-[#E25C38] fill-current' : 'text-slate-400'}`} />
-                  <span>{idx === 0 ? 'Pulse 1' : 'Pulse 2'}</span>
-                  <span className="text-[10px] font-normal opacity-70 truncate max-w-[140px]">
-                    • {pulse.authorName}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
+        <div className="pb-20 pt-2 flex flex-col items-center justify-center">
           {/* Centered 9:16 Video Player Container */}
           <div className="w-full max-w-[380px] flex flex-col items-center">
-            <div className="relative w-full aspect-[9/16] rounded-3xl overflow-hidden bg-slate-950 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.45)] border-4 border-slate-900 group">
+            <div
+              ref={pulsePlayerRef}
+              onTouchStart={handlePulseTouchStart}
+              onTouchEnd={handlePulseTouchEnd}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setActivePulseIndex((prev) => Math.min(pulses.length - 1, prev + 1));
+                  setIsPlayingPulse(true);
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setActivePulseIndex((prev) => Math.max(0, prev - 1));
+                  setIsPlayingPulse(true);
+                }
+              }}
+              className="relative w-full aspect-[9/16] rounded-3xl overflow-hidden bg-slate-950 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.45)] border-4 border-slate-900 group focus:outline-none"
+            >
+              {/* Reels Vertical Progress Dots on Left Side */}
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-25 flex flex-col items-center gap-1.5 pointer-events-none">
+                {pulses.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`rounded-full transition-all duration-300 ${
+                      idx === activePulseIndex
+                        ? 'w-1.5 h-6 bg-[#E25C38] shadow-md shadow-[#E25C38]/60'
+                        : 'w-1.5 h-1.5 bg-white/40'
+                    }`}
+                  />
+                ))}
+              </div>
+
               {/* Video Element */}
-              <video
-                key={pulses[activePulseIndex].id}
-                src={pulses[activePulseIndex].videoSrc}
-                className="w-full h-full object-cover"
-                autoPlay
-                loop
-                playsInline
-                muted={isMutedPulse}
-                onError={() => {
-                  setVideoLoadError((prev) => ({ ...prev, [pulses[activePulseIndex].id]: true }));
-                }}
-                onLoadedData={() => {
-                  setVideoLoadError((prev) => ({ ...prev, [pulses[activePulseIndex].id]: false }));
-                }}
-                ref={(el) => {
-                  if (el) {
-                    if (isPlayingPulse) {
-                      el.play().catch(() => {});
-                    } else {
-                      el.pause();
-                    }
-                  }
-                }}
-              />
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={pulses[activePulseIndex].id}
+                  initial={{ opacity: 0.7, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0.7, scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
+                  className="w-full h-full"
+                >
+                  <video
+                    src={pulses[activePulseIndex].videoSrc}
+                    className="w-full h-full object-cover"
+                    autoPlay
+                    loop
+                    playsInline
+                    muted={isMutedPulse}
+                    onError={() => {
+                      setVideoLoadError((prev) => ({ ...prev, [pulses[activePulseIndex].id]: true }));
+                    }}
+                    onLoadedData={() => {
+                      setVideoLoadError((prev) => ({ ...prev, [pulses[activePulseIndex].id]: false }));
+                    }}
+                    ref={(el) => {
+                      if (el) {
+                        if (isPlayingPulse) {
+                          el.play().catch(() => {});
+                        } else {
+                          el.pause();
+                        }
+                      }
+                    }}
+                  />
+                </motion.div>
+              </AnimatePresence>
 
               {/* Fallback Screen if video file is missing */}
               {videoLoadError[pulses[activePulseIndex].id] && (
@@ -1763,39 +1839,13 @@ export default function LiveCommunityNetwork({
               </div>
             </div>
 
-            {/* Prev / Next controls below video */}
-            <div className="flex items-center gap-3 mt-4">
-              <button
-                disabled={activePulseIndex === 0}
-                onClick={() => {
-                  setActivePulseIndex((prev) => Math.max(0, prev - 1));
-                  setIsPlayingPulse(true);
-                }}
-                className={`px-5 py-2 rounded-2xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                  activePulseIndex === 0
-                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                    : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50 cursor-pointer shadow-xs'
-                }`}
-              >
-                <ChevronUp className="w-4 h-4" />
-                <span>Previous Pulse</span>
-              </button>
-
-              <button
-                disabled={activePulseIndex === pulses.length - 1}
-                onClick={() => {
-                  setActivePulseIndex((prev) => Math.min(pulses.length - 1, prev + 1));
-                  setIsPlayingPulse(true);
-                }}
-                className={`px-5 py-2 rounded-2xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                  activePulseIndex === pulses.length - 1
-                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                    : 'bg-[#E25C38] text-white border-[#E25C38] hover:bg-[#d04e2c] cursor-pointer shadow-xs'
-                }`}
-              >
-                <span>Next Pulse</span>
-                <ChevronDown className="w-4 h-4" />
-              </button>
+            {/* Subtle Scroll Hint */}
+            <div className="flex items-center gap-2 mt-3 text-xs text-slate-400 font-medium select-none">
+              <span className="text-sm">↕</span>
+              <span>Scroll up or down to switch pulses</span>
+              <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+                {activePulseIndex + 1} / {pulses.length}
+              </span>
             </div>
           </div>
         </div>
