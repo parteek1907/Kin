@@ -614,7 +614,7 @@ export default function KinGlassDashboard() {
       const cachedProblems = localStorage.getItem('kin_live_problems');
       if (cachedProblems) {
         const parsed = JSON.parse(cachedProblems);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed) && parsed.length >= 8) {
           setProblems(parsed);
         }
       }
@@ -1446,14 +1446,6 @@ export default function KinGlassDashboard() {
               <span className="sm:hidden">Profile</span>
             </button>
 
-            <button
-              onClick={openUploadResumeModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 transition-all shadow-xs cursor-pointer"
-            >
-              <UploadCloud className="w-3.5 h-3.5 text-[#E25C38]" />
-              <span className="hidden sm:inline">Upload Resume / CV</span>
-            </button>
-
             {/* User Profile Avatar with Sign Out Popover */}
             <div className="relative z-50">
               <button
@@ -1486,16 +1478,6 @@ export default function KinGlassDashboard() {
                     >
                       <User className="w-3.5 h-3.5 text-[#E25C38]" />
                       <span>Edit 4-Step Profile</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setProfileMenuOpen(false);
-                        openUploadResumeModal();
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-xl flex items-center gap-2 cursor-pointer"
-                    >
-                      <UploadCloud className="w-3.5 h-3.5 text-[#E25C38]" />
-                      <span>Upload New CV</span>
                     </button>
                     <button
                       onClick={async () => {
@@ -1750,7 +1732,7 @@ export default function KinGlassDashboard() {
 
                       {/* Category Filter Pills */}
                       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
-                        {['All', 'Healthcare', 'Blockchain', 'FinTech', 'Fake News', 'Hardware', 'Automotive', 'Housing', 'Career'].map((cat) => (
+                        {['All', 'Healthcare', 'Blockchain', 'FinTech', 'Fake News', 'Hardware', 'Automotive', 'Housing', 'Career', 'Consumer Services'].map((cat) => (
                           <button
                             key={cat}
                             onClick={() => setProblemCategoryFilter(cat)}
@@ -1766,7 +1748,7 @@ export default function KinGlassDashboard() {
                       </div>
                     </div>
 
-                    {/* Image 3 High-Contrast Bento Grid */}
+                    {/* Image 3 High-Contrast Bento Grid - 100% Light Themed */}
                     {filteredProblems.length === 0 ? (
                       <div className="rounded-3xl p-10 bg-white border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] text-center flex flex-col items-center justify-center my-6">
                         <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-[#E25C38] mb-4">
@@ -1802,9 +1784,30 @@ export default function KinGlassDashboard() {
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {filteredProblems.map((prob) => {
-                          const isBlue = prob.cardVariant === 'blue';
-                          const isCharcoal = prob.cardVariant === 'charcoal';
-                          const isWhite = prob.cardVariant === 'white';
+                          const getCategoryBadge = (cat: string) => {
+                            switch (cat) {
+                              case 'Healthcare':
+                                return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                              case 'Blockchain':
+                                return 'bg-purple-50 text-purple-700 border-purple-200';
+                              case 'FinTech':
+                                return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+                              case 'Fake News':
+                                return 'bg-rose-50 text-rose-700 border-rose-200';
+                              case 'Hardware':
+                                return 'bg-amber-50 text-amber-800 border-amber-200';
+                              case 'Automotive':
+                                return 'bg-cyan-50 text-cyan-700 border-cyan-200';
+                              case 'Housing':
+                                return 'bg-sky-50 text-sky-700 border-sky-200';
+                              case 'Career':
+                                return 'bg-orange-50 text-[#E25C38] border-orange-200';
+                              case 'Consumer Services':
+                                return 'bg-teal-50 text-teal-700 border-teal-200';
+                              default:
+                                return 'bg-slate-100 text-slate-700 border-slate-200';
+                            }
+                          };
 
                           return (
                             <div
@@ -1813,82 +1816,47 @@ export default function KinGlassDashboard() {
                                 setSelectedProblem(prob);
                                 setIsSubmitSolutionModalOpen(true);
                               }}
-                              className={`rounded-3xl p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-1 group relative ${
-                                isBlue
-                                  ? 'bg-[#0047FF] text-white shadow-[0_8px_30px_rgba(0,71,255,0.22)]'
-                                  : isCharcoal
-                                  ? 'bg-[#181A20] text-white border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.25)]'
-                                  : 'bg-white text-slate-900 border border-slate-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)]'
-                              }`}
+                              className="rounded-3xl p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-1 group relative bg-white/95 hover:bg-white text-slate-900 border border-slate-200/90 hover:border-[#E25C38]/40 shadow-[0_4px_25px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_32px_rgba(226,92,56,0.08)]"
                             >
                               {/* Card Top: Category Pill + Circular Arrow */}
                               <div>
-                                <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center justify-between mb-3.5">
                                   <span
-                                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                                      isBlue
-                                        ? 'bg-white/20 text-white border border-white/20'
-                                        : isCharcoal
-                                        ? 'bg-white/10 text-white border border-white/10'
-                                        : 'bg-slate-100 text-slate-800 border border-slate-200/60'
-                                    }`}
+                                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${getCategoryBadge(prob.category)}`}
                                   >
                                     {prob.category}
                                   </span>
 
-                                  <div
-                                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:translate-x-0.5 ${
-                                      isBlue
-                                        ? 'border border-white/30 text-white'
-                                        : isCharcoal
-                                        ? 'border border-white/20 text-white'
-                                        : 'border border-slate-300 text-slate-700'
-                                    }`}
-                                  >
+                                  <div className="w-7 h-7 rounded-full bg-slate-100 group-hover:bg-[#E25C38] text-slate-500 group-hover:text-white transition-all flex items-center justify-center">
                                     <ArrowRight className="w-3.5 h-3.5" />
                                   </div>
                                 </div>
 
-                                {/* Provocative Question in Punchy Typography */}
-                                <h3
-                                  className={`text-base font-bold leading-snug tracking-tight mb-4 ${
-                                    isBlue || isCharcoal ? 'text-white' : 'text-slate-900'
-                                  }`}
-                                >
+                                {/* Question in Clean Typography */}
+                                <h3 className="text-base font-bold leading-snug tracking-tight text-slate-900 group-hover:text-[#E25C38] transition-colors mb-4 line-clamp-2">
                                   {prob.question}
                                 </h3>
                               </div>
 
                               {/* Card Footer: Alumni Poster & Reward */}
-                              <div className="pt-3 border-t border-current/10 flex flex-col gap-1.5">
+                              <div className="pt-3 border-t border-slate-100 flex flex-col gap-1.5">
                                 <div className="flex items-center justify-between text-xs">
-                                  <span className={isBlue || isCharcoal ? 'text-white/80' : 'text-slate-600'}>
+                                  <span className="text-slate-500 font-medium truncate max-w-[120px]">
                                     {prob.alumniName}
                                   </span>
-                                  <span className="font-bold text-[11px] truncate max-w-[130px]">
+                                  <span className="font-bold text-slate-800 text-[11px] truncate max-w-[130px]">
                                     {prob.alumniCompany}
                                   </span>
                                 </div>
 
                                 <div className="flex items-center justify-between mt-1">
-                                  <span
-                                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
-                                      isBlue
-                                        ? 'bg-white text-[#0047FF]'
-                                        : isCharcoal
-                                        ? 'bg-[#E25C38] text-white'
-                                        : 'bg-slate-900 text-white'
-                                    }`}
-                                  >
+                                  <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#E25C38]/10 text-[#E25C38] border border-[#E25C38]/20">
                                     {prob.bountyReward}
                                   </span>
 
-                                  <span
-                                    className={`text-[11px] font-bold flex items-center gap-1 group-hover:underline ${
-                                      isBlue || isCharcoal ? 'text-white' : 'text-[#E25C38]'
-                                    }`}
-                                  >
+                                  <span className="text-[11px] font-bold text-slate-700 group-hover:text-[#E25C38] flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                                     <span>Submit Solution</span>
+                                    <ArrowRight className="w-3 h-3" />
                                   </span>
                                 </div>
                               </div>

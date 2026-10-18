@@ -22,12 +22,20 @@ import {
   Layers,
   Code2,
   ChevronDown,
+  ChevronUp,
   Loader2,
   Filter,
   FileText,
   History,
   X,
   ArrowRight,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Share2,
+  Zap,
+  Film,
 } from 'lucide-react';
 import DirectMessageModal, { DMTargetUser } from './DirectMessageModal';
 
@@ -83,6 +91,50 @@ interface SocialPostItem {
   ghostPersona?: string;
 }
 
+interface KinPulseItem {
+  id: string;
+  videoSrc: string;
+  title: string;
+  authorName: string;
+  authorRole: string;
+  authorInstitution: string;
+  authorAvatar: string;
+  description: string;
+  tags: string[];
+  likes: number;
+  commentsCount: number;
+  isLiked?: boolean;
+}
+
+const DEFAULT_PULSES: KinPulseItem[] = [
+  {
+    id: 'pulse-1',
+    videoSrc: '/videos/pulses/pulse-1.mp4',
+    title: 'AST Parser & GitHub Velocity Engine in Next.js',
+    authorName: 'Darsh Ohri',
+    authorRole: 'Full-Stack & AI Software Developer',
+    authorInstitution: 'NMIMS',
+    authorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+    description: 'Sub-100ms AST code parsing running live against GitHub commits for automatic verified skills extraction.',
+    tags: ['#TypeScript', '#NextJS', '#ASTParser', '#Architecture'],
+    likes: 184,
+    commentsCount: 29,
+  },
+  {
+    id: 'pulse-2',
+    videoSrc: '/videos/pulses/pulse-2.mp4',
+    title: 'Zero-Knowledge Patient Record Reconciliation Engine',
+    authorName: 'Dr. Sarah Chen',
+    authorRole: 'Staff Health Informatics Engineer',
+    authorInstitution: 'Google Health Core',
+    authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+    description: 'Privacy-preserving cryptographic deduplication across hospital networks with ZK proofs and sub-second verification.',
+    tags: ['#ZeroKnowledge', '#Cryptography', '#Healthcare', '#FastAPI'],
+    likes: 247,
+    commentsCount: 41,
+  },
+];
+
 interface LiveCommunityNetworkProps {
   currentUserEmail?: string;
   currentUserName?: string;
@@ -108,7 +160,14 @@ export default function LiveCommunityNetwork({
   onShowToast,
   onSendCvToProfessional,
 }: LiveCommunityNetworkProps) {
-  const [subTab, setSubTab] = useState<'feed' | 'ghost' | 'directory'>('feed');
+  const [subTab, setSubTab] = useState<'feed' | 'ghost' | 'directory' | 'pulses'>('feed');
+
+  // Kin Pulses State (Portrait Video Section)
+  const [pulses, setPulses] = useState<KinPulseItem[]>(DEFAULT_PULSES);
+  const [activePulseIndex, setActivePulseIndex] = useState(0);
+  const [isPlayingPulse, setIsPlayingPulse] = useState(true);
+  const [isMutedPulse, setIsMutedPulse] = useState(true);
+  const [videoLoadError, setVideoLoadError] = useState<Record<string, boolean>>({});
 
   // Posts State
   const [posts, setPosts] = useState<SocialPostItem[]>([]);
@@ -485,6 +544,22 @@ export default function LiveCommunityNetwork({
           </button>
 
           <button
+            id="tab-kin-pulses"
+            onClick={() => setSubTab('pulses')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              subTab === 'pulses'
+                ? 'bg-gradient-to-r from-[#E25C38] to-amber-500 text-white shadow-sm ring-2 ring-[#E25C38]/20'
+                : 'text-slate-600 hover:text-[#E25C38] hover:bg-orange-50/50'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 fill-current" />
+            <span>Kin Pulses</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-white/20 font-mono">
+              {pulses.length}
+            </span>
+          </button>
+
+          <button
             id="tab-member-directory"
             onClick={() => setSubTab('directory')}
             className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -654,6 +729,67 @@ export default function LiveCommunityNetwork({
           <div className="lg:col-span-8 space-y-5">
             {subTab === 'feed' ? (
               <>
+                {/* Kin Pulses Stories / Portrait Preview Strip */}
+                <div className="p-3.5 sm:p-4 rounded-3xl bg-white/95 border border-slate-200/90 shadow-xs backdrop-blur-md">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#E25C38] to-amber-500 flex items-center justify-center text-white text-xs shadow-xs">
+                        <Zap className="w-3.5 h-3.5 fill-current" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black text-slate-900 tracking-tight flex items-center gap-1.5">
+                          Kin Pulses
+                          <span className="text-[10px] font-mono font-normal text-slate-500">• 9:16 Tech Demos</span>
+                        </h3>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setSubTab('pulses')}
+                      className="text-xs font-bold text-[#E25C38] hover:text-[#d04e2c] flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Watch All</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {pulses.map((pulse, idx) => (
+                      <div
+                        key={pulse.id}
+                        onClick={() => {
+                          setActivePulseIndex(idx);
+                          setSubTab('pulses');
+                        }}
+                        className="group relative h-24 rounded-2xl overflow-hidden bg-slate-900 cursor-pointer border border-slate-200 hover:border-[#E25C38] transition-all shadow-xs"
+                      >
+                        <img
+                          src={pulse.authorAvatar}
+                          alt={pulse.title}
+                          className="w-full h-full object-cover opacity-70 group-hover:scale-105 group-hover:opacity-90 transition-all duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-2.5 flex flex-col justify-between">
+                          <div className="flex items-center justify-between">
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#E25C38] text-white">
+                              {pulse.id}
+                            </span>
+                            <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-white">
+                              <Play className="w-2.5 h-2.5 fill-current" />
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-white line-clamp-1 group-hover:text-orange-200 transition-colors">
+                              {pulse.title}
+                            </p>
+                            <span className="text-[9px] text-slate-300 font-medium">
+                              {pulse.authorName}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Public Composer */}
                 <form
                   onSubmit={handlePublishPost}
@@ -1398,6 +1534,369 @@ export default function LiveCommunityNetwork({
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ═════════════════════════════════════════════════════════════════════
+          SUB-TAB 4: KIN PULSES (Vertical Tech Demos / Portrait Video Experience)
+          ═════════════════════════════════════════════════════════════════════ */}
+      {subTab === 'pulses' && (
+        <div className="pb-24 pt-2">
+          {/* Header Banner */}
+          <div className="mb-6 p-5 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-950 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-800">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#E25C38] to-amber-500 p-0.5 shadow-lg shrink-0">
+                <div className="w-full h-full rounded-[14px] bg-slate-950 flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-[#E25C38] fill-[#E25C38]" />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black tracking-tight text-white">Kin Pulses</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E25C38]/20 text-[#E25C38] border border-[#E25C38]/40">
+                    9:16 Portrait Demos
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Bite-sized architectural walkthroughs, AST parser breakdowns & live code showcases.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-start md:self-auto">
+              <span className="text-[11px] font-mono text-slate-300 bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5">
+                <Film className="w-3.5 h-3.5 text-amber-400" />
+                Folder: <code className="text-amber-300">public/videos/pulses/</code>
+              </span>
+            </div>
+          </div>
+
+          {/* Main 9:16 Feed Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-5xl mx-auto">
+            {/* Center Video Player (9:16 Portrait) */}
+            <div className="lg:col-span-7 flex flex-col items-center">
+              <div className="relative w-full max-w-[380px] aspect-[9/16] rounded-3xl overflow-hidden bg-slate-950 shadow-2xl border-4 border-slate-900 group">
+                {/* Video Element */}
+                <video
+                  key={pulses[activePulseIndex].id}
+                  src={pulses[activePulseIndex].videoSrc}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  loop
+                  playsInline
+                  muted={isMutedPulse}
+                  onError={() => {
+                    setVideoLoadError((prev) => ({ ...prev, [pulses[activePulseIndex].id]: true }));
+                  }}
+                  onLoadedData={() => {
+                    setVideoLoadError((prev) => ({ ...prev, [pulses[activePulseIndex].id]: false }));
+                  }}
+                  ref={(el) => {
+                    if (el) {
+                      if (isPlayingPulse) {
+                        el.play().catch(() => {});
+                      } else {
+                        el.pause();
+                      }
+                    }
+                  }}
+                />
+
+                {/* Fallback Screen if video file is not yet dropped in folder */}
+                {videoLoadError[pulses[activePulseIndex].id] && (
+                  <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-black p-6 flex flex-col justify-between text-white">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#E25C38]/20 text-[#E25C38] border border-[#E25C38]/30 flex items-center gap-1">
+                        <Zap className="w-3 h-3 fill-current" />
+                        {pulses[activePulseIndex].id.toUpperCase()}
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400">9:16 Portrait</span>
+                    </div>
+
+                    <div className="text-center py-6">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-[#E25C38] to-amber-500 p-0.5 shadow-xl animate-pulse">
+                        <div className="w-full h-full rounded-[14px] bg-slate-900 flex items-center justify-center">
+                          <Film className="w-8 h-8 text-amber-400" />
+                        </div>
+                      </div>
+                      <h4 className="text-sm font-bold text-white mb-1">
+                        Video slot ready: {pulses[activePulseIndex].id}.mp4
+                      </h4>
+                      <p className="text-[11px] text-slate-400 max-w-xs mx-auto leading-relaxed">
+                        Place your portrait video in{' '}
+                        <code className="text-amber-400 font-mono">public/videos/pulses/{pulses[activePulseIndex].id}.mp4</code>.
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+                      <p className="text-[10px] text-slate-300 font-mono">
+                        Pipeline: Listening for <span className="text-emerald-400">"{pulses[activePulseIndex].id}.mp4"</span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Top Overlay: Progress & Sound */}
+                <div className="absolute top-0 inset-x-0 p-4 bg-gradient-to-b from-black/80 via-black/30 to-transparent z-20 flex items-center justify-between pointer-events-auto">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-[#E25C38] animate-ping" />
+                    <span className="text-[11px] font-bold text-white tracking-wide">
+                      PULSE {activePulseIndex + 1} OF {pulses.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsMutedPulse(!isMutedPulse)}
+                      className="p-2 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 transition-all cursor-pointer"
+                      title={isMutedPulse ? 'Unmute' : 'Mute'}
+                    >
+                      {isMutedPulse ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => setIsPlayingPulse(!isPlayingPulse)}
+                      className="p-2 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 transition-all cursor-pointer"
+                      title={isPlayingPulse ? 'Pause' : 'Play'}
+                    >
+                      {isPlayingPulse ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Action Bar (Reels-style floating buttons) */}
+                <div className="absolute right-3 bottom-20 z-20 flex flex-col items-center gap-4">
+                  {/* Like Button */}
+                  <button
+                    onClick={() => {
+                      setPulses((prev) =>
+                        prev.map((p, idx) =>
+                          idx === activePulseIndex
+                            ? {
+                                ...p,
+                                isLiked: !p.isLiked,
+                                likes: p.isLiked ? p.likes - 1 : p.likes + 1,
+                              }
+                            : p
+                        )
+                      );
+                      onShowToast(pulses[activePulseIndex].isLiked ? 'Unliked Pulse' : 'Liked Pulse! ❤️');
+                    }}
+                    className="flex flex-col items-center gap-1 group/btn cursor-pointer"
+                  >
+                    <div
+                      className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-lg ${
+                        pulses[activePulseIndex].isLiked
+                          ? 'bg-rose-500 text-white scale-110'
+                          : 'bg-black/50 hover:bg-black/80 text-white border border-white/20'
+                      }`}
+                    >
+                      <Heart
+                        className={`w-5 h-5 ${
+                          pulses[activePulseIndex].isLiked ? 'fill-current' : ''
+                        }`}
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-white drop-shadow-md">
+                      {pulses[activePulseIndex].likes}
+                    </span>
+                  </button>
+
+                  {/* Comments count */}
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-11 h-11 rounded-full bg-black/50 text-white border border-white/20 flex items-center justify-center backdrop-blur-md">
+                      <MessageSquare className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-white drop-shadow-md">
+                      {pulses[activePulseIndex].commentsCount}
+                    </span>
+                  </div>
+
+                  {/* Share button */}
+                  <button
+                    onClick={() => {
+                      navigator.clipboard?.writeText?.(window.location.href);
+                      onShowToast('Pulse link copied to clipboard!');
+                    }}
+                    className="flex flex-col items-center gap-1 group/btn cursor-pointer"
+                  >
+                    <div className="w-11 h-11 rounded-full bg-black/50 hover:bg-black/80 text-white border border-white/20 flex items-center justify-center backdrop-blur-md transition-all">
+                      <Share2 className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-white drop-shadow-md">Share</span>
+                  </button>
+                </div>
+
+                {/* Bottom Overlay: Creator info, Title, Description, Tags */}
+                <div className="absolute bottom-0 inset-x-0 p-4 pt-12 bg-gradient-to-t from-black/95 via-black/70 to-transparent z-10 text-white">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <img
+                      src={pulses[activePulseIndex].authorAvatar}
+                      alt={pulses[activePulseIndex].authorName}
+                      className="w-8 h-8 rounded-full border border-white/40 object-cover shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-white truncate">
+                          {pulses[activePulseIndex].authorName}
+                        </span>
+                        <span className="text-[9px] bg-emerald-500/80 text-white px-1.5 py-0.2 rounded font-bold">
+                          ✓ Verified
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-300 truncate">
+                        {pulses[activePulseIndex].authorRole} • {pulses[activePulseIndex].authorInstitution}
+                      </p>
+                    </div>
+                  </div>
+
+                  <h4 className="text-xs font-black text-white leading-tight mb-1 line-clamp-2">
+                    {pulses[activePulseIndex].title}
+                  </h4>
+                  <p className="text-[11px] text-slate-300 line-clamp-2 leading-relaxed mb-2.5">
+                    {pulses[activePulseIndex].description}
+                  </p>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {pulses[activePulseIndex].tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-[9px] font-mono px-2 py-0.5 rounded-md bg-white/15 text-slate-200 backdrop-blur-xs"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Prev / Next controls below video */}
+              <div className="flex items-center gap-3 mt-4">
+                <button
+                  disabled={activePulseIndex === 0}
+                  onClick={() => {
+                    setActivePulseIndex((prev) => Math.max(0, prev - 1));
+                    setIsPlayingPulse(true);
+                  }}
+                  className={`px-4 py-2 rounded-2xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                    activePulseIndex === 0
+                      ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                      : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50 cursor-pointer shadow-xs'
+                  }`}
+                >
+                  <ChevronUp className="w-4 h-4" />
+                  <span>Previous Pulse</span>
+                </button>
+
+                <button
+                  disabled={activePulseIndex === pulses.length - 1}
+                  onClick={() => {
+                    setActivePulseIndex((prev) => Math.min(pulses.length - 1, prev + 1));
+                    setIsPlayingPulse(true);
+                  }}
+                  className={`px-4 py-2 rounded-2xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                    activePulseIndex === pulses.length - 1
+                      ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                      : 'bg-[#E25C38] text-white border-[#E25C38] hover:bg-[#d04e2c] cursor-pointer shadow-xs'
+                  }`}
+                >
+                  <span>Next Pulse</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Right Side: Pulse Catalog & Upload Guide */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="p-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                    <Film className="w-4 h-4 text-[#E25C38]" />
+                    Available Pulses ({pulses.length})
+                  </h4>
+                  <span className="text-[10px] text-slate-400 font-mono">Select to Play</span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {pulses.map((pulse, idx) => {
+                    const isSelected = idx === activePulseIndex;
+                    return (
+                      <div
+                        key={pulse.id}
+                        onClick={() => {
+                          setActivePulseIndex(idx);
+                          setIsPlayingPulse(true);
+                        }}
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${
+                          isSelected
+                            ? 'bg-orange-50/70 border-[#E25C38] shadow-xs ring-1 ring-[#E25C38]/20'
+                            : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-100 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="relative w-14 h-20 rounded-xl overflow-hidden bg-slate-900 shrink-0 border border-slate-200">
+                          <img
+                            src={pulse.authorAvatar}
+                            alt={pulse.authorName}
+                            className="w-full h-full object-cover opacity-80"
+                          />
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            {isSelected && isPlayingPulse ? (
+                              <div className="w-3 h-3 rounded-full bg-[#E25C38] animate-ping" />
+                            ) : (
+                              <Play className="w-4 h-4 text-white fill-white" />
+                            )}
+                          </div>
+                          <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded text-[8px] font-mono font-bold bg-black/70 text-white">
+                            9:16
+                          </span>
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] font-mono font-bold text-[#E25C38] bg-orange-100 px-1.5 py-0.2 rounded">
+                              {pulse.id}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-medium truncate">
+                              by {pulse.authorName}
+                            </span>
+                          </div>
+                          <h5 className="text-xs font-bold text-slate-900 truncate mt-0.5">
+                            {pulse.title}
+                          </h5>
+                          <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
+                            {pulse.description}
+                          </p>
+                          <div className="flex items-center gap-3 mt-1.5 text-[10px] text-slate-400 font-mono">
+                            <span>❤️ {pulse.likes}</span>
+                            <span>💬 {pulse.commentsCount}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Instructions Box for user */}
+              <div className="p-4 rounded-3xl bg-amber-50/70 border border-amber-200/80 shadow-xs">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-100 text-amber-800 shrink-0">
+                    <Zap className="w-4 h-4 fill-current" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-amber-950">How to add your videos</h5>
+                    <p className="text-[11px] text-amber-900/80 mt-1 leading-relaxed">
+                      Drop your portrait videos directly into:
+                    </p>
+                    <code className="block mt-1.5 text-[10px] font-mono bg-white/80 p-2 rounded-xl border border-amber-200 text-amber-950 select-all">
+                      frontend/public/videos/pulses/pulse-1.mp4<br />
+                      frontend/public/videos/pulses/pulse-2.mp4
+                    </code>
+                    <p className="text-[10px] text-amber-800/80 mt-2">
+                      The player automatically plays them in loop with portrait audio and interactive counters.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       {/* Senior Professional Authentic Journey / Time Machine Modal */}
