@@ -2,25 +2,22 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import confetti from 'canvas-confetti';
 import { 
   X, 
   ArrowRight, 
+  ArrowLeft,
   Lock, 
   Mail, 
   User, 
-  Sparkles,
-  Loader2,
+  GraduationCap, 
+  Briefcase, 
+  Loader2, 
   AlertCircle,
-  UploadCloud,
-  FileText,
   CheckCircle2,
-  Zap,
-  Building2
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 import { 
   auth, 
   googleProvider, 
@@ -30,43 +27,21 @@ import {
   FirebaseUser
 } from '@/lib/firebase';
 import { syncMemberToDatabase } from '@/lib/syncMember';
-import { DARSH_OHRI_PROFILE } from '@/data/darshProfile';
 
 export default function AuthModal() {
   const router = useRouter();
-  const { 
-    isAuthModalOpen, 
-    closeAuthModal, 
-    syncWithDatabase, 
-    login, 
-    setActiveRole, 
-    setParsedProfile,
-    updateUserProfile 
-  } = useAuth();
+  const { isAuthModalOpen, closeAuthModal, syncWithDatabase, login, setActiveRole, openProfileModal } = useAuth();
 
-  // Wizard state: 'auth' -> 'upload_cv' -> 'analyzing'
-  const [modalStep, setModalStep] = useState<'auth' | 'upload_cv' | 'analyzing'>('auth');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [signUpStep, setSignUpStep] = useState<'role' | 'credentials'>('role');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // Authenticated user state
-  const [authUser, setAuthUser] = useState<{
-    email: string;
-    name: string;
-    uid?: string;
-    avatarUrl?: string;
-  } | null>(null);
 
   // Form State
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
-  // CV Upload State
-  const [isDragging, setIsDragging] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [analysisStatus, setAnalysisStatus] = useState('Reading document AST structure...');
+  const [userType, setUserType] = useState<'student' | 'professional'>('student');
 
   if (!isAuthModalOpen) return null;
 
@@ -74,49 +49,110 @@ export default function AuthModal() {
     closeAuthModal();
     setErrorMessage(null);
     setLoading(false);
-    setModalStep('auth');
-    setSelectedFile(null);
   };
 
-  // Called when Firebase Authentication succeeds
-  const onAuthenticationSuccess = async (
+  // Helper for Log In (Sign In) - Takes user directly to dashboard, NEVER forces profile setup
+  const completeSignInAndRedirect = async (
     userEmail: string,
     userName: string,
     fbUid?: string,
     avatarUrl?: string
   ) => {
-    const finalEmail = userEmail || 'builder@kin.network';
-    const finalName = userName || finalEmail.split('@')[0];
+    // Check if user already has an established role in localStorage or default to student
+    let existingRole: 'Student' | 'Alumni' = 'Student';
+    let existingUserType: 'student' | 'professional' = 'student';
 
-    setAuthUser({
-      email: finalEmail,
-      name: finalName,
-      uid: fbUid,
-      avatarUrl,
-    });
+    try {
+      const storedCompleted = localStorage.getItem('kin_completed_profile');
+      const storedAuth = localStorage.getItem('kin_user_auth');
+      const profile = storedCompleted ? JSON.parse(storedCompleted) : storedAuth ? JSON.parse(storedAuth) : null;
+      if (profile) {
+        if (profile.role === 'Alumni' || profile.userType === 'professional') {
+          existingRole = 'Alumni';
+          existingUserType = 'professional';
+        }
+      }
+    } catch {
+      // fallback
+    }
 
-    // Save basic authenticated profile
-    login(finalName, finalEmail, 'Student', 'IIIT Delhi');
-    setActiveRole('Student');
-
-    // Pre-sync with Member database
+    // Sync member in database
     await syncMemberToDatabase({
-      email: finalEmail,
-      name: finalName,
-      role: 'Student',
-      userType: 'student',
-      institution: 'IIIT Delhi',
-      headline: 'Student Builder • IIIT Delhi',
+      email: userEmail,
+      name: userName,
+      role: existingRole,
+      userType: existingUserType,
       avatarUrl,
     });
 
-    // Advance directly to the Upload Resume / CV step! Zero questions about student vs alumni!
-    setLoading(false);
-    setModalStep('upload_cv');
+    try {
+      await syncWithDatabase({
+        firebaseUid: fbUid || `user_${Date.now()}`,
+        email: userEmail,
+        fullName: userName,
+        userType: existingUserType,
+        institutionOrCompany: existingUserType === 'student' ? 'IIIT Delhi' : 'Enterprise Tech',
+      });
+    } catch {
+      login(userName, userEmail, existingRole);
+    }
+
+    setActiveRole(existingRole);
+    handleClose();
+    // Direct to dashboard without setup query param
+    router.push(`/dashboard?role=${existingRole.toLowerCase()}`);
   };
 
-  // 1-Click Continue with Google
-  const handleGoogleSignIn = async () => {
+  // Helper for Sign Up - Sets role, creates account, and MANDATORILY opens respective profile setup
+  const completeSignUpAndOpenProfileSetup = async (
+    userEmail: string,
+    userName: string,
+    roleType: 'student' | 'professional',
+    fbUid?: string,
+    avatarUrl?: string
+  ) => {
+    const chosenRole: 'Student' | 'Alumni' = roleType === 'student' ? 'Student' : 'Alumni';
+    const fallbackInst = roleType === 'student' ? 'IIIT Delhi' : 'Enterprise Tech';
+
+    // 1. Initial sync to Prisma database
+    await syncMemberToDatabase({
+      email: userEmail,
+      name: userName,
+      role: chosenRole,
+      userType: roleType,
+      institution: fallbackInst,
+      headline: roleType === 'student' ? 'Student Builder • IIIT Delhi' : 'Verified Industry Professional',
+      avatarUrl,
+    });
+
+    // 2. Sync with backend
+    try {
+      await syncWithDatabase({
+        firebaseUid: fbUid || `user_${Date.now()}`,
+        email: userEmail,
+        fullName: userName,
+        userType: roleType,
+        studentId: roleType === 'student' ? '2024-IIITD-4029' : undefined,
+        businessId: roleType === 'professional' ? 'CORP-VERIFIED-9001' : undefined,
+        institutionOrCompany: fallbackInst,
+      });
+    } catch {
+      login(userName, userEmail, chosenRole, fallbackInst);
+    }
+
+    setActiveRole(chosenRole);
+    handleClose();
+
+    // Launch respective profile setup wizard mandatorily
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('kin_mandatory_profile_setup', 'true');
+    }
+    openProfileModal();
+    router.push(`/dashboard?role=${roleType === 'student' ? 'student' : 'alumni'}&setup=true`);
+  };
+
+  // Google 1-Click Action
+  const handleGoogleAuth = async () => {
     setErrorMessage(null);
     setLoading(true);
 
@@ -125,28 +161,50 @@ export default function AuthModal() {
       const fbUser = result.user;
       const userEmail = fbUser.email || email.trim() || 'user@kin.network';
       const userName = fbUser.displayName || userEmail.split('@')[0];
+      const photoURL = fbUser.photoURL || undefined;
 
-      await onAuthenticationSuccess(
-        userEmail,
-        userName,
-        fbUser.uid,
-        fbUser.photoURL || undefined
-      );
+      if (authMode === 'signup') {
+        await completeSignUpAndOpenProfileSetup(
+          userEmail,
+          userName,
+          userType,
+          fbUser.uid,
+          photoURL
+        );
+      } else {
+        await completeSignInAndRedirect(
+          userEmail,
+          userName,
+          fbUser.uid,
+          photoURL
+        );
+      }
     } catch (err: any) {
       console.warn('Google Auth popup notice:', err);
-      // Seamless fallback if Google popup is closed or credentials offline
-      const userTypedEmail = email.trim() || 'darshohri@gmail.com';
+      // Seamless fallback if popup is blocked
+      const userTypedEmail = email.trim() || 'adityaa6060@gmail.com';
       const userDerivedName = name.trim() || userTypedEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-      await onAuthenticationSuccess(
-        userTypedEmail,
-        userDerivedName,
-        `google_fallback_${Date.now()}`
-      );
+      if (authMode === 'signup') {
+        await completeSignUpAndOpenProfileSetup(
+          userTypedEmail,
+          userDerivedName,
+          userType,
+          `google_${Date.now()}`
+        );
+      } else {
+        await completeSignInAndRedirect(
+          userTypedEmail,
+          userDerivedName,
+          `google_${Date.now()}`
+        );
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Handle Email + Password Sign In / Sign Up
+  // Email + Password Form Submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -184,7 +242,17 @@ export default function AuthModal() {
             throw fbErr;
           }
         }
+
+        const finalName = name.trim() || fbUser?.displayName || trimmedEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        await completeSignUpAndOpenProfileSetup(
+          trimmedEmail,
+          finalName,
+          userType,
+          fbUser?.uid,
+          fbUser?.photoURL || undefined
+        );
       } else {
+        // Sign In Flow
         try {
           const userCred = await signInWithEmailAndPassword(auth, trimmedEmail, password);
           fbUser = userCred.user;
@@ -199,156 +267,25 @@ export default function AuthModal() {
             throw fbErr;
           }
         }
+
+        const finalName = name.trim() || fbUser?.displayName || trimmedEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        await completeSignInAndRedirect(
+          trimmedEmail,
+          finalName,
+          fbUser?.uid,
+          fbUser?.photoURL || undefined
+        );
       }
-
-      const finalName = name.trim() || fbUser?.displayName || trimmedEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-
-      await onAuthenticationSuccess(
-        trimmedEmail,
-        finalName,
-        fbUser?.uid || `fb_${Date.now()}`
-      );
     } catch (err: any) {
-      console.warn('Authentication error:', err);
+      console.warn('Auth Error:', err);
       let userFriendlyMsg = err.message || 'Authentication failed. Please verify credentials.';
       if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        userFriendlyMsg = 'Invalid password for this account. Please verify and retry.';
+        userFriendlyMsg = 'Incorrect password for this account. Please try again.';
       }
       setErrorMessage(userFriendlyMsg);
+    } finally {
       setLoading(false);
     }
-  };
-
-  // 1-Click Quick Demo Access
-  const handleQuickDemo = async (demoName: string, demoEmail: string) => {
-    setLoading(true);
-    await onAuthenticationSuccess(
-      demoEmail,
-      demoName,
-      `demo_${Date.now()}`
-    );
-  };
-
-  // Parse and Finalize Resume / CV
-  const processResumeContent = async (text: string, fileName?: string, isSample = false) => {
-    setModalStep('analyzing');
-    setAnalysisStatus('Kin AI reading document structure...');
-
-    const timer1 = setTimeout(() => {
-      setAnalysisStatus('Extracting verified technical skills & frameworks...');
-    }, 900);
-
-    const timer2 = setTimeout(() => {
-      setAnalysisStatus('Calibrating career milestones & AST velocity...');
-    }, 1800);
-
-    try {
-      let profileData = null;
-
-      if (isSample) {
-        profileData = DARSH_OHRI_PROFILE;
-      } else {
-        const res = await fetch('/api/parse-resume', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text,
-            fileName: fileName || 'Resume.pdf',
-            isSampleDarsh: false,
-          }),
-        });
-        const data = await res.json();
-        if (data.success && data.profile) {
-          profileData = data.profile;
-        } else {
-          profileData = DARSH_OHRI_PROFILE;
-        }
-      }
-
-      // Populate Auth Profile & Session
-      if (profileData) {
-        setParsedProfile(profileData);
-        updateUserProfile({
-          ...profileData,
-          name: profileData.name || authUser?.name || 'Verified Member',
-          email: authUser?.email || profileData.email,
-        });
-
-        await syncMemberToDatabase({
-          email: authUser?.email || profileData.email || 'builder@kin.network',
-          name: profileData.name || authUser?.name || 'Verified Builder',
-          role: 'Student',
-          userType: 'student',
-          institution: profileData.institution || 'IIIT Delhi',
-          headline: profileData.role || 'Full-Stack & AI Systems Developer',
-          skills: profileData.skills || ['React', 'Next.js', 'Python', 'FastAPI'],
-          githubUrl: profileData.githubUrl,
-          linkedinUrl: profileData.linkedinUrl,
-          portfolioUrl: profileData.portfolioUrl,
-          avatarUrl: authUser?.avatarUrl,
-        });
-
-        try {
-          await syncWithDatabase({
-            firebaseUid: authUser?.uid || `usr_${Date.now()}`,
-            email: authUser?.email || profileData.email || 'builder@kin.network',
-            fullName: profileData.name || authUser?.name || 'Verified Builder',
-            userType: 'student',
-            studentId: '2024-IIITD-4029',
-            institutionOrCompany: profileData.institution || 'IIIT Delhi',
-            departmentOrTitle: profileData.role || 'Computer Science & AI',
-          });
-        } catch {}
-      }
-
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-
-      // Trigger celebration confetti
-      try {
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.5 } });
-      } catch {}
-
-      handleClose();
-      // Seamlessly land in the glassmorphism dashboard
-      router.push('/dashboard?role=student');
-    } catch (err) {
-      console.error('Error parsing resume:', err);
-      // Fallback gracefully to Darsh profile and enter dashboard
-      setParsedProfile(DARSH_OHRI_PROFILE);
-      handleClose();
-      router.push('/dashboard?role=student');
-    }
-  };
-
-  // Handle file drop / file pick
-  const handleFileProcess = async (file: File) => {
-    setSelectedFile(file);
-    try {
-      let extractedText = '';
-      if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
-        extractedText = await file.text();
-      } else {
-        extractedText = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const content = e.target?.result;
-            resolve(typeof content === 'string' ? content : file.name);
-          };
-          reader.readAsText(file);
-        });
-      }
-      await processResumeContent(extractedText, file.name, false);
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Error processing resume file.');
-      setModalStep('upload_cv');
-    }
-  };
-
-  // Skip directly to dashboard without uploading
-  const handleSkipToDashboard = () => {
-    handleClose();
-    router.push('/dashboard?role=student');
   };
 
   return (
@@ -360,80 +297,93 @@ export default function AuthModal() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={handleClose}
-          className="fixed inset-0 bg-black/65 backdrop-blur-md"
+          className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm"
         />
 
-        {/* Modal Window */}
+        {/* Modal Window - Warm Light Themed */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          initial={{ opacity: 0, scale: 0.96, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 320 }}
-          className="relative w-full max-w-md overflow-hidden rounded-3xl bg-neutral-900/95 border border-white/10 shadow-2xl p-6 sm:p-8 z-10 text-white"
+          exit={{ opacity: 0, scale: 0.96, y: 12 }}
+          transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+          className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white border border-stone-200/90 shadow-2xl p-6 sm:p-8 z-10 text-stone-900"
         >
-          {/* Header gradient glow */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-28 bg-gradient-to-r from-orange-500/20 via-rose-500/20 to-amber-500/20 blur-3xl pointer-events-none" />
+          {/* Subtle warm glow behind header */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-20 bg-orange-400/10 blur-2xl pointer-events-none" />
 
           {/* Close button */}
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition cursor-pointer"
+            className="absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-800 rounded-full bg-stone-100 hover:bg-stone-200 transition"
           >
             <X size={18} />
           </button>
 
-          {/* ═══════════════════════════════════════════════════════════════
-              STEP 1: FIREBASE AUTHENTICATION (Google 1-Click / Email)
-              ═══════════════════════════════════════════════════════════════ */}
-          {modalStep === 'auth' && (
-            <div className="animate-in fade-in duration-150">
-              {/* Title and Branding */}
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#E25C38] to-orange-400 text-white shadow-lg shadow-orange-500/20 mb-3">
-                  <Sparkles size={24} />
-                </div>
-                <h2 className="text-2xl font-black tracking-tight text-white">
-                  {authMode === 'signin' ? 'Welcome to KIN' : 'Join KIN Network'}
-                </h2>
-                <p className="text-xs text-neutral-400 mt-1">
-                  Connect with verified campus builders, alumni, and industry leaders
-                </p>
-              </div>
+          {/* KIN Icon & Branding Header */}
+          <div className="text-center mb-5">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-stone-50 border border-stone-200/80 shadow-xs mb-3 p-2">
+              <img 
+                src="/images/kin_logo.png" 
+                alt="KIN" 
+                className="w-10 h-10 object-contain" 
+              />
+            </div>
+            <h2 className="text-2xl font-black tracking-tight text-stone-900">
+              {authMode === 'signin' ? 'Welcome Back to KIN' : 'Join KIN Network'}
+            </h2>
+            <p className="text-xs text-stone-500 mt-1 max-w-xs mx-auto">
+              {authMode === 'signin'
+                ? 'Sign in to access your verified campus & career engine'
+                : 'Connect with verified campus builders, alumni, and industry leaders'}
+            </p>
+          </div>
 
-              {/* Tab Switcher: Sign In vs Create Account */}
-              <div className="flex rounded-xl bg-white/5 p-1 mb-5 border border-white/10">
-                <button
-                  type="button"
-                  onClick={() => { setAuthMode('signin'); setErrorMessage(null); }}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    authMode === 'signin'
-                      ? 'bg-neutral-800 text-white shadow'
-                      : 'text-neutral-400 hover:text-white'
-                  }`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setAuthMode('signup'); setErrorMessage(null); }}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    authMode === 'signup'
-                      ? 'bg-neutral-800 text-white shadow'
-                      : 'text-neutral-400 hover:text-white'
-                  }`}
-                >
-                  Create Account
-                </button>
-              </div>
+          {/* Top Switcher: Sign In vs Create Account */}
+          <div className="flex rounded-xl bg-stone-100 p-1 mb-5 border border-stone-200/70">
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('signin');
+                setErrorMessage(null);
+              }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                authMode === 'signin'
+                  ? 'bg-white text-stone-900 shadow-sm'
+                  : 'text-stone-500 hover:text-stone-900'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('signup');
+                setSignUpStep('role');
+                setErrorMessage(null);
+              }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                authMode === 'signup'
+                  ? 'bg-white text-stone-900 shadow-sm'
+                  : 'text-stone-500 hover:text-stone-900'
+              }`}
+            >
+              Create Account
+            </button>
+          </div>
 
+          {/* ═══════════════════════════════════════════════════════════════════════
+              MODE 1: SIGN IN (Direct, remembers user, no questions, straight to dashboard)
+              ═══════════════════════════════════════════════════════════════════════ */}
+          {authMode === 'signin' && (
+            <div className="space-y-4">
               {/* Google 1-Click Sign In */}
               <button
                 type="button"
-                onClick={handleGoogleSignIn}
+                onClick={handleGoogleAuth}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-white text-neutral-900 font-bold text-sm hover:bg-neutral-100 transition shadow-md active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-white border border-stone-200 text-stone-800 font-semibold text-sm hover:bg-stone-50 transition shadow-xs active:scale-[0.99] disabled:opacity-50 cursor-pointer"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -454,251 +404,285 @@ export default function AuthModal() {
                 Continue with Google
               </button>
 
-              <div className="relative my-5">
+              <div className="relative my-3">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/10" />
+                  <div className="w-full border-t border-stone-200" />
                 </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="bg-neutral-900 px-3 text-neutral-400">or with email</span>
+                <div className="relative flex justify-center text-[11px]">
+                  <span className="bg-white px-3 text-stone-400 font-medium">or with email</span>
                 </div>
               </div>
 
               {/* Form */}
-              <form onSubmit={handleSubmit} className="space-y-3.5">
-                {authMode === 'signup' && (
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">Full Name</label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Darsh Ohri"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-orange-500 transition"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Email */}
+              <form onSubmit={handleSubmit} className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">Email Address</label>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Email Address</label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
                     <input
                       type="email"
                       required
-                      placeholder="e.g. you@example.com"
+                      placeholder="e.g. aditya@iiitd.ac.in"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-orange-500 transition"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:bg-white focus:border-[#E25C38] focus:ring-2 focus:ring-[#E25C38]/10 transition"
                     />
                   </div>
                 </div>
 
-                {/* Password */}
                 <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">Password</label>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
                     <input
                       type="password"
                       required
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-orange-500 transition"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:bg-white focus:border-[#E25C38] focus:ring-2 focus:ring-[#E25C38]/10 transition"
                     />
                   </div>
                 </div>
 
-                {/* Error Message */}
                 {errorMessage && (
-                  <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
                     <AlertCircle size={15} className="shrink-0" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
 
-                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-[#E25C38] to-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-500/25 hover:opacity-95 transition active:scale-[0.99] disabled:opacity-50 mt-2 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#E25C38] hover:bg-[#cf4b27] text-white font-bold text-sm shadow-md shadow-[#E25C38]/20 transition active:scale-[0.99] disabled:opacity-50 cursor-pointer mt-2"
                 >
                   {loading ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      <span>Authenticating...</span>
+                      <span>Signing in...</span>
                     </>
                   ) : (
                     <>
-                      <span>{authMode === 'signin' ? 'Continue with Email' : 'Create Account'}</span>
+                      <span>Sign In to Dashboard</span>
                       <ArrowRight size={16} />
                     </>
                   )}
                 </button>
               </form>
-
-              {/* Quick 1-Tap Demo Shortcuts */}
-              <div className="mt-5 pt-4 border-t border-white/10 text-center">
-                <div className="text-[11px] text-neutral-400 mb-2 font-medium">⚡ Quick 1-Tap Access:</div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemo('Darsh Ohri', 'darshohri@gmail.com')}
-                    className="flex-1 py-1.5 px-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-[11px] text-neutral-300 hover:text-white transition flex items-center justify-center gap-1.5 cursor-pointer font-bold"
-                  >
-                    <Sparkles size={13} className="text-orange-400" />
-                    Darsh Ohri (Demo)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemo('Aditya Sharma', 'aditya@iiitd.ac.in')}
-                    className="flex-1 py-1.5 px-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-[11px] text-neutral-300 hover:text-white transition flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <span>IIITD Student</span>
-                  </button>
-                </div>
-              </div>
             </div>
           )}
 
-          {/* ═══════════════════════════════════════════════════════════════
-              STEP 2: UPLOAD RESUME / CV TAB (DIRECTLY AFTER FIREBASE AUTH)
-              ═══════════════════════════════════════════════════════════════ */}
-          {modalStep === 'upload_cv' && (
-            <div className="animate-in fade-in duration-200">
-              <div className="text-center mb-5">
-                <div className="relative inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-white mb-3">
-                  <Image
-                    src="/images/kin_mascot_transparent.png"
-                    alt="Kin AI Mascot"
-                    width={44}
-                    height={44}
-                    priority
-                    className="object-contain"
-                  />
-                </div>
-                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                  Upload Your CV / Resume
-                </h2>
-                <p className="text-xs text-neutral-400 mt-1 max-w-sm mx-auto leading-relaxed">
-                  Welcome, <strong className="text-white">{authUser?.name || 'Builder'}</strong>! Let Kin AI read your skills and project milestones to configure your dashboard.
-                </p>
+          {/* ═══════════════════════════════════════════════════════════════════════
+              MODE 2: SIGN UP STEP 1 - AUTOMATIC ROLE SELECTION SCREEN
+              (Student or Professional First)
+              ═══════════════════════════════════════════════════════════════════════ */}
+          {authMode === 'signup' && signUpStep === 'role' && (
+            <div className="space-y-4">
+              <div className="text-center mb-1">
+                <span className="text-[11px] font-bold text-[#E25C38] tracking-wider uppercase">
+                  Step 1 of 2
+                </span>
+                <h3 className="text-sm font-bold text-stone-900">
+                  Select Your Persona
+                </h3>
               </div>
 
-              {/* Drag & Drop File Zone */}
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                  if (e.dataTransfer.files?.[0]) {
-                    handleFileProcess(e.dataTransfer.files[0]);
-                  }
-                }}
-                className={`relative rounded-2xl border-2 border-dashed p-6 text-center transition-all flex flex-col items-center justify-center cursor-pointer mb-4 ${
-                  isDragging
-                    ? 'border-[#E25C38] bg-orange-500/10'
-                    : 'border-white/15 bg-white/5 hover:border-orange-500/50 hover:bg-white/[0.07]'
-                }`}
-              >
-                <input
-                  type="file"
-                  id="cv-upload-input"
-                  accept=".pdf,.doc,.docx,.txt,.md"
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      handleFileProcess(e.target.files[0]);
-                    }
-                  }}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-
-                <div className="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center mb-2.5 text-[#E25C38]">
-                  <UploadCloud size={24} />
-                </div>
-                <span className="text-sm font-bold text-white mb-0.5">
-                  Click to browse or drop your CV
-                </span>
-                <span className="text-[11px] text-neutral-400">
-                  Supports PDF, DOCX, TXT, or Markdown
-                </span>
-              </div>
-
-              {/* Instant 1-Click Sample Resume Option */}
-              <button
-                type="button"
-                onClick={() => processResumeContent('', 'Darsh_Ohri_CV.pdf', true)}
-                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-orange-500/5 border border-orange-500/30 hover:border-orange-500/60 transition group cursor-pointer text-left mb-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-[#E25C38] text-white flex items-center justify-center shrink-0">
-                    <Zap size={16} />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-white block">
-                      Use Sample Student Resume
-                    </span>
-                    <span className="text-[10px] text-neutral-400 block">
-                      Darsh Ohri • Full-Stack & AI Systems Developer
-                    </span>
-                  </div>
-                </div>
-                <ArrowRight size={15} className="text-orange-400 group-hover:translate-x-1 transition-transform" />
-              </button>
-
-              {/* Skip Option */}
-              <div className="text-center pt-2">
+              {/* Persona Cards */}
+              <div className="grid grid-cols-1 gap-3">
+                {/* Option 1: Student */}
                 <button
                   type="button"
-                  onClick={handleSkipToDashboard}
-                  className="text-xs text-neutral-400 hover:text-white transition underline cursor-pointer"
+                  onClick={() => {
+                    setUserType('student');
+                    setSignUpStep('credentials');
+                  }}
+                  className="p-4 rounded-2xl border-2 border-stone-200 hover:border-[#E25C38] bg-stone-50/60 hover:bg-orange-50/30 transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-2xs hover:shadow-xs"
                 >
-                  Skip for now & enter dashboard →
+                  <div className="w-11 h-11 rounded-xl bg-orange-100 text-[#E25C38] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <GraduationCap size={22} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <h4 className="text-sm font-bold text-stone-900 group-hover:text-[#E25C38] transition-colors">
+                        Student Builder
+                      </h4>
+                      <ChevronRight size={16} className="text-stone-400 group-hover:text-[#E25C38] transition-colors" />
+                    </div>
+                    <p className="text-xs text-stone-500 leading-relaxed">
+                      Showcase proof-of-work, get verified student badge, discover alumni mentors & internships.
+                    </p>
+                    <span className="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-[#E25C38]">
+                      Campus & University
+                    </span>
+                  </div>
+                </button>
+
+                {/* Option 2: Professional / Alumni */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserType('professional');
+                    setSignUpStep('credentials');
+                  }}
+                  className="p-4 rounded-2xl border-2 border-stone-200 hover:border-stone-900 bg-stone-50/60 hover:bg-stone-100/60 transition-all text-left flex items-start gap-3.5 group cursor-pointer shadow-2xs hover:shadow-xs"
+                >
+                  <div className="w-11 h-11 rounded-xl bg-stone-900 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Briefcase size={22} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <h4 className="text-sm font-bold text-stone-900 transition-colors">
+                        Professional / Alumni
+                      </h4>
+                      <ChevronRight size={16} className="text-stone-400 group-hover:text-stone-900 transition-colors" />
+                    </div>
+                    <p className="text-xs text-stone-500 leading-relaxed">
+                      Offer office hours, discover emerging engineering talent, guide student projects & mentor peers.
+                    </p>
+                    <span className="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold bg-stone-200 text-stone-800">
+                      Industry & Alumni
+                    </span>
+                  </div>
                 </button>
               </div>
             </div>
           )}
 
-          {/* ═══════════════════════════════════════════════════════════════
-              STEP 3: KIN AI SCANNING & ANALYZING RESUME
-              ═══════════════════════════════════════════════════════════════ */}
-          {modalStep === 'analyzing' && (
-            <div className="py-8 flex flex-col items-center text-center animate-in fade-in duration-200">
-              <div className="relative mb-6">
-                <div className="w-20 h-20 rounded-full bg-orange-500/20 animate-ping absolute inset-0" />
-                <div className="relative w-20 h-20 rounded-3xl bg-neutral-800 border border-orange-500/40 flex items-center justify-center filter drop-shadow-xl">
-                  <Image
-                    src="/images/kin_mascot_transparent.png"
-                    alt="Kin Analyzing"
-                    width={56}
-                    height={56}
-                    priority
-                    className="object-contain animate-bounce"
+          {/* ═══════════════════════════════════════════════════════════════════════
+              MODE 2: SIGN UP STEP 2 - CREDENTIALS & LAUNCH PROFILE SETUP
+              ═══════════════════════════════════════════════════════════════════════ */}
+          {authMode === 'signup' && signUpStep === 'credentials' && (
+            <div className="space-y-3.5">
+              {/* Role Selection Badge with Change Button */}
+              <div className="flex items-center justify-between p-2.5 px-3 rounded-xl bg-stone-100 border border-stone-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-stone-500">Signing up as:</span>
+                  <span className={`text-xs font-bold flex items-center gap-1 ${
+                    userType === 'student' ? 'text-[#E25C38]' : 'text-stone-900'
+                  }`}>
+                    {userType === 'student' ? <GraduationCap size={14} /> : <Briefcase size={14} />}
+                    {userType === 'student' ? 'Student Builder' : 'Professional / Alumni'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSignUpStep('role')}
+                  className="text-[11px] font-semibold text-stone-500 hover:text-stone-900 underline cursor-pointer"
+                >
+                  Change
+                </button>
+              </div>
+
+              {/* Google 1-Click Sign Up */}
+              <button
+                type="button"
+                onClick={handleGoogleAuth}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-white border border-stone-200 text-stone-800 font-semibold text-sm hover:bg-stone-50 transition shadow-xs active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+              >
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                   />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+                Continue with Google
+              </button>
+
+              <div className="relative my-2">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-stone-200" />
+                </div>
+                <div className="relative flex justify-center text-[11px]">
+                  <span className="bg-white px-3 text-stone-400 font-medium">or register with email</span>
                 </div>
               </div>
 
-              <h3 className="text-lg font-black text-white mb-2">Kin AI is Reading Your CV</h3>
-              <p className="text-xs text-orange-400 font-mono font-medium mb-6 animate-pulse">
-                {analysisStatus}
-              </p>
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Full Name</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Aditya Sharma"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:bg-white focus:border-[#E25C38] focus:ring-2 focus:ring-[#E25C38]/10 transition"
+                    />
+                  </div>
+                </div>
 
-              <div className="w-full max-w-xs h-2 rounded-full bg-white/10 overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-[#E25C38] via-orange-400 to-amber-400 rounded-full animate-[pulse_1.5s_ease-in-out_infinite]" style={{ width: '85%' }} />
-              </div>
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
+                    <input
+                      type="email"
+                      required
+                      placeholder={userType === 'student' ? 'e.g. yourname@iiitd.ac.in' : 'e.g. name@company.com'}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:bg-white focus:border-[#E25C38] focus:ring-2 focus:ring-[#E25C38]/10 transition"
+                    />
+                  </div>
+                </div>
 
-              <span className="text-[10px] text-neutral-500 mt-4">
-                Extracting technical skills, GitHub velocity, and career milestones...
-              </span>
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:bg-white focus:border-[#E25C38] focus:ring-2 focus:ring-[#E25C38]/10 transition"
+                    />
+                  </div>
+                </div>
+
+                {errorMessage && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                    <AlertCircle size={15} className="shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#E25C38] hover:bg-[#cf4b27] text-white font-bold text-sm shadow-md shadow-[#E25C38]/20 transition active:scale-[0.99] disabled:opacity-50 cursor-pointer mt-2"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Creating Account...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Continue to Profile Setup</span>
+                      <ArrowRight size={16} />
+                    </>
+                  )}
+                </button>
+              </form>
             </div>
           )}
         </motion.div>

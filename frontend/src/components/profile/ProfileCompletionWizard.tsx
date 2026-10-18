@@ -76,6 +76,11 @@ export default function ProfileCompletionWizard({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const isMandatory =
+    typeof window !== 'undefined' &&
+    (sessionStorage.getItem('kin_mandatory_profile_setup') === 'true' ||
+      new URLSearchParams(window.location.search).get('setup') === 'true');
+
   // Student Form State
   const [name, setName] = useState(user?.name || '');
   const [institution, setInstitution] = useState(user?.institution || 'IIIT Delhi');
@@ -225,11 +230,22 @@ export default function ProfileCompletionWizard({
         }),
       });
 
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('kin_mandatory_profile_setup');
+        try {
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.delete('setup');
+          window.history.replaceState({}, '', currentUrl.toString());
+        } catch {
+          // ignore
+        }
+      }
+
       setSaveSuccess(true);
       setTimeout(() => {
         onClose();
         router.push(`/dashboard?role=${roleType === 'professional' ? 'alumni' : 'student'}`);
-      }, 1200);
+      }, 1000);
     } catch (err) {
       console.error('Failed to complete profile:', err);
     } finally {
@@ -248,13 +264,19 @@ export default function ProfileCompletionWizard({
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           className="relative w-full max-w-2xl rounded-[32px] bg-white border border-slate-100 p-6 sm:p-9 shadow-[0_30px_90px_rgba(0,0,0,0.25)] text-slate-900 my-auto"
         >
-          {/* Close Button */}
-          <button
-            onClick={onClose}
-            className="absolute top-6 right-6 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors cursor-pointer z-10"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          {/* Close Button / Mandatory indicator */}
+          {!isMandatory ? (
+            <button
+              onClick={onClose}
+              className="absolute top-6 right-6 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors cursor-pointer z-10"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          ) : (
+            <span className="absolute top-6 right-6 px-3 py-1 rounded-full text-[10px] font-bold bg-orange-100 text-[#E25C38] border border-orange-200 z-10">
+              Mandatory Setup
+            </span>
+          )}
 
           {/* Top Pill & Stepper */}
           <div className="flex items-center justify-between mb-6">

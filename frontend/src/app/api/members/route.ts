@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
                   verificationStatus: u.verification_status || 'verified',
                   skills: skillsStr,
                   bio: u.bio,
-                  avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+                  avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.name || u.email)}&backgroundColor=e25c38,1e293b&textColor=ffffff`,
                 },
               });
             }
@@ -260,7 +260,7 @@ export async function POST(req: NextRequest) {
         officeHours,
         topProjectUrl,
         topProjectDescription,
-        avatarUrl: avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+        avatarUrl: avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name || email)}&backgroundColor=e25c38,1e293b&textColor=ffffff`,
       },
     });
 

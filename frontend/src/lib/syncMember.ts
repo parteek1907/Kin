@@ -37,12 +37,15 @@ export async function syncMemberToDatabase(profile: Partial<MemberSyncPayload> &
     const fallbackHeadline = role === 'professional' ? 'Verified Tech Professional' : 'Student Builder';
     const fallbackInstitution = role === 'professional' ? 'Enterprise Tech' : 'IIIT Delhi';
 
+    const displayName = profile.name?.trim() || profile.email.split('@')[0];
+    const fallbackAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=e25c38,1e293b&textColor=ffffff`;
+
     await fetch('/api/members', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: profile.email.trim(),
-        name: profile.name?.trim() || profile.email.split('@')[0],
+        name: displayName,
         role,
         headline: profile.headline || fallbackHeadline,
         institution: profile.institution || fallbackInstitution,
@@ -59,9 +62,7 @@ export async function syncMemberToDatabase(profile: Partial<MemberSyncPayload> &
         officeHours: profile.officeHours,
         topProjectUrl: profile.topProjectUrl,
         topProjectDescription: profile.topProjectDescription,
-        avatarUrl:
-          profile.avatarUrl ||
-          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+        avatarUrl: profile.avatarUrl || fallbackAvatar,
       }),
     });
   } catch (err) {
