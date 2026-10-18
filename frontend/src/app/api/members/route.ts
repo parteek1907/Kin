@@ -8,6 +8,54 @@ export async function GET(req: NextRequest) {
   try {
     await ensureDatabaseSeeded();
 
+    // Dynamically synchronize any real users registered in backend database
+    try {
+      const backendRes = await fetch('http://localhost:8000/api/v1/auth/registered-users', {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(1500),
+      }).catch(() => null);
+
+      if (backendRes && backendRes.ok) {
+        const data = await backendRes.json();
+        if (data.success && Array.isArray(data.users)) {
+          for (const u of data.users) {
+            if (u.email) {
+              const skillsStr = Array.isArray(u.skills) ? JSON.stringify(u.skills) : '[]';
+              await prisma.member.upsert({
+                where: { email: u.email },
+                update: {
+                  name: u.name,
+                  role: u.role || 'student',
+                  headline: u.headline ?? undefined,
+                  institution: u.institution || 'IIIT Delhi',
+                  studentId: u.student_id ?? undefined,
+                  businessId: u.business_id ?? undefined,
+                  verificationStatus: u.verification_status || 'verified',
+                  skills: skillsStr,
+                  bio: u.bio ?? undefined,
+                },
+                create: {
+                  email: u.email,
+                  name: u.name,
+                  role: u.role || 'student',
+                  headline: u.headline || (u.role === 'student' ? 'Student Builder' : 'Tech Leader'),
+                  institution: u.institution || 'IIIT Delhi',
+                  studentId: u.student_id,
+                  businessId: u.business_id,
+                  verificationStatus: u.verification_status || 'verified',
+                  skills: skillsStr,
+                  bio: u.bio,
+                  avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+                },
+              });
+            }
+          }
+        }
+      }
+    } catch (err) {
+      // Non-fatal if backend is busy or restarting
+    }
+
     const { searchParams } = new URL(req.url);
     const role = searchParams.get('role'); // 'student' | 'professional' | 'alumni' | 'all'
     const search = searchParams.get('search')?.trim().toLowerCase();

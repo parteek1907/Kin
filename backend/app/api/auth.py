@@ -264,3 +264,32 @@ def firebase_sync(
         message=msg
     )
 
+
+@router.get(
+    "/registered-users",
+    summary="Get all registered users and profiles from platform database"
+)
+def get_registered_users(
+    db: Session = Depends(get_db)
+):
+    users = db.query(User).filter(User.is_active == True).all()
+    results = []
+    for u in users:
+        p = u.profile
+        results.append({
+            "id": u.id,
+            "email": u.email,
+            "firebase_uid": u.firebase_uid,
+            "name": p.full_name if p and p.full_name else u.email.split("@")[0],
+            "role": p.role.lower() if p and p.role else "student",
+            "headline": p.headline if p else None,
+            "institution": p.current_organization if p and p.current_organization else "IIIT Delhi",
+            "student_id": p.student_id if p else None,
+            "business_id": p.business_id if p else None,
+            "verification_status": p.verification_status if p else "verified",
+            "skills": p.skills if p and p.skills else [],
+            "bio": p.biography if p else None,
+        })
+    return {"success": True, "total": len(results), "users": results}
+
+

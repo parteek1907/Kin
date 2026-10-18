@@ -70,6 +70,39 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function syncMemberToDatabase(profile: Partial<UserProfile> & { email: string; name?: string }) {
+  if (!profile.email) return;
+  try {
+    await fetch('/api/members', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: profile.email.trim(),
+        name: profile.name?.trim() || profile.email.split('@')[0],
+        role: profile.userType === 'professional' || profile.role === 'Alumni' ? 'professional' : 'student',
+        headline: profile.headline || (profile.userType === 'professional' ? 'Verified Tech Professional' : 'Student Builder'),
+        institution: profile.institution || (profile.userType === 'professional' ? 'Enterprise Tech' : 'IIIT Delhi'),
+        studentId: profile.studentId,
+        businessId: profile.businessId,
+        bio: profile.summary,
+        skills: profile.skills || ['Full-Stack', 'TypeScript', 'Python'],
+        linkedinUrl: profile.linkedinUrl,
+        githubUrl: profile.githubUrl,
+        githubUsername: profile.githubUsername,
+        portfolioUrl: profile.portfolioUrl,
+        resumeName: profile.resumeName,
+        graduationYear: profile.graduationYear,
+        officeHours: profile.officeHours,
+        topProjectUrl: profile.topProjectUrl,
+        topProjectDescription: profile.topProjectDescription,
+        avatarUrl: profile.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+      }),
+    });
+  } catch (err) {
+    console.warn('Sync member to database notice:', err);
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -87,10 +120,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const storedProfile = localStorage.getItem('kin_parsed_profile');
       const storedRole = localStorage.getItem('kin_active_role');
       if (storedCompleted) {
-        setUser(JSON.parse(storedCompleted));
+        const u = JSON.parse(storedCompleted);
+        setUser(u);
+        syncMemberToDatabase(u);
       } else if (stored) {
         const parsedUser = JSON.parse(stored);
         setUser(parsedUser);
+        syncMemberToDatabase(parsedUser);
         if (parsedUser.role === 'Alumni' || parsedUser.userType === 'professional') {
           setActiveRoleState('Alumni');
         }
@@ -126,6 +162,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         console.error('Error storing updated profile:', err);
       }
+      // Save directly to live database
+      syncMemberToDatabase(updated);
       return updated;
     });
   };
@@ -163,6 +201,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
           console.error(err);
         }
+        // Save directly to live database
+        syncMemberToDatabase(updatedUser);
         return updatedUser;
       });
     }
@@ -172,6 +212,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser: FirebaseUser | null) => {
       setFirebaseUser(fbUser);
+      if (fbUser && fbUser.email) {
+        const derivedName = fbUser.displayName || fbUser.email.split('@')[0];
+        syncMemberToDatabase({
+          name: derivedName,
+          email: fbUser.email,
+          avatarUrl: fbUser.photoURL || undefined,
+          userType: 'student',
+          institution: 'IIIT Delhi',
+        });
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -248,6 +298,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error(e);
     }
 
+    // Persist directly to live database Member table
+    await syncMemberToDatabase({
+      name: payload.fullName,
+      email: payload.email,
+      role: chosenRole,
+      institution: payload.institutionOrCompany,
+      userType: payload.userType,
+      studentId: payload.studentId,
+      businessId: payload.businessId,
+      headline: payload.departmentOrTitle,
+    });
+
     setIsAuthModalOpen(false);
 
     const message = backendSuccess
@@ -276,6 +338,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error(e);
     }
+    // Persist directly to live database Member table
+    syncMemberToDatabase(newUser);
     setIsAuthModalOpen(false);
   };
 
